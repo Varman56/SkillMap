@@ -1,14 +1,3 @@
-"""OAuth-вход через Яндекс ID.
-
-Flow:
-1. Фронт открывает /api/auth/yandex/start — редирект на oauth.yandex.ru
-2. Пользователь логинится в Яндексе и разрешает доступ
-3. Яндекс редиректит на /api/auth/yandex/callback?code=...
-4. Бэк меняет code на access_token, получает email/имя, находит или создаёт User
-5. Бэк генерит одноразовый ticket, кладёт в кэш и редиректит на фронт:
-   /auth/yandex/success?ticket=<uuid>
-6. Фронт-страница делает POST /api/auth/yandex/claim {ticket}, получает JWT
-"""
 import json
 import secrets
 import urllib.parse
@@ -31,8 +20,7 @@ YANDEX_AUTHORIZE_URL = "https://oauth.yandex.ru/authorize"
 YANDEX_TOKEN_URL = "https://oauth.yandex.ru/token"
 YANDEX_USERINFO_URL = "https://login.yandex.ru/info"
 
-# Ticket живёт 60 секунд — достаточно чтобы фронт успел обменять его на JWT,
-# и слишком мало чтобы был полезен злоумышленнику.
+
 TICKET_TTL_SECONDS = 60
 STATE_TTL_SECONDS = 600
 
@@ -172,16 +160,13 @@ class YandexCallbackView(APIView):
 
     @staticmethod
     def _fail(message: str) -> HttpResponseRedirect:
-        # При ошибке возвращаем юзера на страницу логина с понятным сообщением
+        # При ошибке возвращаем юзера на страницу логина
         msg = urllib.parse.quote(message)
         return HttpResponseRedirect(f"/?yandex_error={msg}")
 
 
 class YandexClaimView(APIView):
-    """Фронт меняет одноразовый ticket на JWT.
 
-    Делается через POST с body {ticket}, чтобы ticket не попал в логи Nginx.
-    """
     permission_classes = [AllowAny]
     authentication_classes = []
 
@@ -200,7 +185,6 @@ class YandexClaimView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Одноразовость: удаляем сразу, чтобы повторный запрос не сработал
         cache.delete(f"yandex_ticket:{ticket}")
 
         return Response(

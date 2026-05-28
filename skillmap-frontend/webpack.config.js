@@ -6,6 +6,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, '../backend/spa'),
     filename: 'bundle.js',
+    publicPath: '/',
     clean: false,
   },
   module: {
@@ -19,7 +20,7 @@ module.exports = {
         exclude: /node_modules/,
         use: ['babel-loader'],
       },
-      // 👇 ДОБАВЬТЕ ЭТО ПРАВИЛО ДЛЯ ИЗОБРАЖЕНИЙ
+
       {
         test: /\.(png|jpe?g|gif|svg|webp)$/i,
         type: 'asset/resource',

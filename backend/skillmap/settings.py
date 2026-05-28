@@ -8,6 +8,18 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+# NetAngels: переменные окружения хранятся как отдельные файлы в etc/environment/.
+# uWSGI там запускается без шелла, поэтому .envrc не выполняется — подгрузим вручную.
+# Локально папка не существует, блок просто ничего не делает.
+_NETANGELS_ENV = BASE_DIR.parent / "etc" / "environment"
+if _NETANGELS_ENV.is_dir():
+    for _f in _NETANGELS_ENV.iterdir():
+        if _f.is_file() and _f.name.isidentifier():
+            try:
+                os.environ[_f.name] = _f.read_text().strip()
+            except Exception:
+                pass
+
 
 def _env_bool(name: str, default: bool = False) -> bool:
     raw = os.getenv(name)
@@ -67,10 +79,12 @@ WSGI_APPLICATION = "skillmap.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", "SkillMap"),
-        "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "your_password"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
+        # NetAngels Cloud Hosting автоматически создаёт переменные
+        # DBNAME/DBUSER/DBPASS/DBHOST. Берём их как fallback, чтобы не дублировать.
+        "NAME": os.getenv("DB_NAME") or os.getenv("DBNAME", "SkillMap"),
+        "USER": os.getenv("DB_USER") or os.getenv("DBUSER", "postgres"),
+        "PASSWORD": os.getenv("DB_PASSWORD") or os.getenv("DBPASS", "your_password"),
+        "HOST": os.getenv("DB_HOST") or os.getenv("DBHOST", "localhost"),
         "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
@@ -154,11 +168,34 @@ YANDEX_SUCCESS_REDIRECT = os.getenv(
 )
 
 # Кэш — нужен для одноразовых OAuth ticket'ов и CSRF state'ов.
-# LocMem подойдёт для разработки и для одного процесса в проде.
-# Для нескольких воркеров Gunicorn — заменить на Redis.
+# FileBasedCache, потому что под uWSGI/Gunicorn несколько worker-процессов,
+# и LocMemCache между ними не разделяется (state CSRF теряется).
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "skillmap-default",
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": str(BASE_DIR / "tmp_cache"),
     }
 }
+
+# Логи ошибок Django — в файл log/django.log (если папка log/ существует).
+_LOG_DIR = BASE_DIR.parent / "log"
+if _LOG_DIR.is_dir():
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "verbose": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+        },
+        "handlers": {
+            "file": {
+                "level": "ERROR",
+                "class": "logging.FileHandler",
+                "filename": str(_LOG_DIR / "django.log"),
+                "formatter": "verbose",
+            },
+        },
+        "loggers": {
+            "django": {"handlers": ["file"], "level": "ERROR", "propagate": True},
+            "django.request": {"handlers": ["file"], "level": "ERROR", "propagate": False},
+        },
+    }
