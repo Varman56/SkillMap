@@ -5,6 +5,9 @@ import avatarIcon from "../assets/icon-avatar.jpg";
 import menuIcon1 from "../assets/image-menu1.svg";
 import menuIcon2 from "../assets/image-menu2.svg";
 import uploadImg from "../assets/upload.svg";
+import { renderHeaderHTML, initHeader } from "../components/header.js";
+import API_CONFIG from "../config.js";
+
 
 
 const userData = {

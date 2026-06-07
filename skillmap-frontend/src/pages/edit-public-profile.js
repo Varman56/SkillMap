@@ -8,6 +8,9 @@ import editIcon from "../assets/edit.svg";
 import phone from "../assets/phone.svg";
 import email from "../assets/email.svg";
 import city from "../assets/city.svg";
+import { renderHeaderHTML, initHeader } from "../components/header.js";
+import API_CONFIG from "../config.js";
+
 
 // Импорт иконок для проектов
 import projectIcon1 from "../assets/Component-1.svg";
@@ -16,7 +19,6 @@ import projectIcon3 from "../assets/Component-3.svg";
 import projectIcon4 from "../assets/Component-4.svg";
 import projectIcon5 from "../assets/Component-5.svg";
 
-// Массив иконок для проектов
 const projectIcons = [projectIcon1, projectIcon2, projectIcon3, projectIcon4, projectIcon5];
 
 // Данные пользователя
@@ -80,30 +82,30 @@ export function renderEditPublicProfilePage() {
                 <a href="#">Кого спросить?</a>
             </nav>
         </div>
-        <div class="edit-public-container-avatar">
-            <div class="edit-public-avatar"></div>
-            <div class="edit-public-arrow-wrapper">
-                <img src="${arrowIcon}" alt="Стрелка" class="edit-public-arrow-icon" id="dropdownArrow">
-                <div class="edit-public-dropdown-menu" id="dropdownMenu">
-                    <div class="edit-public-dropdown-header">
-                        <div class="edit-public-dropdown-avatar"></div>
-                        <div class="edit-public-dropdown-info">
-                            <div class="edit-public-dropdown-name">${userData.name.split(' ')[0]} ${userData.name.split(' ')[1]}</div>
-                            <div class="edit-public-dropdown-role">${userData.role}</div>
+       <div class="profile-container-avatar">
+                            <div class="profile-avatar"></div>
+                            <div class="profile-arrow-wrapper">
+                                <img src="${arrowIcon}" alt="Стрелка" class="profile-arrow-icon" id="dropdownArrow">
+                                <div class="profile-dropdown-menu" id="dropdownMenu">
+                                    <div class="profile-dropdown-header">
+                                        <div class="profile-dropdown-avatar"></div>
+                                        <div class="profile-dropdown-info">
+                                            <div class="profile-dropdown-name">Дарья Федорова</div>
+                                            <div class="profile-dropdown-role">Дизайнер</div>
+                                        </div>
+                                    </div>
+                                    <div class="profile-dropdown-divider"></div>
+                                    <button class="profile-dropdown-item" id="editProfileBtn">
+                                        <img src="${menuIcon1}" alt="Редактировать" class="profile-dropdown-icon">
+                                        Редактировать профиль
+                                    </button>
+                                    <button class="profile-dropdown-item profile-logout" id="logoutBtn">
+                                        <img src="${menuIcon2}" alt="Выйти" class="profile-dropdown-icon">
+                                        Выйти
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="edit-public-dropdown-divider"></div>
-                    <button class="edit-public-dropdown-item" id="profileBtn">
-                        <img src="${menuIcon1}" alt="Профиль" class="edit-public-dropdown-icon">
-                        Мой профиль
-                    </button>
-                    <button class="edit-public-dropdown-item edit-public-logout" id="logoutBtn">
-                        <img src="${menuIcon2}" alt="Выйти" class="edit-public-dropdown-icon">
-                        Выйти
-                    </button>
-                </div>
-            </div>
-        </div>
     </header>
 
     <!-- ОСНОВНОЙ КОНТЕНТ -->

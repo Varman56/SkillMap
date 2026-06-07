@@ -199,64 +199,6 @@ padding:15px 140px;
 }
 
 
-
-@media (max-width: 1200px) {
-
-    .info-card {
-        max-width: 800px;
-    }
-
-}
-
-
-
-@media (max-width: 900px) {
-
-    .info-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
-
-    .info-actions {
-        flex-direction: column;
-    }
-
-    .info-save-btn,
-    .info-cancel-btn {
-        width: 100%;
-    }
-}
-
-
-
-@media (max-width: 768px) {
-
-    .info-main {
-        padding: 10px 14px 30px;
-    }
-
-    .info-card {
-        padding: 16px;
-    }
-
-    .info-title {
-        font-size: 20px;
-    }
-
-    .info-photo-row {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .info-avatar {
-        width: 84px;
-        height: 84px;
-    }
-
-}
-
-
-
 @media (max-width: 480px) {
 
     .info-card {
@@ -287,4 +229,234 @@ padding:15px 140px;
         font-size: 13px;
     }
 
+}
+@media (max-width: 768px) {
+    .edit-public-header {
+        padding: 10px 15px;
+    }
+
+    .edit-public-header-left {
+        padding: 6px 12px;
+        gap: 10px;
+    }
+
+    .edit-public-logo {
+        font-size: 18px;
+    }
+
+    .edit-public-nav a {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .profile-avatar {
+        width: 35px;
+        height: 35px;
+    }
+
+    .profile-arrow-icon {
+        width: 18px;
+        height: 18px;
+    }
+
+    .info-main {
+        padding: 15px;
+    }
+
+    .info-card {
+        padding: 20px;
+        border-radius: 15px;
+    }
+
+    .info-title {
+        font-size: 22px;
+        margin-bottom: 18px;
+    }
+
+    .info-section {
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+
+    .info-section-title {
+        font-size: 15px;
+        margin-bottom: 12px;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .info-field input {
+        height: 40px;
+        font-size: 13px;
+    }
+
+    .info-actions {
+        gap: 12px;
+    }
+
+    .info-save-btn,
+    .info-cancel-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+}
+
+/* Mobile (480px and below) */
+@media (max-width: 480px) {
+    .edit-public-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .edit-public-header-left {
+        width: 100%;
+        padding: 5px 10px;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .edit-public-logo {
+        font-size: 16px;
+    }
+
+    .edit-public-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .edit-public-nav a {
+        padding: 5px 8px;
+        font-size: 11px;
+    }
+
+    .profile-container-avatar {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .profile-avatar {
+        width: 32px;
+        height: 32px;
+    }
+
+    .profile-arrow-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .profile-dropdown-menu {
+        min-width: 180px;
+    }
+
+    .profile-dropdown-item {
+        font-size: 12px;
+        padding: 10px 14px;
+    }
+
+    .info-main {
+        padding: 10px;
+        max-height: calc(100vh - 80px);
+    }
+
+    .info-card {
+        padding: 15px;
+        border-radius: 15px;
+    }
+
+    .info-title {
+        font-size: 20px;
+        margin-bottom: 16px;
+    }
+
+    .info-section {
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+
+    .info-section-title {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .info-field label {
+        font-size: 13px;
+    }
+
+    .info-field input {
+        height: 38px;
+        font-size: 13px;
+        padding: 0 10px;
+    }
+
+    .info-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .info-save-btn,
+    .info-cancel-btn {
+        width: 100%;
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+}
+
+/* Extra small devices (320px) */
+@media (max-width: 320px) {
+    .edit-public-header-left {
+        padding: 4px 8px;
+    }
+
+    .edit-public-logo {
+        font-size: 14px;
+    }
+
+    .edit-public-nav a {
+        padding: 4px 6px;
+        font-size: 10px;
+    }
+
+    .info-card {
+        padding: 12px;
+    }
+
+    .info-title {
+        font-size: 18px;
+        margin-bottom: 14px;
+    }
+
+    .info-section {
+        padding: 10px;
+    }
+
+    .info-field input {
+        height: 36px;
+        font-size: 12px;
+    }
+}
+
+/* Large devices (1200px+) */
+@media (min-width: 1201px) {
+    .info-card {
+        max-width: 900px;
+    }
+
+    .info-title {
+        font-size: 28px;
+    }
+
+    .info-grid {
+        gap: 24px;
+    }
 }
