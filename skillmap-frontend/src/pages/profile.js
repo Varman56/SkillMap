@@ -307,7 +307,6 @@ export async function renderProfilePage() {
                 <div class="profile-modal-content">
                     <div class="profile-modal-header">
                         <h3>Добавить навык</h3>
-                        <button class="profile-modal-close add-modal-close" type="button">&times;</button>
                     </div>
 
                     <form id="addSkillForm">
