@@ -36,5 +36,13 @@ module.exports = {
     static: path.resolve(__dirname, 'dist'),
     hot: true,
     open: true,
+    historyApiFallback: true,
+    proxy: [
+      {
+        context: ['/api'],
+        target: 'http://host.docker.internal:5181',
+        changeOrigin: true,
+      },
+    ],
   },
 };

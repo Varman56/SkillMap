@@ -55,7 +55,7 @@ class User(AbstractBaseUser):
 
     class Meta:
         db_table = "Users"
-        managed = False
+        #managed = False
 
     def __str__(self) -> str:
         return f"{self.full_name} <{self.email}>"
@@ -88,7 +88,7 @@ class Skill(models.Model):
 
     class Meta:
         db_table = "Skills"
-        managed = False
+        #managed = False
 
     def __str__(self) -> str:
         return self.name
@@ -114,7 +114,7 @@ class UserSkill(models.Model):
 
     class Meta:
         db_table = "UserSkills"
-        managed = False
+        #managed = False
         unique_together = (("user", "skill"),)
 
 
@@ -128,7 +128,7 @@ class Project(models.Model):
 
     class Meta:
         db_table = "Projects"
-        managed = False
+        #managed = False
 
     def __str__(self) -> str:
         return self.name
@@ -152,5 +152,5 @@ class UserProject(models.Model):
 
     class Meta:
         db_table = "UserProjects"
-        managed = False
+        #managed = False
         unique_together = (("user", "project"),)

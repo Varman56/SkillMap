@@ -75,9 +75,23 @@ backend/
 | AskController.SearchBySkill | `GET /api/ask?skill=...` | auth |
 
 Swagger UI: `GET /api/docs/`
+## Запуск через docker-compose
+## запуск команд из корневой папки
+```bash
+copy .env.example .env #отредактировать переменные окружения
+copy backend\.env.example .env #отредактировать переменные окружения
+
+docker compose up --build #создание контейнеров c пересборкой образов(выполнить для запуска приложения)
+docker compose exec backend python manage.py seed_demo_data #запустить в терминале для заполнения тестовых данных
+
+docker compose down -v #остановка и удаление контейнеров и удаление volumes
+docker compose down #остановка и удаление контейнеров
+docker compose up #создание контейнеров без пересборки образов
+```
+API будет доступен на `http://localhost:5181/api/...`, фронт — на `http://localhost:5181/`.
 
 ## Запуск (dev)
-
+API на `http://localhost:5181/api/...`
 ```bash
 cd backend
 python -m venv .venv
@@ -86,14 +100,25 @@ pip install -r requirements.txt
 
 cp .env.example .env                # потом отредактируй пароль БД и SECRET_KEY
 
-# Создать служебные таблицы Django (auth_*, content_type, django_migrations).
-# Таблицы Users, Skills, ... НЕ создаются — они managed=False.
+docker compose up db
 python manage.py migrate
 
 python manage.py runserver 0.0.0.0:5181
 ```
 
-API будет доступен на `http://localhost:5181/api/...`, фронт — на `http://localhost:5181/`.
+## Запуск фронтенда в отдельном контейнере(должен быть запущен бэк)
+фронт будет на - `http://localhost:8080/`
+```bash
+cd skillmap-frontend
+
+docker run -it --rm -v ${PWD}:/app -w /app -p 8080:8080 node:24-slim sh #запуск контейнера Node.js для Windows
+docker run -it --rm --network host -v ${PWD}:/app -w /app node:24-slim sh #запуск контейнера Node.js для Linux
+
+# далее внутри контейнера выполнить
+npm install
+
+npm run dev
+```
 
 ## Изменения для фронтенда (cookie → JWT)
 
