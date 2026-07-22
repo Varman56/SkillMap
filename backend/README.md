@@ -1,11 +1,4 @@
-# SkillMap Backend (Django + DRF)
-
-Python-порт C# ASP.NET Core бэкенда. Сохраняет ту же схему PostgreSQL и
-ту же поверхность API, что и оригинал, поэтому существующий фронтенд
-работает без изменений (кроме перехода с cookie-сессий на JWT).
-
 ## Стек
-
 - Python 3.11+
 - Django 5.1 + Django REST Framework
 - `djangorestframework-simplejwt` — JWT (access + refresh)
@@ -44,9 +37,8 @@ backend/
 └── spa/                   # собранные ассеты SPA (bundle.js, css, картинки)
 ```
 
-## API endpoints (соответствие C# контроллерам)
+## API endpoints 
 
-| C# контроллер | Метод + URL | Кто может |
 |---|---|---|
 | AuthController.Login | `POST /api/auth/login` | все |
 | AuthController.Logout | `POST /api/auth/logout` | auth |
@@ -74,54 +66,67 @@ backend/
 | PublicProfilesController.GetProfile | `GET /api/public-profiles/{publicId}` | auth |
 | AskController.SearchBySkill | `GET /api/ask?skill=...` | auth |
 
-Swagger UI: `GET /api/docs/`
-## Запуск через docker-compose
-## запуск команд из корневой папки
+
+## Запуск через docker-compose (запуск команд из корневой папки)
+
 ```bash
-copy .env.example .env #отредактировать переменные окружения
+#1
 copy backend\.env.example .env #отредактировать переменные окружения
 
+#2
 docker compose up --build #создание контейнеров c пересборкой образов(выполнить для запуска приложения)
+
+#3
 docker compose exec backend python manage.py seed_demo_data #запустить в терминале для заполнения тестовых данных
 
+#дополнительные команды
 docker compose down -v #остановка и удаление контейнеров и удаление volumes
 docker compose down #остановка и удаление контейнеров
 docker compose up #создание контейнеров без пересборки образов
 ```
 API будет доступен на `http://localhost:5181/api/...`, фронт — на `http://localhost:5181/`.
+Swagger UI: `GET /api/docs/`
 
-## Запуск (dev)
+## Запуск бэкэнда
 API на `http://localhost:5181/api/...`
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+#1
+python -m venv backend/.venv
+.\backend\.venv\Scripts\activate
+pip install -r backend/requirements.txt
 
-cp .env.example .env                # потом отредактируй пароль БД и SECRET_KEY
+#2
+copy backend/.env.example backend/.env               # потом отредактируй пароль БД и SECRET_KEY
 
-docker compose up db
-python manage.py migrate
+#3
+docker compose up -d db #запуск базы данных
 
-python manage.py runserver 0.0.0.0:5181
+#для заполнения базы данными выполнить
+python backend/manage.py migrate 
+python backend/manage.py seed_demo_data
+
+#для запуска сервера выполнить
+python backend/manage.py runserver 0.0.0.0:5181
 ```
 
 ## Запуск фронтенда в отдельном контейнере(должен быть запущен бэк)
 фронт будет на - `http://localhost:8080/`
 ```bash
+#1
 cd skillmap-frontend
 
+#2
 docker run -it --rm -v ${PWD}:/app -w /app -p 8080:8080 node:24-slim sh #запуск контейнера Node.js для Windows
 docker run -it --rm --network host -v ${PWD}:/app -w /app node:24-slim sh #запуск контейнера Node.js для Linux
 
 # далее внутри контейнера выполнить
+#1
 npm install
-
+#2
 npm run dev
 ```
 
 ## Изменения для фронтенда (cookie → JWT)
-
 Старый бэкенд возвращал `Set-Cookie` после `/api/auth/login` и
 проверял cookies на каждом запросе.
 
@@ -147,14 +152,3 @@ npm run dev
 3. На logout: вызвать `POST /api/auth/logout` с телом `{"refresh": "..."}`
    (опционально, для blacklist) и удалить токены из хранилища.
 
-## Совместимость с существующей БД
-
-Все модели имеют `Meta.managed = False` и явно указанные
-`db_table` / `db_column` в PascalCase (как создавал EF Core).
-`python manage.py migrate` создаст только служебные таблицы Django,
-существующие `Users`, `Skills`, `UserSkills`, `Projects`, `UserProjects`
-не трогаются.
-
-Пароли в `Users.PasswordHash` хранятся в bcrypt-формате `$2a$12$...`
-(BCrypt.Net), Python `bcrypt` его читает напрямую — пользователи
-логинятся без сброса пароля.
