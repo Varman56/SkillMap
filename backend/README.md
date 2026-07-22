@@ -38,7 +38,7 @@ backend/
 ```
 
 ## API endpoints 
-
+| Method | Route | Доступ |
 |---|---|---|
 | AuthController.Login | `POST /api/auth/login` | все |
 | AuthController.Logout | `POST /api/auth/logout` | auth |
