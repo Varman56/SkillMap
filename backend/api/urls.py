@@ -1,7 +1,8 @@
-"""Сопоставление API-маршрутов C# контроллеров на Django views."""
+"""Сопоставление API-маршрутов на Django views."""
 from django.urls import path
+from drf_spectacular.utils import extend_schema
 from rest_framework_simplejwt.views import TokenRefreshView
-
+ 
 from .views.ask import AskView
 from .views.auth import LoginView, LogoutView, MeView
 from .views.matrix import MatrixView
@@ -21,28 +22,30 @@ from .views.skills import (
     MySkillLevelView,
     MySkillsView,
 )
-from .views.users import UserByPublicIdView, UsersListCreateView
-
+from .views.users import UserDetailView, UsersListCreateView
+ 
+TokenRefreshViewTagged = extend_schema(tags=["Auth"])(TokenRefreshView)
+ 
 urlpatterns = [
     # auth
     path("auth/login", LoginView.as_view(), name="auth-login"),
     path("auth/logout", LogoutView.as_view(), name="auth-logout"),
     path("auth/me", MeView.as_view(), name="auth-me"),
-    path("auth/refresh", TokenRefreshView.as_view(), name="auth-refresh"),
-
+    path("auth/refresh", TokenRefreshViewTagged.as_view(), name="auth-refresh"),
+ 
     # Яндекс OAuth
     path("auth/yandex/start", YandexStartView.as_view(), name="auth-yandex-start"),
     path("auth/yandex/callback", YandexCallbackView.as_view(), name="auth-yandex-callback"),
     path("auth/yandex/claim", YandexClaimView.as_view(), name="auth-yandex-claim"),
-
+ 
     # users (HR)
     path("users", UsersListCreateView.as_view(), name="users"),
     path(
-        "users/<uuid:public_id>",
-        UserByPublicIdView.as_view(),
-        name="user-by-public-id",
+        "users/<int:user_id>",
+        UserDetailView.as_view(),
+        name="user-detail",
     ),
-
+ 
     # skills
     path("skills/available", AvailableSkillsView.as_view(), name="skills-available"),
     path("skills", AllSkillsView.as_view(), name="skills"),
@@ -57,14 +60,14 @@ urlpatterns = [
         MySkillLevelView.as_view(),
         name="skills-my-level",
     ),
-
+ 
     # me
     path("me/dashboard", MyDashboardView.as_view(), name="me-dashboard"),
     path("me/skills", MySkillsListView.as_view(), name="me-skills"),
-
+ 
     # matrix (HR/Manager)
     path("matrix", MatrixView.as_view(), name="matrix"),
-
+ 
     # projects
     path("projects", ProjectsListCreateView.as_view(), name="projects"),
     path(
@@ -78,18 +81,18 @@ urlpatterns = [
         name="project-members",
     ),
     path(
-        "projects/<int:project_id>/members/<uuid:public_id>",
+        "projects/<int:project_id>/members/<int:user_id>",
         ProjectMemberDetailView.as_view(),
         name="project-member-detail",
     ),
-
+ 
     # public profiles
     path(
-        "public-profiles/<uuid:public_id>",
+        "public-profiles/<int:user_id>",
         PublicProfileView.as_view(),
         name="public-profile",
     ),
-
+ 
     # ask (search)
     path("ask", AskView.as_view(), name="ask"),
 ]
