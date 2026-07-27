@@ -128,3 +128,198 @@ class CreateProjectRequestSerializer(serializers.Serializer):
  
 class AddMemberRequestSerializer(serializers.Serializer):
     userId = serializers.IntegerField()
+ 
+ 
+# ------------------------------------------------------------------
+# Ниже — сериализаторы только для документации (OpenAPI/Swagger).
+# Views по-прежнему возвращают обычные dict через Response(...), но
+# drf-spectacular использует эти классы, чтобы нарисовать точную схему
+# ответа вместо "unable to guess serializer".
+# ------------------------------------------------------------------
+ 
+class SuccessResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+ 
+ 
+class ErrorResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(required=False)
+    error = serializers.CharField(required=False)
+    detail = serializers.CharField(required=False)
+ 
+ 
+class LoginResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    user = UserPublicSerializer()
+    tokens = SkillmapTokens()
+ 
+ 
+class LogoutRequestSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=False, allow_blank=True)
+ 
+ 
+class YandexClaimRequestSerializer(serializers.Serializer):
+    ticket = serializers.CharField()
+ 
+ 
+class YandexClaimResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    user = UserPublicSerializer()
+    tokens = SkillmapTokens()
+ 
+ 
+class ProjectMemberSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    fullName = serializers.CharField()
+    position = serializers.CharField(allow_null=True, required=False)
+    joinedAt = serializers.DateTimeField()
+ 
+ 
+class ProjectSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    description = serializers.CharField(allow_null=True, required=False)
+    status = serializers.CharField()
+    startDate = serializers.DateTimeField(allow_null=True, required=False)
+    endDate = serializers.DateTimeField(allow_null=True, required=False)
+    memberCount = serializers.IntegerField()
+    members = ProjectMemberSerializer(many=True)
+ 
+ 
+class ProjectCreatedSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    status = serializers.CharField()
+ 
+ 
+class MyDashboardSkillSerializer(serializers.Serializer):
+    userSkillId = serializers.IntegerField()
+    skillId = serializers.IntegerField()
+    name = serializers.CharField()
+    category = serializers.CharField()
+    level = serializers.CharField()
+    isApproved = serializers.BooleanField()
+    createdAt = serializers.DateTimeField()
+    updatedAt = serializers.DateTimeField(allow_null=True)
+ 
+ 
+class MyDashboardProjectSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    description = serializers.CharField(allow_null=True, required=False)
+    status = serializers.CharField()
+    startDate = serializers.DateTimeField(allow_null=True, required=False)
+    endDate = serializers.DateTimeField(allow_null=True, required=False)
+    joinedAt = serializers.DateTimeField()
+ 
+ 
+class MyDashboardStatsSerializer(serializers.Serializer):
+    totalSkills = serializers.IntegerField()
+    seniorCount = serializers.IntegerField()
+    middleCount = serializers.IntegerField()
+    juniorCount = serializers.IntegerField()
+ 
+ 
+class MyDashboardResponseSerializer(serializers.Serializer):
+    user = UserPublicSerializer()
+    stats = MyDashboardStatsSerializer()
+    skills = MyDashboardSkillSerializer(many=True)
+    projects = MyDashboardProjectSerializer(many=True)
+ 
+ 
+class UserSkillActionResponseSerializer(serializers.Serializer):
+    Id = serializers.IntegerField()
+    SkillId = serializers.IntegerField()
+    Name = serializers.CharField(required=False)
+    name = serializers.CharField(required=False)
+    Category = serializers.CharField(required=False)
+    category = serializers.CharField(required=False)
+    Level = serializers.CharField()
+    IsApproved = serializers.BooleanField(required=False)
+    CreatedAt = serializers.DateTimeField()
+    UpdatedAt = serializers.DateTimeField(allow_null=True)
+ 
+ 
+class MatrixSkillRefSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    category = serializers.CharField()
+ 
+ 
+class MatrixEmployeeSkillSerializer(serializers.Serializer):
+    skillId = serializers.IntegerField()
+    skillName = serializers.CharField()
+    skillCategory = serializers.CharField()
+    level = serializers.CharField()
+    createdAt = serializers.DateTimeField()
+    updatedAt = serializers.DateTimeField(allow_null=True)
+ 
+ 
+class MatrixEmployeeSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    fullName = serializers.CharField()
+    position = serializers.CharField(allow_null=True, required=False)
+    department = serializers.CharField()
+    role = serializers.CharField()
+    isIntern = serializers.BooleanField()
+    skills = MatrixEmployeeSkillSerializer(many=True)
+ 
+ 
+class MatrixStatsSerializer(serializers.Serializer):
+    totalEmployees = serializers.IntegerField()
+    uniqueSkills = serializers.IntegerField()
+    experts = serializers.IntegerField()
+    interns = serializers.IntegerField()
+    seniorCount = serializers.IntegerField()
+    middleCount = serializers.IntegerField()
+    juniorCount = serializers.IntegerField()
+ 
+ 
+class MatrixResponseSerializer(serializers.Serializer):
+    stats = MatrixStatsSerializer()
+    departments = serializers.ListField(child=serializers.CharField())
+    skills = MatrixSkillRefSerializer(many=True)
+    employees = MatrixEmployeeSerializer(many=True)
+ 
+ 
+class PublicProfileUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    email = serializers.EmailField()
+    fullName = serializers.CharField()
+    position = serializers.CharField(allow_null=True, required=False)
+    department = serializers.CharField()
+    role = serializers.CharField()
+ 
+ 
+class PublicProfileSkillSerializer(serializers.Serializer):
+    userSkillId = serializers.IntegerField()
+    skillId = serializers.IntegerField()
+    name = serializers.CharField()
+    category = serializers.CharField()
+    level = serializers.CharField()
+    createdAt = serializers.DateTimeField()
+    updatedAt = serializers.DateTimeField(allow_null=True)
+ 
+ 
+class PublicProfileProjectSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    description = serializers.CharField(allow_null=True, required=False)
+    status = serializers.CharField()
+    startDate = serializers.DateTimeField(allow_null=True, required=False)
+    endDate = serializers.DateTimeField(allow_null=True, required=False)
+    joinedAt = serializers.DateTimeField()
+ 
+ 
+class PublicProfileResponseSerializer(serializers.Serializer):
+    user = PublicProfileUserSerializer()
+    skills = PublicProfileSkillSerializer(many=True)
+    projects = PublicProfileProjectSerializer(many=True)
+ 
+ 
+class AskResultSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    fullName = serializers.CharField()
+    position = serializers.CharField(allow_null=True, required=False)
+    department = serializers.CharField()
+    level = serializers.CharField()
+    matchingSkills = serializers.ListField(child=serializers.CharField())

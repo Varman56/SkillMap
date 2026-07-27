@@ -1,13 +1,19 @@
 """/api/public-profiles/{user_id} — публичный профиль сотрудника."""
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
- 
+
 from ..helpers import LEVEL_LABELS, skill_category_name
 from ..models import User, UserProject, UserSkill
- 
- 
+from ..serializers import ErrorResponseSerializer, PublicProfileResponseSerializer
+
+
 class PublicProfileView(APIView):
+    @extend_schema(
+        operation_id="public_profiles_retrieve",
+        responses={200: PublicProfileResponseSerializer, 404: ErrorResponseSerializer},
+    )
     def get(self, request, user_id: int):
         try:
             user = User.objects.get(id=user_id)
@@ -16,19 +22,19 @@ class PublicProfileView(APIView):
                 {"error": "Пользователь не найден"},
                 status=status.HTTP_404_NOT_FOUND,
             )
- 
+
         skills = (
             UserSkill.objects.select_related("skill")
             .filter(user_id=user.id, skill__isnull=False)
             .order_by("skill__name")
         )
- 
+
         projects = (
             UserProject.objects.select_related("project")
             .filter(user_id=user.id)
             .order_by("project__name")
         )
- 
+
         return Response(
             {
                 "user": {

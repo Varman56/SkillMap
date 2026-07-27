@@ -1,16 +1,24 @@
 """/api/projects — CRUD проектов и управление участниками."""
 from django.db import IntegrityError
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
- 
+
 from ..models import Project, User, UserProject
 from ..permissions import IsHROrManager
-from ..serializers import AddMemberRequestSerializer, CreateProjectRequestSerializer
- 
- 
+from ..serializers import (
+    AddMemberRequestSerializer,
+    CreateProjectRequestSerializer,
+    ErrorResponseSerializer,
+    ProjectCreatedSerializer,
+    ProjectSerializer,
+    SuccessResponseSerializer,
+)
+
+
 def _serialize_project_with_members(project: Project) -> dict:
     members = list(project.project_users.select_related("user").all())
     return {
@@ -31,35 +39,48 @@ def _serialize_project_with_members(project: Project) -> dict:
             for m in members
         ],
     }
- 
- 
+
+
 class ProjectsListCreateView(APIView):
     permission_classes = [IsAuthenticated]
- 
+
+    @extend_schema(
+        operation_id="projects_list",
+        responses={200: ProjectSerializer(many=True)},
+    )
     def get(self, request):
         projects = Project.objects.prefetch_related(
             "project_users__user"
         ).order_by("name")
         return Response([_serialize_project_with_members(p) for p in projects])
- 
+
+    @extend_schema(
+        operation_id="projects_create",
+        request=CreateProjectRequestSerializer,
+        responses={
+            200: ProjectCreatedSerializer,
+            400: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         if not request.user.has_role("HR", "Manager"):
             return Response(
                 {"detail": "Только для HR и Manager"},
                 status=status.HTTP_403_FORBIDDEN,
             )
- 
+
         serializer = CreateProjectRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
- 
+
         name = (serializer.validated_data.get("name") or "").strip()
         if not name:
             return Response(
                 {"error": "Название проекта обязательно"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
- 
+
         project = Project.objects.create(
             name=name,
             description=(serializer.validated_data.get("description") or "").strip(),
@@ -70,11 +91,15 @@ class ProjectsListCreateView(APIView):
         return Response(
             {"id": project.id, "name": project.name, "status": project.status}
         )
- 
- 
+
+
 class ProjectDetailView(APIView):
     permission_classes = [IsAuthenticated]
- 
+
+    @extend_schema(
+        operation_id="projects_retrieve",
+        responses={200: ProjectSerializer, 404: None},
+    )
     def get(self, request, project_id: int):
         try:
             project = Project.objects.prefetch_related("project_users__user").get(
@@ -83,24 +108,34 @@ class ProjectDetailView(APIView):
         except Project.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(_serialize_project_with_members(project))
- 
+
+    @extend_schema(
+        operation_id="projects_update",
+        request=CreateProjectRequestSerializer,
+        responses={
+            200: ProjectCreatedSerializer,
+            400: ErrorResponseSerializer,
+            403: ErrorResponseSerializer,
+            404: None,
+        },
+    )
     def put(self, request, project_id: int):
         if not request.user.has_role("HR", "Manager"):
             return Response(
                 {"detail": "Только для HR и Manager"},
                 status=status.HTTP_403_FORBIDDEN,
             )
- 
+
         try:
             project = Project.objects.get(id=project_id)
         except Project.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
- 
+
         serializer = CreateProjectRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         data = serializer.validated_data
- 
+
         name = (data.get("name") or "").strip()
         if name:
             project.name = name
@@ -112,38 +147,51 @@ class ProjectDetailView(APIView):
             project.start_date = data["startDate"]
         if data.get("endDate") is not None:
             project.end_date = data["endDate"]
- 
+
         project.save()
         return Response(
             {"id": project.id, "name": project.name, "status": project.status}
         )
- 
+
+    @extend_schema(
+        operation_id="projects_delete",
+        responses={204: None, 403: ErrorResponseSerializer, 404: None},
+    )
     def delete(self, request, project_id: int):
         if not request.user.has_role("HR", "Manager"):
             return Response(
                 {"detail": "Только для HR и Manager"},
                 status=status.HTTP_403_FORBIDDEN,
             )
- 
+
         deleted, _ = Project.objects.filter(id=project_id).delete()
         if deleted == 0:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
- 
- 
+
+
 class ProjectMembersView(APIView):
     permission_classes = [IsHROrManager]
- 
+
+    @extend_schema(
+        operation_id="projects_members_add",
+        request=AddMemberRequestSerializer,
+        responses={
+            200: SuccessResponseSerializer,
+            404: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+        },
+    )
     def post(self, request, project_id: int):
         if not Project.objects.filter(id=project_id).exists():
             return Response(
                 {"error": "Проект не найден"}, status=status.HTTP_404_NOT_FOUND
             )
- 
+
         serializer = AddMemberRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
- 
+
         try:
             user = User.objects.get(id=serializer.validated_data["userId"])
         except User.DoesNotExist:
@@ -151,13 +199,13 @@ class ProjectMembersView(APIView):
                 {"error": "Пользователь не найден"},
                 status=status.HTTP_404_NOT_FOUND,
             )
- 
+
         if UserProject.objects.filter(user_id=user.id, project_id=project_id).exists():
             return Response(
                 {"error": "Пользователь уже состоит в этом проекте"},
                 status=status.HTTP_409_CONFLICT,
             )
- 
+
         try:
             UserProject.objects.create(
                 user_id=user.id,
@@ -170,11 +218,15 @@ class ProjectMembersView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
         return Response({"success": True})
- 
- 
+
+
 class ProjectMemberDetailView(APIView):
     permission_classes = [IsHROrManager]
- 
+
+    @extend_schema(
+        operation_id="projects_members_remove",
+        responses={204: None, 404: None},
+    )
     def delete(self, request, project_id: int, user_id: int):
         deleted, _ = UserProject.objects.filter(
             user_id=user_id, project_id=project_id

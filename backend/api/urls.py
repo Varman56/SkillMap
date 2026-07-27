@@ -24,7 +24,7 @@ from .views.skills import (
 )
 from .views.users import UserDetailView, UsersListCreateView
  
-TokenRefreshViewTagged = extend_schema(tags=["Auth"])(TokenRefreshView)
+TokenRefreshViewTagged = extend_schema(tags=["auth"])(TokenRefreshView)
  
 urlpatterns = [
     # auth

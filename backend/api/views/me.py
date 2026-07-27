@@ -1,9 +1,18 @@
 """/api/me/* — данные текущего пользователя."""
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
  
 from ..helpers import LEVEL_LABELS, skill_category_name
 from ..models import User, UserProject, UserSkill
+from ..serializers import MyDashboardResponseSerializer, MyDashboardSkillSerializer
+ 
+SEARCH_PARAM = OpenApiParameter(
+    name="search",
+    description="Фильтр по названию навыка (подстрока, без учёта регистра)",
+    required=False,
+    type=str,
+)
  
  
 def _serialize_user(user: User) -> dict:
@@ -28,6 +37,11 @@ def _count_levels(qs) -> dict:
  
  
 class MyDashboardView(APIView):
+    @extend_schema(
+        operation_id="me_dashboard",
+        parameters=[SEARCH_PARAM],
+        responses={200: MyDashboardResponseSerializer},
+    )
     def get(self, request):
         user: User = request.user
         search = (request.query_params.get("search") or "").strip().lower()
@@ -78,6 +92,11 @@ class MyDashboardView(APIView):
  
  
 class MySkillsListView(APIView):
+    @extend_schema(
+        operation_id="me_skills_list",
+        parameters=[SEARCH_PARAM],
+        responses={200: MyDashboardSkillSerializer(many=True)},
+    )
     def get(self, request):
         user: User = request.user
         search = (request.query_params.get("search") or "").strip().lower()

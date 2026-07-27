@@ -1,15 +1,21 @@
 """/api/matrix — матрица компетенций сотрудников (Manager/HR)."""
+from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
  
 from ..helpers import LEVEL_LABELS, skill_category_map
 from ..models import Skill, User
 from ..permissions import IsHROrManager
+from ..serializers import MatrixResponseSerializer
  
  
 class MatrixView(APIView):
     permission_classes = [IsHROrManager]
  
+    @extend_schema(
+        operation_id="matrix_retrieve",
+        responses={200: MatrixResponseSerializer},
+    )
     def get(self, request):
         users = list(
             User.objects.prefetch_related("user_skills__skill", "departments", "roles")

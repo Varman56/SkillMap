@@ -2,11 +2,11 @@ import json
 import secrets
 import urllib.parse
 import urllib.request
-from urllib.error import URLError
  
 from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpResponseRedirect
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -14,7 +14,13 @@ from rest_framework.views import APIView
  
 from ..helpers import assign_role
 from ..models import User
-from ..serializers import UserPublicSerializer, issue_tokens_for_user
+from ..serializers import (
+    ErrorResponseSerializer,
+    UserPublicSerializer,
+    YandexClaimRequestSerializer,
+    YandexClaimResponseSerializer,
+    issue_tokens_for_user,
+)
  
 YANDEX_AUTHORIZE_URL = "https://oauth.yandex.ru/authorize"
 YANDEX_TOKEN_URL = "https://oauth.yandex.ru/token"
@@ -36,6 +42,7 @@ class YandexStartView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
  
+    @extend_schema(exclude=True)  # чистый браузерный редирект, не JSON-эндпоинт
     def get(self, request):
         if not _yandex_config_ok():
             return Response(
@@ -64,6 +71,7 @@ class YandexCallbackView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
  
+    @extend_schema(exclude=True)  # чистый браузерный редирект, не JSON-эндпоинт
     def get(self, request):
         if request.query_params.get("error"):
             return self._fail(request.query_params.get("error_description") or "Отказано в доступе")
@@ -168,6 +176,15 @@ class YandexClaimView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
  
+    @extend_schema(
+        operation_id="auth_yandex_claim",
+        request=YandexClaimRequestSerializer,
+        responses={
+            200: YandexClaimResponseSerializer,
+            400: ErrorResponseSerializer,
+            404: ErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         ticket = (request.data.get("ticket") or "").strip() if isinstance(request.data, dict) else ""
         if not ticket:

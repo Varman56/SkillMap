@@ -2,15 +2,29 @@
 from collections import defaultdict
  
 from django.db.models import Q
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
  
 from ..models import UserSkill
+from ..serializers import AskResultSerializer
  
 LEVEL_TO_UI = {1: "experienced", 2: "advanced", 3: "expert"}
  
  
 class AskView(APIView):
+    @extend_schema(
+        operation_id="ask_search",
+        parameters=[
+            OpenApiParameter(
+                name="skill",
+                description="Название навыка (или части названия/категории) для поиска сотрудников",
+                required=False,
+                type=str,
+            ),
+        ],
+        responses=AskResultSerializer(many=True),
+    )
     def get(self, request):
         skill_q = (request.query_params.get("skill") or "").strip().lower()
         if not skill_q:
