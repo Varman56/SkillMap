@@ -1,7 +1,7 @@
-
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from api.helpers import assign_department, assign_role, attach_skill_to_category
 from api.models import Project, Skill, User, UserProject, UserSkill
 
 DEMO_PASSWORD = "test1234"
@@ -52,17 +52,18 @@ class Command(BaseCommand):
                 email=data["email"],
                 defaults={
                     "full_name": data["full_name"],
-                    "role": data["role"],
                     "position": data["position"],
-                    "department": data["department"],
+                    "is_active": True,
                 },
             )
             if created:
                 user.set_password(DEMO_PASSWORD)
                 user.save()
-                self.stdout.write(self.style.SUCCESS(f"Создан пользователь: {user.email} ({user.role})"))
+                assign_role(user, data["role"])
+                assign_department(user, data["department"])
+                self.stdout.write(self.style.SUCCESS(f"Создан пользователь: {user.email} ({data['role']})"))
             else:
-                self.stdout.write(f"Уже существует: {user.email} ({user.role})")
+                self.stdout.write(f"Уже существует: {user.email} ({data['role']})")
             users[data["role"]] = user
 
         # --- Скиллы ---
@@ -70,14 +71,15 @@ class Command(BaseCommand):
         for data in DEMO_SKILLS:
             skill, created = Skill.objects.get_or_create(
                 name=data["name"],
-                defaults={"category": data["category"], "is_active": True},
+                defaults={"is_active": True},
             )
-            skills.append(skill)
             if created:
+                attach_skill_to_category(skill, data["category"])
                 self.stdout.write(self.style.SUCCESS(f"Создан скилл: {skill.name}"))
+            skills.append(skill)
 
         # --- Скиллы у Manager и Employee ---
-        levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
+        levels = [1, 2, 3]  # Junior, Middle, Senior — по кругу
         for role in ("Manager", "Employee"):
             user = users[role]
             for i, skill in enumerate(skills):
@@ -86,7 +88,7 @@ class Command(BaseCommand):
                     skill=skill,
                     defaults={
                         "level": levels[i % len(levels)],
-                        "created_at": now,
+                        "is_approved": True,
                     },
                 )
         self.stdout.write(self.style.SUCCESS("Скиллы привязаны к Manager и Employee"))
