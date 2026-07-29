@@ -7,6 +7,8 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from api.views.profile_page import profile_page
+
 urlpatterns = [
     path("api/", include("api.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
@@ -14,6 +16,17 @@ urlpatterns = [
         "api/docs/",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
+    ),
+    # Отдельная HTML-страница профиля (не API, обычный Django-темплейт).
+    # Должна стоять ДО catch-all'ов SPA ниже, иначе их re_path перехватит путь первым.
+    path("profile/<int:user_id>/", profile_page, name="profile-page"),
+    # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.
+    # Тоже должно стоять ДО spa-assets, иначе тот catch-all перехватит /media/*.jpg первым.
+    re_path(
+        r"^media/(?P<path>.+)$",
+        serve,
+        {"document_root": settings.MEDIA_ROOT},
+        name="media",
     ),
     # Отдаём SPA-ассеты (bundle.js, картинки, css) из backend/spa/
     # по корневому пути: /bundle.js, /css/site.css и т.п.

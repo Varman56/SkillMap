@@ -1,4 +1,5 @@
 """/api/auth/* — логин, логаут, текущий пользователь."""
+from django.contrib.auth import login as django_login, logout as django_logout
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -56,8 +57,21 @@ class LoginView(APIView):
                 {"success": False, "message": "Неверная почта или пароль"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+        if not user.is_active:
+            return Response(
+                {"success": False, "message": "Аккаунт деактивирован"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
  
         tokens = issue_tokens_for_user(user)
+
+        # Кроме JWT (основной механизм для SPA/API) заводим Django-сессию.
+        # Она нужна для legacy HTML-страницы /profile/<id>/, которая не
+        # читает Authorization-заголовок и полагается на request.user.
+        user.backend = "api.auth_backends.EmailBackend"
+        django_login(request, user)
+
         return Response(
             {
                 "success": True,
@@ -85,6 +99,7 @@ class LogoutView(APIView):
                 RefreshToken(refresh_raw).blacklist()
             except (TokenError, AttributeError):
                 pass
+        django_logout(request)
         return Response({"success": True})
  
  

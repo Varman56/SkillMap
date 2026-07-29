@@ -4,6 +4,7 @@ import urllib.parse
 import urllib.request
  
 from django.conf import settings
+from django.contrib.auth import login as django_login
 from django.core.cache import cache
 from django.http import HttpResponseRedirect
 from drf_spectacular.utils import extend_schema
@@ -121,6 +122,12 @@ class YandexCallbackView(APIView):
             assign_role(user, "Employee")
  
         tokens = issue_tokens_for_user(user)
+
+        # Как и при обычном логине, заводим Django-сессию — нужна для
+        # legacy-страницы /profile/<id>/.
+        user.backend = "api.auth_backends.EmailBackend"
+        django_login(request, user)
+
         ticket = secrets.token_urlsafe(32)
         cache.set(
             f"yandex_ticket:{ticket}",

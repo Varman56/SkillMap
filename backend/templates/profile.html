@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Профиль — {{ profile_user.full_name }}</title>
+</head>
+<body>
+
+    {% if messages %}
+        <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <h1>Профиль: {{ profile_user.full_name }}</h1>
+
+    <h2>Основные данные</h2>
+    <ul>
+        <li>Email: {{ profile_user.email }}</li>
+        <li>Должность: {{ profile_user.position|default:"—" }}</li>
+        <li>Отдел: {{ departments_str }}</li>
+        <li>Телефон: {{ profile_user.phone|default:"—" }}</li>
+        <li>Город: {{ profile_user.city|default:"—" }}</li>
+        <li>О себе: {{ profile_user.about|default:"—" }}</li>
+        <li>
+            Фото:
+            {% if profile_user.photo %}<a href="{{ profile_user.photo }}">ссылка</a>{% else %}—{% endif %}
+        </li>
+        <li>
+            Резюме:
+            {% if profile_user.resume %}<a href="{{ profile_user.resume }}">ссылка</a>{% else %}—{% endif %}
+        </li>
+    </ul>
+
+    <h2>Навыки</h2>
+    {% if skills %}
+        <table border="1" cellpadding="4">
+            {% for skill in skills %}
+                <tr>
+                    <td>{{ skill.display_name }}</td>
+                    <td>{% if skill.is_approved %}подтверждён{% else %}не подтверждён{% endif %}</td>
+                    {% if can_edit %}
+                    <td>
+                        <form method="post" style="display:inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_skill">
+                            <input type="hidden" name="user_skill_id" value="{{ skill.user_skill_id }}">
+                            <select name="level">
+                                {% for lvl in levels %}
+                                    <option value="{{ lvl }}" {% if lvl == skill.level %}selected{% endif %}>{{ lvl }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit">Сохранить уровень</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" style="display:inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_skill">
+                            <input type="hidden" name="user_skill_id" value="{{ skill.user_skill_id }}">
+                            <button type="submit">Удалить</button>
+                        </form>
+                    </td>
+                    {% else %}
+                    <td>{{ skill.level_label }}</td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>Навыков пока нет.</p>
+    {% endif %}
+
+    {% if can_edit %}
+    <h3>Добавить навык</h3>
+    {% if available_skills %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_skill">
+            <select name="skill_id">
+                {% for available in available_skills %}
+                    <option value="{{ available.id }}">{{ available.display_name }}</option>
+                {% endfor %}
+            </select>
+            <select name="level">
+                {% for lvl in levels %}
+                    <option value="{{ lvl }}">{{ lvl }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Добавить</button>
+        </form>
+    {% endif %}
+    {% endif %}
+
+    <h2>Проекты</h2>
+    <form method="get">
+        <input type="text" name="search" value="{{ search }}" placeholder="Поиск по названию проекта">
+        <button type="submit">Поиск</button>
+        {% if search %}<a href="?">Сбросить</a>{% endif %}
+    </form>
+    {% if projects %}
+        <ul>
+            {% for project in projects %}
+                <li><strong>{{ project.name }}</strong> — {{ project.description|default:"—" }}</li>
+            {% endfor %}
+        </ul>
+    {% elif search %}
+        <p>По запросу «{{ search }}» ничего не найдено.</p>
+    {% endif %}
+
+    {% if can_edit %}
+    <h2>Редактировать профиль</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_profile">
+        <p>
+            <label>Телефон:</label><br>
+            <input type="text" name="phone" value="{{ profile_user.phone|default:'' }}">
+        </p>
+        <p>
+            <label>Город:</label><br>
+            <input type="text" name="city" value="{{ profile_user.city|default:'' }}">
+        </p>
+        <p>
+            <label>О себе:</label><br>
+            <textarea name="about">{{ profile_user.about|default:'' }}</textarea>
+        </p>
+        <p>
+            <label>Фото (JPEG/PNG/WEBP, до 5MB):</label><br>
+            <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+        </p>
+        <p>
+            <label>Резюме (PDF или DOCX):</label><br>
+            <input type="file" name="resume" accept=".pdf,.docx">
+        </p>
+        <button type="submit">Сохранить</button>
+    </form>
+    {% endif %}
+
+</body>
+</html>
