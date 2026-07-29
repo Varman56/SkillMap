@@ -255,7 +255,7 @@ class UserSkill(models.Model):
         related_name="skill_users",
     )
     level = models.SmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(3)]
+        validators=[MinValueValidator(1), MaxValueValidator(4)]
     )
     is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
