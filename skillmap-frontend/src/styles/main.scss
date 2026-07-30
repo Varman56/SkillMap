@@ -1,6 +1,9 @@
-body{
+@charset "UTF-8";
+
+body {
   margin: 0;
 }
+
 .main-container {
   margin: 0;
   color: #535353;
@@ -8,51 +11,70 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-
-/* контейнер */
+/* Контейнер карточки */
 .auth-container {
   background: #FFFFFF;
   padding: 31px;
   border-radius: 20px;
-  width: 452px;
-  height: 610px;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+  width: 100%;
+  max-width: 452px;
+  min-height: 610px;
+  height: auto;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
   text-align: center;
-  font-family: 'Cabin', sans-serif;
+  font-family: "Cabin", sans-serif;
+  box-sizing: border-box;
 }
 
-/* заголовок */
+.hidden {
+  display: none !important;
+}
+
+/* Заголовок и подзаголовок */
 .title {
   font-size: 36px;
   font-weight: bold;
-  font-family: 'Amiko', sans-serif;
+  font-family: "Amiko", sans-serif;
   background: linear-gradient(90deg, #39376C, #e097ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin: 0;
-
-  /* для совместимости */
   background-clip: text;
   color: transparent;
+  margin: 0 0 8px 0;
 }
 
 .subtitle {
-  margin-bottom: 0px 0px 100px px;
+  display: block;
+  font-size: 14px;
+  margin-bottom: 25px;
+  color: #717171;
 }
 
-/* форма */
+/* Форма */
 .login-form {
   display: flex;
   flex-direction: column;
+  gap: 16px;
   text-align: left;
 }
 
+/* Блок инпута (Label + Input + Error) */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
 .login-form label {
-  font-size: 15px;
-  margin: 25px 0px 20px 0px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
 }
 
 .login-form input {
@@ -61,120 +83,127 @@ body{
   color: #535353;
   border: 1px solid #A1A1A1;
   font-size: 14px;
-  font-family: 'Cabin', sans-serif;
+  font-family: "Cabin", sans-serif;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.login-form input:focus {
+  border-color: #C02BFF;
 }
 
 .login-form input.error {
   border-color: #D64343;
 }
 
+/* Ошибки */
 .error-message {
   color: #D64343;
+  font-size: 12px;
+  min-height: 16px; /* Чтобы текст ошибки не дергал верстку */
+}
+
+.general-error {
+  background-color: #fde8e8;
+  border: 1px solid #f8b4b4;
+  border-radius: 8px;
+  padding: 10px;
   font-size: 13px;
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  color: #9b1c1c;
 }
 
-#p{
-  margin: 20px 0px 20px 0px;
-}
-
-/* кнопка входа */
+/* Кнопка входа */
 .btn-primary {
-  margin: 30px;
-  padding: 15px;
+  margin-top: 10px;
+  padding: 14px;
   border: none;
   border-radius: 12px;
   background-color: #C02BFF;
   color: white;
   font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 5px 15px rgba(147,51,234,0.4);
-  transition: 0.3s;
-    margin-left: 0px;
-  margin-right: 0px;
+  box-shadow: 0 5px 15px rgba(147, 51, 234, 0.4);
+  transition: background-color 0.3s;
+  width: 100%;
 }
 
 .btn-primary:hover {
   background-color: #982EC4;
 }
 
-/* разделитель */
+/* Разделитель */
 .divider {
   display: flex;
   align-items: center;
-
+  margin: 10px 0;
+  color: #aaa;
+  font-size: 13px;
 }
 
 .divider::before,
 .divider::after {
   content: "";
   flex: 1;
-  height: 2px;
-  background: #aaa;
+  height: 1px;
+  background: #e0e0e0;
 }
 
 .divider span {
   margin: 0 10px;
 }
 
-/* google кнопка */
-.btn-google {  
-  border-radius: 10px;
-  border: 1px solid #A1A1A180;
-  margin: 33px 0px 17px 0px;
-box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
-}
+/* Яндекс / Google кнопка */
 .btn-google {
-  padding: 12px;
   position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 12px;
-    background: white;
-    color: #535353;
-    font-size: 15px;
-    cursor: pointer;
-    transition: all 0.3s;
-    
-    &:hover {
-        background: #f5f5f5;
-    }
-    .google-icon {
-       position: absolute;
-        left: 20px;
-        top: 50%;           // ← центрируем по вертикали
-        transform: translateY(-50%);  // ← точное вертикальное центрирование
-        width: 29px;
-        height: 29px;
-        object-fit: contain;
-    }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(161, 161, 161, 0.5);
+  background: white;
+  color: #535353;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
 }
-/* ссылки */
+
+.btn-google:hover {
+  background: #f8f8f8;
+}
+
+.btn-google .google-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Ссылки и подвал карточки */
 .forgot {
-  display: block;
+  display: inline-block;
   color: #709FFA;
   font-size: 14px;
-  margin-top: 10px;
+  margin-top: 15px;
+  text-decoration: none;
+}
+
+.forgot:hover, .info-auth a:hover {
+  text-decoration: underline;
 }
 
 .info-auth {
-  margin-top: 25px;
+  margin-top: 20px;
   font-size: 14px;
 }
 
 .info-auth a {
   color: #709FFA;
+  text-decoration: none;
 }
-
-
-
-
-
-
-
-

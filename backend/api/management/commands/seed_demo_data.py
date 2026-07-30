@@ -77,7 +77,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"Создан скилл: {skill.name}"))
 
         # --- Скиллы у Manager и Employee ---
-        levels = ["Beginner", "Intermediate", "Advanced", "Expert"]
+        levels = ["Новичок", "Продвинутый", "Опытный", "Эксперт"]
         for role in ("Manager", "Employee"):
             user = users[role]
             for i, skill in enumerate(skills):

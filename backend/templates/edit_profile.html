@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/edit-public-profile.css' %}">
+{% endblock %}
+
+{% block title %}SkillMap | Редактирование профиля{% endblock %}
+
+{% block content %}
+<div class="edit-public-profile-page">
+
+    <!-- ХЕДЕР (или можно использовать общий хердер из базового шаблона, если он там есть) -->
+    <header class="edit-public-header">
+        <div class="edit-public-header-left">
+            <div class="edit-public-logo">SkillMap</div>
+            <nav class="edit-public-nav">
+                <a href="{% url 'matrix' %}">Главная</a>
+                <a href="{% url 'matrix' %}">Матрица компетенций</a>
+                <a href="{% url 'ask' %}">Кого спросить?</a>
+                <a href="{% url 'ask' %}">Кадровый резерв</a>
+            </nav>
+        </div>
+        <div class="profile-container-avatar">
+            <div class="profile-avatar"><img src="{% static 'assets/profile-photo.svg' %}" alt="Профиль" class="profile-icon" id="dropdownArrow"></div>
+            <div class="profile-arrow-wrapper">
+                <img src="{% static 'assets/Icon.svg' %}" alt="Стрелка" class="profile-arrow-icon" id="dropdownArrow">
+                <div class="profile-dropdown-menu" id="dropdownMenu">
+                    <div class="profile-dropdown-header">
+                        <div class="profile-dropdown-avatar"></div>
+                        <div class="profile-dropdown-info">
+                            <div class="profile-dropdown-name">Дарья Федорова</div>
+                            <div class="profile-dropdown-role">Дизайнер</div>
+                        </div>
+                    </div>
+                    <div class="profile-dropdown-divider"></div>
+                    <button class="profile-dropdown-item" id="editProfileBtn">
+                        <img src="{% static 'assets/image-menu1.svg' %}" alt="Редактировать" class="profile-dropdown-icon">
+                        Редактировать профиль
+                    </button>
+                    <a href="{% url 'login' %}" class="profile-dropdown-item profile-logout" id="logoutBtn" style="text-decoration: none; color: inherit; display: flex; align-items: center;">
+                        <img src="{% static 'assets/image-menu2.svg' %}" alt="Выйти" class="profile-dropdown-icon">
+                        Выйти
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ОСНОВНОЙ КОНТЕНТ -->
+    <main class="edit-public-main">
+        <div class="edit-public-profile-wrapper">
+            <div class="edit-public-profile-card">
+
+                <!-- TOP -->
+                <div class="edit-public-top">
+                    <div class="edit-public-avatar-large">
+                        <!-- Заглушка под аватарку через статику -->
+                        <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
+                    </div>
+
+                    <div class="edit-public-user-info">
+                        <div class="edit-public-name-container">
+                            <h2 class="edit-public-name" id="userName">Федорова Дарья Викторовна</h2>
+                            <button class="edit-public-name-edit" id="editNameBtn">
+                                <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="edit-icon-small">
+                            </button>
+                        </div>
+
+                        <div class="edit-public-title-row">
+                            <span>UI/UX дизайнер</span>
+                            <span> • Отдел UI/UX</span>
+                        </div>
+
+                        <div class="edit-public-info-items">
+                            <div class="edit-public-info-item">
+                                <img src="{% static 'assets/city.svg' %}" class="edit-public-info-icon" alt="город">
+                                <span>г. Екатеринбург</span>
+                            </div>
+                            <div class="edit-public-info-item">
+                                <img src="{% static 'assets/phone.svg' %}" class="edit-public-info-icon" alt="телефон">
+                                <span>+7 919 470 0936</span>
+                            </div>
+                            <div class="edit-public-info-item">
+                                <img src="{% static 'assets/email.svg' %}" class="edit-public-info-icon" alt="почта">
+                                <span>darafedorova790@gmail.com</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM -->
+                <div class="edit-public-bottom">
+                    <!-- LEFT -->
+                    <div class="edit-public-left">
+                        <div class="edit-public-about">
+                            <h3>Обо мне</h3>
+                            <p>Занимаюсь UI/UX дизайном более 4 лет. Есть опыт работы продуктовым аналитиком. Всегда рада делиться опытом и помогать коллегам.</p>
+                        </div>
+
+                        <div class="edit-public-skills-section">
+                            <div class="skills-edit">
+                                <h3 class="skills-text">Навыки</h3>
+                                <button class="edit-public-name-edit" id="editNameBtn">
+                                    <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="skills-edit-icon-small">
+                                </button>
+                            </div>
+                            <div class="skill-row"><span class="badge expert">Эксперт</span><span>Работа с диаграммами (Miro)</span></div>
+                            <div class="skill-row"><span class="badge advanced">Продвинутый</span><span>Работа с Figma</span></div>
+                            <div class="skill-row"><span class="badge advanced">Продвинутый</span><span>Работа с Webflow</span></div>
+                            <div class="skill-row"><span class="badge novice">Новичок</span><span>Базы данных (Redis)</span></div>
+                            <div class="skill-row"><span class="badge novice">Новичок</span><span>Базы данных (MySQL)</span></div>
+                            <div class="skill-row"><span class="badge experienced">Опытный</span><span>Языки программирования (Python)</span></div>
+                            <div class="skill-row"><span class="badge novice">Новичок</span><span>Языки программирования (Golang)</span></div>
+                        </div>
+                    </div>
+
+                    <!-- PROJECTS -->
+                    <div class="edit-public-projects-section">
+                        <div class="edit-public-projects-header">
+                            <h3>Проекты</h3>
+                            <button class="edit-public-projects-add" id="addProjectBtn">
+                                Добавить проект
+                                <img src="{% static 'assets/plus.svg' %}" alt="Плюс" class="plus-icon">
+                            </button>
+                        </div>
+                        <div id="projectsContainer">
+                            <!-- Статичный вывод проектов (или динамика через небольшой JS, если потребуется) -->
+                            <div class="project" data-id="1">
+                                <div class="project-header">
+                                    <img src="{% static 'assets/Component-1.svg' %}" alt="иконка" class="project-icon">
+                                    <div class="project-title">Платформа деплоя</div>
+                                </div>
+                                <div class="project-desc">Разработка макетов платформы для автоматического деплоя сервисов</div>
+                            </div>
+
+                            <div class="project" data-id="1">
+                                <div class="project-header">
+                                    <img src="{% static 'assets/Component-2.svg' %}" alt="иконка" class="project-icon">
+                                    <div class="project-title">Веб-сайт учета мероприятий</div>
+                                </div>
+                                <div class="project-desc">Разработка пользовательских сценариев и макетов веб-сайта</div>
+                            </div>
+                            
+                            <div class="project" data-id="1">
+                                <div class="project-header">
+                                    <img src="{% static 'assets/Component-3.svg' %}" alt="иконка" class="project-icon">
+                                    <div class="project-title">Платформа трассировки инженерных сетей</div>
+                                </div>
+                                <div class="project-desc">Разработка макетов платформы; интеграция базы данных</div>
+                            </div>
+
+                            <div class="project" data-id="1">
+                                <div class="project-header">
+                                    <img src="{% static 'assets/Component-4.svg' %}" alt="иконка" class="project-icon">
+                                    <div class="project-title">Платформа для компетенций сотрудников</div>
+                                </div>
+                                <div class="project-desc">Разработка макетов веб-сайта для главной страницы; разработка ui-kit</div>
+                            </div>
+
+                            <div class="project" data-id="1">
+                                <div class="project-header">
+                                    <img src="{% static 'assets/Component-5.svg' %}" alt="иконка" class="project-icon">
+                                    <div class="project-title">Визуальная обучающая игра</div>
+                                </div>
+                                <div class="project-desc">Отрисовка спрайтов персонажей, разработка динамиечских макетов главного меню</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Модальное окно -->
+    <div class="edit-public-modal" id="addProjectModal">
+        <div class="edit-public-modal-content">
+            <div class="edit-public-modal-header">
+                <h3>Добавить проект</h3>
+            </div>
+            <form id="addProjectForm">
+                <div class="edit-public-form-group">
+                    <label>Название проекта:</label>
+                    <input type="text" id="projectTitle" placeholder="Введите название проекта" required>
+                </div>
+                <div class="edit-public-form-group">
+                    <label>Описание проекта:</label>
+                    <textarea id="projectDescription" rows="3" placeholder="Введите описание проекта" required></textarea>
+                </div>
+                <div class="edit-public-form-buttons">
+                    <button type="submit" class="edit-public-btn-submit">Сохранить</button>
+                    <button type="button" class="edit-public-btn-cancel add-project-cancel">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

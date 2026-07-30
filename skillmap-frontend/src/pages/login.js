@@ -1,160 +1,37 @@
-import yandexIcon from "../assets/photo-yandex.png";
-import API_CONFIG from "../config.js";
-import { setTokens } from "../auth.js";
+import yandexIcon from '../assets/photo-yandex.png';
+import API_CONFIG from '../config.js';
+import { setTokens } from '../auth.js';
 
-function initLoginForm() {
-    const form = document.getElementById("login-form");
-    if (!form) return;
+// 1. Карта редиректов по ролям
+const ROLE_REDIRECTS = {
+    employee: '/profile',
+    manager: '/matrix',
+    hr: '/hr',
+};
 
-    form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-
-        const emailInput = form.querySelector('input[type="email"]');
-        const passwordInput = form.querySelector('input[type="password"]');
-
-        const email = emailInput.value.trim();
-        const password = passwordInput.value.trim();
-
-        removeErrors(form);
-
-        if (!email || !email.includes("@") || !password || password.length < 3) {
-            showError(passwordInput, "Неверная почта или пароль");
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.AUTH.LOGIN}`, {
-                method: "POST",
-                headers: API_CONFIG.HEADERS,
-                credentials: "include",
-                body: JSON.stringify({
-                    email,
-                    password,
-                    rememberMe: false,
-                }),
-            });
-
-            let data = null;
-
-            try {
-                data = await response.json();
-            } catch {
-                data = null;
-            }
-
-            if (!response.ok) {
-                showError(passwordInput, data?.message || "Неверная почта или пароль");
-                return;
-            }
-
-            // Сохраняем JWT-токены, которые вернул бэк
-            if (data?.tokens) {
-                setTokens(data.tokens);
-            }
-
-            const role = String(data?.user?.role || "").trim().toLowerCase();
-
-            if (role === "employee") {
-                window.location.href = "/profile";
-                return;
-            }
-
-            if (role === "manager") {
-                window.location.href = "/matrix";
-                return;
-            }
-
-            if (role === "hr") {
-                window.location.href = "/hr";
-                return;
-            }
-
-            window.location.href = "/profile";
-        } catch (error) {
-            console.error("Ошибка авторизации:", error);
-            showError(passwordInput, "Ошибка соединения с сервером");
-        }
-    });
-}
-
-function showGeneralError(form, message) {
-    const oldError = form.querySelector(".general-error");
-    if (oldError) oldError.remove();
-
-    const errorDiv = document.createElement("div");
-    errorDiv.className = "error-message general-error";
-    errorDiv.style.marginBottom = "15px";
-    errorDiv.style.textAlign = "center";
-    errorDiv.textContent = message;
-
-    const submitBtn = form.querySelector('button[type="submit"]');
-    form.insertBefore(errorDiv, submitBtn);
-}
-
-function showError(inputElement, message) {
-    inputElement.classList.add("error");
-
-    const parent = inputElement.parentElement;
-    const oldMessage = parent?.querySelector(".error-message:not(.general-error)");
-    if (oldMessage) oldMessage.remove();
-
-    const errorDiv = document.createElement("div");
-    errorDiv.className = "error-message";
-    errorDiv.textContent = message;
-
-    inputElement.insertAdjacentElement("afterend", errorDiv);
-}
-
-function removeErrors(form) {
-    form.querySelectorAll(".error").forEach((input) => input.classList.remove("error"));
-    form.querySelectorAll(".error-message").forEach((message) => message.remove());
-}
-
-function initYandexButton() {
-    const btn = document.getElementById("yandex-login-btn");
-    btn?.addEventListener("click", () => {
-        // полный редирект — браузер пойдёт на oauth.yandex.ru
-        window.location.href = "/api/auth/yandex/start";
-    });
-}
-
-function showYandexErrorIfAny() {
-    // если callback вернул ошибку, нас редиректнули на / с ?yandex_error=...
-    const url = new URL(window.location.href);
-    const err = url.searchParams.get("yandex_error");
-    if (!err) return;
-
-    const form = document.getElementById("login-form");
-    if (!form) return;
-
-    const errorDiv = document.createElement("div");
-    errorDiv.className = "error-message general-error";
-    errorDiv.style.marginBottom = "15px";
-    errorDiv.style.textAlign = "center";
-    errorDiv.textContent = `Ошибка входа через Яндекс: ${err}`;
-    form.insertBefore(errorDiv, form.firstChild);
-
-    // убираем параметр из URL, чтобы не висел после рефреша
-    url.searchParams.delete("yandex_error");
-    window.history.replaceState({}, "", url.pathname + url.search);
-}
-
-export function renderLoginPage() {
-    const app = document.getElementById("app");
-    if (!app) return;
-
-    app.innerHTML = `
+// 2. HTML-Шаблон страницы
+function getLoginTemplate() {
+    return `
         <div class="main-container">
             <div class="auth-container">
                 <h1 class="title">SkillMap</h1>
                 <label class="subtitle">Введите данные для авторизации</label>
 
-                <form id="login-form" class="login-form">
-                    <label>Корпоративная почта</label>
-                    <input type="email" placeholder="examplemail@gmail.com">
+                <form id="login-form" class="login-form" novalidate>
+                    <!-- Блок для общих ошибок (например, ошибки от Яндекса) -->
+                    <div id="general-error" class="error-message general-error hidden"></div>
 
-                    <label>Пароль</label>
-                    <input type="password" placeholder="********">
+                    <div class="form-group">
+                        <label for="email">Корпоративная почта</label>
+                        <input type="email" id="email" name="email" placeholder="examplemail@gmail.com">
+                        <div class="error-message" id="email-error"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Пароль</label>
+                        <input type="password" id="password" name="password" placeholder="********">
+                        <div class="error-message" id="password-error"></div>
+                    </div>
 
                     <button type="submit" class="btn-primary">Войти</button>
 
@@ -177,8 +54,125 @@ export function renderLoginPage() {
             </div>
         </div>
     `;
+}
 
-    initLoginForm();
-    initYandexButton();
-    showYandexErrorIfAny();
+// 3. Управление отображением ошибок
+function clearErrors(form) {
+    form.querySelectorAll('.error-message').forEach(
+        (el) => (el.textContent = ''),
+    );
+    form.querySelectorAll('.error').forEach((el) =>
+        el.classList.remove('error'),
+    );
+}
+
+function showInputError(inputId, message) {
+    const input = document.getElementById(inputId);
+    const errorEl = document.getElementById(`${inputId}-error`);
+
+    if (input) input.classList.add('error');
+    if (errorEl) errorEl.textContent = message;
+}
+
+function showGeneralError(message) {
+    const generalErrEl = document.getElementById('general-error');
+    if (generalErrEl) {
+        generalErrEl.textContent = message;
+        generalErrEl.classList.remove('hidden');
+    }
+}
+
+// 4. Логика запроса к API
+async function loginUser(email, password) {
+    const response = await fetch(
+        `${API_CONFIG.BASE_URL}${API_CONFIG.AUTH.LOGIN}`,
+        {
+            method: 'POST',
+            headers: API_CONFIG.HEADERS,
+            credentials: 'include',
+            body: JSON.stringify({ email, password, rememberMe: false }),
+        },
+    );
+
+    let data = null;
+    try {
+        data = await response.json();
+    } catch {
+        data = null;
+    }
+
+    if (!response.ok) {
+        throw new Error(data?.message || 'Неверная почта или пароль');
+    }
+
+    return data;
+}
+
+// 5. Проверка параметров URL на ошибки OAuth
+function checkYandexOAuthErrors() {
+    const url = new URL(window.location.href);
+    const err = url.searchParams.get('yandex_error');
+    if (!err) return;
+
+    showGeneralError(`Ошибка входа через Яндекс: ${err}`);
+
+    url.searchParams.delete('yandex_error');
+    window.history.replaceState({}, '', url.pathname + url.search);
+}
+
+// 6. Подключение событий
+function bindEvents() {
+    const form = document.getElementById('login-form');
+    const yandexBtn = document.getElementById('yandex-login-btn');
+
+    yandexBtn?.addEventListener('click', () => {
+        window.location.href = '/api/auth/yandex/start';
+    });
+
+    form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        clearErrors(form);
+
+        const email = form.email.value.trim();
+        const password = form.password.value.trim();
+
+        // Валидация полей
+        if (!email || !email.includes('@')) {
+            showInputError('email', 'Введите корректную почту');
+            return;
+        }
+
+        if (!password || password.length < 3) {
+            showInputError(
+                'password',
+                'Пароль должен содержать не менее 3 символов',
+            );
+            return;
+        }
+
+        try {
+            const data = await loginUser(email, password);
+
+            if (data?.tokens) {
+                setTokens(data.tokens);
+            }
+
+            const role = String(data?.user?.role || '')
+                .trim()
+                .toLowerCase();
+            window.location.href = ROLE_REDIRECTS[role] || '/profile';
+        } catch (error) {
+            showInputError('password', error.message);
+        }
+    });
+}
+
+// 7. Основная функция рендера
+export function renderLoginPage() {
+    const app = document.getElementById('app');
+    if (!app) return;
+
+    app.innerHTML = getLoginTemplate();
+    bindEvents();
+    checkYandexOAuthErrors();
 }
