@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/edit-public-profile.css' %}">
+{% endblock %}
+
+{% block title %}SkillMap | Редактирование профиля{% endblock %}
+
+{% block content %}
+<div class="edit-public-profile-page">
+
+    <!-- ОСНОВНОЙ КОНТЕНТ -->
+    <main class="edit-public-main">
+        <div class="edit-public-profile-wrapper">
+            <div class="edit-public-profile-card">
+
+                <!-- TOP -->
+                <div class="edit-public-top">
+                    <div class="edit-public-avatar-large">
+                        <!-- Заглушка под аватарку через статику -->
+                        <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
+                    </div>
+
+                    <div class="edit-public-user-info">
+                        <div class="edit-public-name-container">
+                            <h2 class="edit-public-name" id="userName">Федорова Дарья Викторовна</h2>
+                            <button class="edit-public-name-edit" id="editNameBtn">
+                                <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="edit-icon-small">
+                            </button>
+                        </div>
+
+                        <div class="edit-public-title-row">
+                            <span>UI/UX дизайнер</span>
+                            <span> • Отдел UI/UX</span>
+                        </div>
+
+                        <div class="edit-public-info-items">
+                            <div class="edit-public-info-item">
+                                <img src="{% static 'assets/city.svg' %}" class="edit-public-info-icon" alt="город">
+                                <span>г. Екатеринбург</span>
+                            </div>
+                            <div class="edit-public-info-item">
+                                <img src="{% static 'assets/phone.svg' %}" class="edit-public-info-icon" alt="телефон">
+                                <span>+7 919 470 0936</span>
+                            </div>
+                            <div class="edit-public-info-item">
+                                <img src="{% static 'assets/email.svg' %}" class="edit-public-info-icon" alt="почта">
+                                <span>darafedorova790@gmail.com</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM -->
+                <div class="edit-public-bottom">
+                    <!-- LEFT -->
+                    <div class="edit-public-left">
+                        <div class="edit-public-about">
+                            <h3>Обо мне</h3>
+                            <p>Занимаюсь UI/UX дизайном более 4 лет. Есть опыт работы продуктовым аналитиком. Всегда рада делиться опытом и помогать коллегам.</p>
+                        </div>
+
+                        <div class="edit-public-skills-section">
+                            <div class="skills-edit">
+                                <h3 class="skills-text">Навыки</h3>
+                                <button class="edit-public-name-edit" id="editNameBtn">
+                                    <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="skills-edit-icon-small">
+                                </button>
+                            </div>
+                            
+                            <!-- Цикл вывода навыков -->
+                            {% for skill in skills %}
+                            <div class="skill-row">
+                                <span class="badge {{ skill.level_class }}">{{ skill.level_name }}</span>
+                                <span>{{ skill.name }}</span>
+                            </div>
+                            {% empty %}
+                            <div class="skill-row"><span>Навыки пока не добавлены.</span></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- PROJECTS -->
+                    <div class="edit-public-projects-section">
+                        <div class="edit-public-projects-header">
+                            <h3>Проекты</h3>
+                            <input 
+                                type="text" 
+                                class="edit-public-projects-search" 
+                                id="searchProjectInput" 
+                                placeholder="Поиск" 
+                            >
+                            <button class="edit-public-projects-add" id="addProjectBtn">
+                                Добавить
+                                <img src="{% static 'assets/plus.svg' %}" alt="Плюс" class="plus-icon">
+                            </button>
+                        </div>
+                        <div id="projectsContainer">
+                            
+                            <!-- Цикл вывода проектов -->
+                            {% for project in projects %}
+                            <div class="project" data-id="{{ project.id }}">
+                                <div class="project-header">
+                                    <!-- Собираем путь к иконке динамически -->
+                                    <img src="{% static 'assets/'|add:project.icon %}" alt="иконка" class="project-icon">
+                                    <div class="project-title">{{ project.title }}</div>
+                                </div>
+                                <div class="project-desc">{{ project.description }}</div>
+                            </div>
+                            {% empty %}
+                            <div class="project">
+                                <div class="project-desc">У вас пока нет добавленных проектов.</div>
+                            </div>
+                            {% endfor %}
+                            
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Модальное окно -->
+    <div class="edit-public-modal" id="addProjectModal">
+        <div class="edit-public-modal-content">
+            <div class="edit-public-modal-header">
+                <h3>Добавить проект</h3>
+            </div>
+            <form id="addProjectForm">
+                <div class="edit-public-form-group">
+                    <label>Название проекта:</label>
+                    <input type="text" id="projectTitle" placeholder="Введите название проекта" required>
+                </div>
+                <div class="edit-public-form-group">
+                    <label>Описание проекта:</label>
+                    <textarea id="projectDescription" rows="3" placeholder="Введите описание проекта" required></textarea>
+                </div>
+                <div class="edit-public-form-buttons">
+                    <button type="submit" class="edit-public-btn-submit">Сохранить</button>
+                    <button type="button" class="edit-public-btn-cancel add-project-cancel">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
