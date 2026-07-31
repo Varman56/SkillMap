@@ -19,8 +19,6 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
-        # volumes:
-        #     - ./backend:/app
         depends_on:
             db:
                 condition: service_healthy

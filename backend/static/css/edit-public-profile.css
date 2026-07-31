@@ -228,6 +228,9 @@ html, body {
     border: 1px solid #E5E5E5;
     padding: 20px;
     border-radius: 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 271px;
 }
 
 .edit-public-about p {
@@ -300,6 +303,22 @@ html, body {
     transition: all 0.2s;
 }
 
+.edit-public-projects-search {
+    display: flex;
+    background: #FFFFFF;
+    border: none;
+    padding: 6px 12px;
+    border: 1px #A1A1A1 solid;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333333;
+    outline: none;
+    width: 50px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
 #projectsContainer {
     display: flex;
     flex-direction: column;
@@ -333,9 +352,17 @@ html, body {
     padding: 20px;
     border-radius: 16px;
     box-sizing: border-box;
-    max-height: 488px;
+    max-height: 480px;
     overflow-y: auto; 
     overflow-x: hidden;
+}
+
+.project-header {
+    display: flex;
+    gap: 15px;
+    font-weight: bold;
+    align-items: center;
+    margin-bottom: 10px;
 }
 
 /* МОДАЛЬНЫЕ ОКНА */
