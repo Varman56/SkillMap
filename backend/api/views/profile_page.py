@@ -14,6 +14,8 @@
 Все POST-запросы этой страницы различаются полем action в форме:
   update_profile / add_skill / update_skill / delete_skill
 """
+from random import randint
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
@@ -31,6 +33,7 @@ ALLOWED_RESUME_CONTENT_TYPES = {
 }
 
 PROFILE_LEVEL_LABELS = {1: "Новичок", 2: "Опытный", 3: "Продвинутый", 4: "Эксперт"}
+PROFILE_LEVEL_LABELS_EN = {1: "novice", 2: "experienced", 3: "advanced", 4: "expert"}
 VALID_LEVELS = {1, 2, 3, 4}
 
 
@@ -186,7 +189,6 @@ def profile_page(request, user_id: int):
         projects_qs = projects_qs.filter(project__name__icontains=search)
 
     departments = [link.department for link in department_links]
-
     context = {
         "profile_user": user,
         "can_edit": _can_edit(request.user, user),
@@ -197,6 +199,7 @@ def profile_page(request, user_id: int):
                 "display_name": _skill_display_name(us.skill),
                 "level": us.level,
                 "level_label": PROFILE_LEVEL_LABELS.get(us.level, us.level),
+                "level_class": PROFILE_LEVEL_LABELS_EN.get(us.level, us.level),
                 "is_approved": us.is_approved,
             }
             for us in user_skills
@@ -207,9 +210,9 @@ def profile_page(request, user_id: int):
         ],
         "levels": sorted(VALID_LEVELS),
         "projects": [
-            {"name": up.project.name, "description": up.project.description}
+            {"name": up.project.name, "description": up.project.description, "icon": f"Component-{randint(1, 5)}.svg"}
             for up in projects_qs
         ],
         "search": search,
     }
-    return render(request, "profile.html", context)
+    return render(request, "edit_profile.html", context)

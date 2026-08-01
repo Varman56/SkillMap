@@ -17,35 +17,38 @@
                 <!-- TOP -->
                 <div class="edit-public-top">
                     <div class="edit-public-avatar-large">
-                        <!-- Заглушка под аватарку через статику -->
-                        <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
+                        {% if profile_user.photo %}
+                            <img src="{{ profile_user.photo }}" alt="Аватар">
+                        {% else %}
+                            <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
+                        {% endif %}
                     </div>
 
                     <div class="edit-public-user-info">
                         <div class="edit-public-name-container">
-                            <h2 class="edit-public-name" id="userName">Федорова Дарья Викторовна</h2>
+                            <h2 class="edit-public-name" id="userName">{{ profile_user.full_name }}</h2>
                             <button class="edit-public-name-edit" id="editNameBtn">
                                 <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="edit-icon-small">
                             </button>
                         </div>
 
                         <div class="edit-public-title-row">
-                            <span>UI/UX дизайнер</span>
-                            <span> • Отдел UI/UX</span>
+                            <span>{{ profile_user.position|default:"—" }}</span>
+                            <span> • {{ departments_str|default:"—" }}</span>
                         </div>
 
                         <div class="edit-public-info-items">
                             <div class="edit-public-info-item">
                                 <img src="{% static 'assets/city.svg' %}" class="edit-public-info-icon" alt="город">
-                                <span>г. Екатеринбург</span>
+                                <span>{{ profile_user.city|default:"—" }}</span>
                             </div>
                             <div class="edit-public-info-item">
                                 <img src="{% static 'assets/phone.svg' %}" class="edit-public-info-icon" alt="телефон">
-                                <span>+7 919 470 0936</span>
+                                <span>{{ profile_user.phone|default:"—" }}</span>
                             </div>
                             <div class="edit-public-info-item">
                                 <img src="{% static 'assets/email.svg' %}" class="edit-public-info-icon" alt="почта">
-                                <span>darafedorova790@gmail.com</span>
+                                <span>{{ profile_user.email }}</span>
                             </div>
                         </div>
                     </div>
@@ -57,7 +60,7 @@
                     <div class="edit-public-left">
                         <div class="edit-public-about">
                             <h3>Обо мне</h3>
-                            <p>Занимаюсь UI/UX дизайном более 4 лет. Есть опыт работы продуктовым аналитиком. Всегда рада делиться опытом и помогать коллегам.</p>
+                            <p>{{ profile_user.about|default:"Информация не указана." }}</p>
                         </div>
 
                         <div class="edit-public-skills-section">
@@ -67,12 +70,15 @@
                                     <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="skills-edit-icon-small">
                                 </button>
                             </div>
-                            
+
                             <!-- Цикл вывода навыков -->
                             {% for skill in skills %}
                             <div class="skill-row">
-                                <span class="badge {{ skill.level_class }}">{{ skill.level_name }}</span>
-                                <span>{{ skill.name }}</span>
+                                <span class="badge {{ skill.level_class|default:'' }}">{{ skill.level_label|default:skill.level }}</span>
+                                <span>{{ skill.display_name }}</span>
+                                {% if skill.is_approved %}
+                                    <small style="color: green;">(подтверждён)</small>
+                                {% endif %}
                             </div>
                             {% empty %}
                             <div class="skill-row"><span>Навыки пока не добавлены.</span></div>
@@ -84,28 +90,26 @@
                     <div class="edit-public-projects-section">
                         <div class="edit-public-projects-header">
                             <h3>Проекты</h3>
-                            <input 
-                                type="text" 
-                                class="edit-public-projects-search" 
-                                id="searchProjectInput" 
-                                placeholder="Поиск" 
+                            <input
+                                type="text"
+                                class="edit-public-projects-search"
+                                id="searchProjectInput"
+                                placeholder="Поиск"
+                                value="{{ search|default:'' }}"
                             >
-                            <button class="edit-public-projects-add" id="addProjectBtn">
-                                Добавить
-                                <img src="{% static 'assets/plus.svg' %}" alt="Плюс" class="plus-icon">
-                            </button>
                         </div>
                         <div id="projectsContainer">
-                            
+
                             <!-- Цикл вывода проектов -->
                             {% for project in projects %}
                             <div class="project" data-id="{{ project.id }}">
                                 <div class="project-header">
-                                    <!-- Собираем путь к иконке динамически -->
-                                    <img src="{% static 'assets/'|add:project.icon %}" alt="иконка" class="project-icon">
-                                    <div class="project-title">{{ project.title }}</div>
+                                    {% if project.icon %}
+                                        <img src="{% static 'assets/'|add:project.icon %}" alt="иконка" class="project-icon">
+                                    {% endif %}
+                                    <div class="project-title">{{ project.name }}</div>
                                 </div>
-                                <div class="project-desc">{{ project.description }}</div>
+                                <div class="project-desc">{{ project.description|default:"—" }}</div>
                             </div>
                             {% empty %}
                             <div class="project">
