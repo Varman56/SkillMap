@@ -7,35 +7,72 @@ from api.models import Project, Skill, User, UserProject, UserSkill
 DEMO_PASSWORD = "test1234"
 
 DEMO_USERS = [
-    {
-        "email": "hr@test.com",
-        "full_name": "Анна HR",
-        "role": "HR",
-        "position": "HR-менеджер",
-        "department": "HR",
-    },
-    {
-        "email": "manager@test.com",
-        "full_name": "Игорь Manager",
-        "role": "Manager",
-        "position": "Тимлид",
-        "department": "Разработка",
-    },
-    {
-        "email": "employee@test.com",
-        "full_name": "Пётр Employee",
-        "role": "Employee",
-        "position": "Backend-разработчик",
-        "department": "Разработка",
-    },
+    # HR
+    {"email": "hr@test.com", "full_name": "Анна Кузнецова", "role": "HR",
+     "position": "HR-менеджер", "department": "HR"},
+    {"email": "hr2@test.com", "full_name": "Мария Захарова", "role": "HR",
+     "position": "HR-специалист", "department": "HR"},
+
+    # Manager
+    {"email": "manager@test.com", "full_name": "Игорь Соколов", "role": "Manager",
+     "position": "Тимлид Backend", "department": "Разработка"},
+    {"email": "manager2@test.com", "full_name": "Дмитрий Волков", "role": "Manager",
+     "position": "Тимлид Frontend", "department": "Разработка"},
+    {"email": "manager3@test.com", "full_name": "Елена Морозова", "role": "Manager",
+     "position": "Product Manager", "department": "Продукт"},
+
+    # Employee
+    {"email": "employee@test.com", "full_name": "Пётр Новиков", "role": "Employee",
+     "position": "Backend-разработчик", "department": "Разработка"},
+    {"email": "employee2@test.com", "full_name": "Александр Лебедев", "role": "Employee",
+     "position": "Frontend-разработчик", "department": "Разработка"},
+    {"email": "employee3@test.com", "full_name": "Ольга Козлова", "role": "Employee",
+     "position": "Fullstack-разработчик", "department": "Разработка"},
+    {"email": "employee4@test.com", "full_name": "Сергей Егоров", "role": "Employee",
+     "position": "DevOps-инженер", "department": "DevOps"},
+    {"email": "employee5@test.com", "full_name": "Наталья Соловьёва", "role": "Employee",
+     "position": "QA-инженер", "department": "QA"},
+    {"email": "employee6@test.com", "full_name": "Артём Павлов", "role": "Employee",
+     "position": "Backend-разработчик", "department": "Разработка"},
+    {"email": "employee7@test.com", "full_name": "Виктория Семёнова", "role": "Employee",
+     "position": "UX/UI-дизайнер", "department": "Дизайн"},
+    {"email": "employee8@test.com", "full_name": "Максим Голубев", "role": "Employee",
+     "position": "Продуктовый аналитик", "department": "Аналитика"},
+    {"email": "employee9@test.com", "full_name": "Юлия Виноградова", "role": "Employee",
+     "position": "Frontend-разработчик", "department": "Разработка"},
+    {"email": "employee10@test.com", "full_name": "Иван Богданов", "role": "Employee",
+     "position": "Backend-разработчик", "department": "Разработка"},
+    {"email": "employee11@test.com", "full_name": "Дарья Воробьёва", "role": "Employee",
+     "position": "QA-инженер", "department": "QA"},
+    {"email": "employee12@test.com", "full_name": "Роман Фёдоров", "role": "Employee",
+     "position": "DevOps-инженер", "department": "DevOps"},
+    {"email": "employee13@test.com", "full_name": "Кристина Орлова", "role": "Employee",
+     "position": "Fullstack-разработчик", "department": "Разработка"},
 ]
 
 DEMO_SKILLS = [
-    {"name": "Python", "category": "Backend"},
-    {"name": "Django", "category": "Backend"},
-    {"name": "React", "category": "Frontend"},
-    {"name": "PostgreSQL", "category": "Database"},
-    {"name": "Docker", "category": "DevOps"},
+    {"category": "Backend", "subcategory": "Языки программирования", "name": "Python"},
+    {"category": "Backend", "subcategory": "Фреймворки", "name": "Django"},
+    {"category": "Backend", "subcategory": "Фреймворки", "name": "FastAPI"},
+
+    {"category": "Frontend", "subcategory": "Языки программирования", "name": "JavaScript"},
+    {"category": "Frontend", "subcategory": "Языки программирования", "name": "TypeScript"},
+    {"category": "Frontend", "subcategory": "Библиотеки/Фреймворки", "name": "React"},
+    {"category": "Frontend", "subcategory": "Библиотеки/Фреймворки", "name": "Vue.js"},
+
+    {"category": "Базы данных", "subcategory": "Реляционные СУБД", "name": "PostgreSQL"},
+    {"category": "Базы данных", "subcategory": "NoSQL", "name": "MongoDB"},
+
+    {"category": "DevOps", "subcategory": "Контейнеризация", "name": "Docker"},
+    {"category": "DevOps", "subcategory": "Оркестрация", "name": "Kubernetes"},
+
+    {"category": "Инструменты", "subcategory": "Системы контроля версий", "name": "Git"},
+
+    {"category": "Дизайн", "subcategory": "UI/UX-инструменты", "name": "Figma"},
+
+    {"category": "Управление", "subcategory": "Методологии", "name": "Agile/Scrum"},
+
+    {"category": "Soft Skills", "subcategory": "Языки", "name": "Английский язык"},
 ]
 
 
