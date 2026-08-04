@@ -17,9 +17,11 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
-    # Отдельная HTML-страница профиля (не API, обычный Django-темплейт).
-    # Должна стоять ДО catch-all'ов SPA ниже, иначе их re_path перехватит путь первым.
+
+
+    path("profile/", profile_page, name="my-profile"),
     path("profile/<int:user_id>/", profile_page, name="profile-page"),
+
     # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.
     # Тоже должно стоять ДО spa-assets, иначе тот catch-all перехватит /media/*.jpg первым.
     re_path(

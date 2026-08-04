@@ -94,7 +94,7 @@ def _handle_add_skill(request, user):
         messages.error(request, "Выбранный навык не найден")
         return
     if level is None:
-        messages.error(request, "Уровень должен быть 1 - 4")
+        messages.error(request, "Уровень должен быть от 1 до 4")
         return
 
     _, created = UserSkill.objects.get_or_create(
@@ -121,6 +121,7 @@ def _handle_update_skill(request, user):
 
     user_skill.level = level
     user_skill.updated_at = timezone.now()
+    user_skill.is_approved = False
     user_skill.save(update_fields=["level", "updated_at"])
     messages.success(request, f"Уровень навыка «{user_skill.skill.name}» обновлён")
 
@@ -148,9 +149,12 @@ def _can_edit(request_user, profile_user) -> bool:
     return request_user.has_role("HR", "Manager")
 
 
-@login_required(login_url="/")
-def profile_page(request, user_id: int):
-    user = get_object_or_404(User, id=user_id)
+@login_required(login_url="/login/")
+def profile_page(request, user_id=None):
+    if user_id is None:
+        user = request.user
+    else:
+        user = get_object_or_404(User, id=user_id)
 
     if request.method == "POST":
         if not _can_edit(request.user, user):
@@ -161,6 +165,10 @@ def profile_page(request, user_id: int):
             handler(request, user)
         else:
             messages.error(request, "Неизвестное действие")
+
+        if user_id is None:
+            return redirect("my-profile")
+
         return redirect("profile-page", user_id=user.id)
 
     department_links = DepartmentUser.objects.select_related("department").filter(user_id=user.id)
@@ -210,7 +218,8 @@ def profile_page(request, user_id: int):
         ],
         "levels": sorted(VALID_LEVELS),
         "projects": [
-            {"name": up.project.name, "description": up.project.description, "icon": f"proj-icons/Project-icon-{randint(1, 5)}.svg"}
+            {"name": up.project.name, "description": up.project.description,
+             "icon": f"proj-icons/Project-icon-{randint(1, 5)}.svg"}
             for up in projects_qs
         ],
         "search": search,

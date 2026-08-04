@@ -111,11 +111,11 @@ class CreateSkillRequestSerializer(serializers.Serializer):
  
 class AddUserSkillRequestSerializer(serializers.Serializer):
     skillId = serializers.IntegerField()
-    level = serializers.IntegerField(min_value=1, max_value=3)
+    level = serializers.IntegerField(min_value=1, max_value=4)
  
  
 class UpdateSkillLevelRequestSerializer(serializers.Serializer):
-    level = serializers.IntegerField(min_value=1, max_value=3)
+    level = serializers.IntegerField(min_value=1, max_value=4)
  
  
 class CreateProjectRequestSerializer(serializers.Serializer):
