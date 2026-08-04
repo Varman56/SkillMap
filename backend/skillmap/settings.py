@@ -67,9 +67,7 @@ ROOT_URLCONF = "skillmap.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        # spa/index.html — то, что генерирует webpack при сборке фронта.
-        # templates/ оставлен как fallback на случай отсутствия собранной SPA.
-        "DIRS": [BASE_DIR / "templates", BASE_DIR / "spa"],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -114,15 +112,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
-if (BASE_DIR / "spa").exists():
-    STATICFILES_DIRS.append(BASE_DIR / "spa")
 
-# WhiteNoise: отдавать собранные SPA-ассеты (bundle.js, картинки, css)
-# из backend/spa/ напрямую по корневому пути ('/bundle.js', '/css/...').
-# Так index.html со ссылками вида <script src="bundle.js"> работает без правок.
-WHITENOISE_ROOT = BASE_DIR / "spa"
-WHITENOISE_USE_FINDERS = True
-WHITENOISE_AUTOREFRESH = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
