@@ -1,10 +1,39 @@
 {% extends "base.html" %}
 {% load static %}
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/public-profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+<link rel="stylesheet" href="{% static 'css/edit_profile.css' %}">
+{% endblock %}
+{% block extra_js %}
+<script>
+    const profileDialog = document.getElementById("profileEditDialog");
+    const profileEditButton = document.getElementById("profileEditButton");
+
+    profileEditButton?.addEventListener("click", () => {
+        profileDialog?.showModal();
+    });
+
+    profileDialog?.querySelector("[data-close-dialog]")
+        ?.addEventListener("click", () => {
+            profileDialog.close();
+        });
+</script>
+<script>
+    const skillDialog = document.getElementById("skillDialog");
+
+    document.getElementById("skillEditButton")
+        ?.addEventListener("click", () => {
+            skillDialog?.showModal();
+        });
+
+    skillDialog?.querySelector("[data-close-dialog]")
+        ?.addEventListener("click", () => {
+            skillDialog.close();
+        });
+</script>
 {% endblock %}
 
-{% block title %}SkillMap | Редактирование профиля{% endblock %}
+{% block title %}SkillMap | Профиль{% endblock %}
 
 {% block content %}
 <div class="public-profile-page">
@@ -18,18 +47,25 @@
                 <div class="public-top">
                     <div class="public-avatar-large">
                         {% if profile_user.photo %}
-                            <img src="{{ profile_user.photo }}" alt="Аватар">
+                        <img src="{{ profile_user.photo }}" alt="Аватар">
                         {% else %}
-                            <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
+                        <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
                         {% endif %}
                     </div>
 
                     <div class="public-user-info">
                         <div class="public-name-container">
                             <h2 class="public-name" id="userName">{{ profile_user.full_name }}</h2>
-                            <button class="public-name-edit" id="editNameBtn">
+                            {% if request.user == profile_user %}
+                            <button
+                                    type="button"
+                                    class="public-name-edit"
+                                    id="profileEditButton"
+                                    {% if not can_edit %}hidden{% endif %}
+                            >
                                 <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="icon-small">
                             </button>
+                            {% endif %}
                         </div>
 
                         <div class="public-title-row">
@@ -66,9 +102,20 @@
                         <div class="public-skills-section">
                             <div class="skills-edit">
                                 <h3 class="skills-text">Навыки</h3>
-                                <button class="public-name-edit" id="editNameBtn">
-                                    <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="skills-icon-small">
+                                {% if request.user == profile_user %}
+                                <button
+                                        type="button"
+                                        class="public-name-edit"
+                                        id="skillEditButton"
+                                        {% if not can_edit %}hidden{% endif %}
+                                >
+                                    <img
+                                            src="{% static 'assets/edit.svg' %}"
+                                            alt="Добавить навык"
+                                            class="skills-icon-small"
+                                    >
                                 </button>
+                                {% endif %}
                             </div>
 
                             <!-- Цикл вывода навыков -->
@@ -77,7 +124,42 @@
                                 <span class="badge {{ skill.level_class|default:'' }}">{{ skill.level_label|default:skill.level }}</span>
                                 <span>{{ skill.display_name }}</span>
                                 {% if skill.is_approved %}
-                                    <small style="color: green;">(подтверждён)</small>
+                                <small style="color: green;">(подтверждён)</small>
+                                {% endif %}
+                                {% if can_edit %}
+                                <form method="post" class="skill-inline-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_skill">
+                                    <input
+                                            type="hidden"
+                                            name="user_skill_id"
+                                            value="{{ skill.user_skill_id }}"
+                                    >
+
+                                    <select name="level">
+                                        {% for level in levels %}
+                                        <option
+                                                value="{{ level }}"
+                                                {% if level == skill.level %}selected{% endif %}
+                                        >
+                                            {{ level }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+
+                                    <button type="submit">Сохранить</button>
+                                </form>
+
+                                <form method="post" class="skill-inline-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_skill">
+                                    <input
+                                            type="hidden"
+                                            name="user_skill_id"
+                                            value="{{ skill.user_skill_id }}"
+                                    >
+                                    <button type="submit">Удалить</button>
+                                </form>
                                 {% endif %}
                             </div>
                             {% empty %}
@@ -91,11 +173,11 @@
                         <div class="public-projects-header">
                             <h3>Проекты</h3>
                             <input
-                                type="text"
-                                class="public-projects-search"
-                                id="searchProjectInput"
-                                placeholder="Поиск"
-                                value="{{ search|default:'' }}"
+                                    type="text"
+                                    class="public-projects-search"
+                                    id="searchProjectInput"
+                                    placeholder="Поиск"
+                                    value="{{ search|default:'' }}"
                             >
                         </div>
                         <div id="projectsContainer">
@@ -105,7 +187,8 @@
                             <div class="project" data-id="{{ project.id }}">
                                 <div class="project-header">
                                     {% if project.icon %}
-                                        <img src="{% static 'assets/'|add:project.icon %}" alt="иконка" class="project-icon">
+                                    <img src="{% static 'assets/'|add:project.icon %}" alt="иконка"
+                                         class="project-icon">
                                     {% endif %}
                                     <div class="project-title">{{ project.name }}</div>
                                 </div>
@@ -116,7 +199,7 @@
                                 <div class="project-desc">У вас пока нет добавленных проектов.</div>
                             </div>
                             {% endfor %}
-                            
+
                         </div>
                     </div>
                 </div>
@@ -138,7 +221,8 @@
                 </div>
                 <div class="public-form-group">
                     <label>Описание проекта:</label>
-                    <textarea id="projectDescription" rows="3" placeholder="Введите описание проекта" required></textarea>
+                    <textarea id="projectDescription" rows="3" placeholder="Введите описание проекта"
+                              required></textarea>
                 </div>
                 <div class="public-form-buttons">
                     <button type="submit" class="public-btn-submit">Сохранить</button>
@@ -148,4 +232,7 @@
         </div>
     </div>
 </div>
+
+{% include "profile/_edit_dialog.html" %}
+{% include "profile/_skill_dialog.html" %}
 {% endblock %}
