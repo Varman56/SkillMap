@@ -14,7 +14,7 @@
 
         <form id="login-form" class="login-form" method="post" action="{% url 'login' %}" novalidate>
             {% csrf_token %}
-            
+
             <!-- Блок для общих ошибок -->
             <div id="general-error" class="error-message general-error hidden"></div>
 
@@ -36,19 +36,20 @@
                 <span>или</span>
             </div>
 
-            <button type="button" class="btn-google" id="yandex-login-btn">
-                <!-- Возвращаем иконку через статику Django -->
-                <img src="{% static 'assets/photo-yandex.png' %}" alt="Yandex" class="google-icon">
+            <a
+                    href="{% url 'auth-yandex-start' %}"
+                    class="btn-google"
+            >
+                <img
+                        src="{% static 'assets/photo-yandex.png' %}"
+                        alt="Yandex"
+                        class="google-icon"
+                >
                 Войти через Яндекс
-            </button>
+            </a>
         </form>
 
         <a href="#" class="forgot">Забыли пароль?</a>
-
-        <div class="info-auth">
-            <span>Нет аккаунта?</span>
-            <a href="#">Обратитесь к HR</a>
-        </div>
     </div>
 </div>
 {% endblock %}
