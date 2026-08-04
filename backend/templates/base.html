@@ -22,21 +22,21 @@
     <div class="public-header-left">
         <div class="public-logo">SkillMap</div>
         <nav class="public-nav">
-
+            <a href="{% url 'my-profile' %}">Мой профиль</a>
             <!-- Навигация по ролям -->
             {% if user.role == 'HR' %}
-            <a href="{% url 'matrix' %}">Главная</a>
-            <a href="{% url 'matrix' %}">Матрица компетенций</a>
-            <a href="{% url 'ask' %}">Кого спросить?</a>
+<!--            <a href="{% url 'matrix' %}">Главная</a>-->
+<!--            <a href="{% url 'matrix' %}">Матрица компетенций</a>-->
+<!--            <a href="{% url 'ask' %}">Кого спросить?</a>-->
             <a href="#">Кадровый резерв</a>
             {% elif user.role == 'Manager' %}
-            <a href="{% url 'matrix' %}">Мой отдел</a>
-            <a href="{% url 'matrix' %}">Матрица компетенций</a>
-            <a href="{% url 'ask' %}">Кого спросить?</a>
+<!--            <a href="{% url 'matrix' %}">Мой отдел</a>-->
+<!--            <a href="{% url 'matrix' %}">Матрица компетенций</a>-->
+<!--            <a href="{% url 'ask' %}">Кого спросить?</a>-->
             {% else %}
             <!-- Employee (Сотрудник по умолчанию) -->
-            <a href="{% url 'my-profile' %}">Главная</a>
-            <a href="{% url 'ask' %}">Кого спросить?</a>
+<!--            <a href="{% url 'my-profile' %}">Главная</a>-->
+<!--            <a href="{% url 'ask' %}">Кого спросить?</a>-->
             {% endif %}
         </nav>
     </div>
@@ -80,10 +80,20 @@
 
 
                 <!-- Ссылка на выход -->
-                <a href="{% url 'login' %}" class="profile-dropdown-item profile-logout">
-                    <img src="{% static 'assets/image-menu2.svg' %}" alt="Выйти" class="profile-dropdown-icon">
-                    Выйти
-                </a>
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button
+                            type="submit"
+                            class="profile-dropdown-item profile-logout"
+                    >
+                        <img
+                                src="{% static 'assets/image-menu2.svg' %}"
+                                alt=""
+                                class="profile-dropdown-icon"
+                        >
+                        Выйти
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -97,31 +107,9 @@
     {% endblock %}
 </main>
 
-<!-- Скрипт для интерактивности выпадающего меню -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const dropdownArrow = document.getElementById('dropdownArrow');
-        const dropdownMenu = document.getElementById('dropdownMenu');
-
-        if (dropdownArrow && dropdownMenu) {
-            // Открытие/закрытие меню по клику на стрелочку
-            dropdownArrow.addEventListener('click', function(e) {
-                e.stopPropagation();
-                dropdownMenu.classList.toggle('active');
-            });
-
-            // Закрытие меню при клике в любую другую точку экрана
-            document.addEventListener('click', function(e) {
-                if (!dropdownMenu.contains(e.target) && !dropdownArrow.contains(e.target)) {
-                    dropdownMenu.classList.remove('active');
-                }
-            });
-        }
-    });
-</script>
 
 <!-- Блок для скриптов из дочерних страниц -->
 {% block extra_js %}{% endblock %}
-
+<script src="{% static 'js/dropdown.js' %}"></script>
 </body>
 </html>

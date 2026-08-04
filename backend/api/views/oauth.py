@@ -27,8 +27,7 @@ YANDEX_AUTHORIZE_URL = "https://oauth.yandex.ru/authorize"
 YANDEX_TOKEN_URL = "https://oauth.yandex.ru/token"
 YANDEX_USERINFO_URL = "https://login.yandex.ru/info"
  
- 
-TICKET_TTL_SECONDS = 60
+
 STATE_TTL_SECONDS = 600
  
  
@@ -112,37 +111,17 @@ class YandexCallbackView(APIView):
  
         user = User.objects.filter(email__iexact=email).first()
         if user is None:
-            user = User(
-                email=email,
-                full_name=full_name,
-                is_active=True,
+            return self._fail(
+                "Профиль не найден. Обратитесь к HR для создания аккаунта."
             )
-            user.set_unusable_password()
-            user.save()
-            assign_role(user, "Employee")
- 
-        tokens = issue_tokens_for_user(user)
 
-        # Как и при обычном логине, заводим Django-сессию — нужна для
-        # legacy-страницы /profile/<id>/.
+        if not user.is_active:
+            return self._fail("Аккаунт деактивирован")
+
         user.backend = "api.auth_backends.EmailBackend"
         django_login(request, user)
 
-        ticket = secrets.token_urlsafe(32)
-        cache.set(
-            f"yandex_ticket:{ticket}",
-            {
-                "access": tokens["access"],
-                "refresh": tokens["refresh"],
-                "user": UserPublicSerializer(user).data,
-            },
-            timeout=TICKET_TTL_SECONDS,
-        )
- 
-        frontend_url = getattr(
-            settings, "YANDEX_SUCCESS_REDIRECT", "/auth/yandex/success"
-        )
-        return HttpResponseRedirect(f"{frontend_url}?ticket={ticket}")
+        return HttpResponseRedirect("/profile/")
  
     @staticmethod
     def _exchange_code(code: str) -> dict:
@@ -178,44 +157,3 @@ class YandexCallbackView(APIView):
         return HttpResponseRedirect(f"/?yandex_error={msg}")
  
  
-class YandexClaimView(APIView):
- 
-    permission_classes = [AllowAny]
-    authentication_classes = []
- 
-    @extend_schema(
-        operation_id="auth_yandex_claim",
-        request=YandexClaimRequestSerializer,
-        responses={
-            200: YandexClaimResponseSerializer,
-            400: ErrorResponseSerializer,
-            404: ErrorResponseSerializer,
-        },
-    )
-    def post(self, request):
-        ticket = (request.data.get("ticket") or "").strip() if isinstance(request.data, dict) else ""
-        if not ticket:
-            return Response(
-                {"error": "Не указан ticket"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
- 
-        payload = cache.get(f"yandex_ticket:{ticket}")
-        if not payload:
-            return Response(
-                {"error": "Ticket недействителен или истёк"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
- 
-        cache.delete(f"yandex_ticket:{ticket}")
- 
-        return Response(
-            {
-                "success": True,
-                "user": payload["user"],
-                "tokens": {
-                    "access": payload["access"],
-                    "refresh": payload["refresh"],
-                },
-            }
-        )

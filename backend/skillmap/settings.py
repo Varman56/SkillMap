@@ -167,9 +167,6 @@ PASSWORD_HASHERS = [
 YANDEX_CLIENT_ID = os.getenv("YANDEX_CLIENT_ID", "")
 YANDEX_CLIENT_SECRET = os.getenv("YANDEX_CLIENT_SECRET", "")
 YANDEX_REDIRECT_URI = os.getenv("YANDEX_REDIRECT_URI", "")
-YANDEX_SUCCESS_REDIRECT = os.getenv(
-    "YANDEX_SUCCESS_REDIRECT", "/auth/yandex/success"
-)
 
 # Кэш — нужен для одноразовых OAuth ticket'ов и CSRF state'ов.
 # FileBasedCache, потому что под uWSGI/Gunicorn несколько worker-процессов,
