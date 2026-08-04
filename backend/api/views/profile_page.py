@@ -94,7 +94,7 @@ def _handle_add_skill(request, user):
         messages.error(request, "Выбранный навык не найден")
         return
     if level is None:
-        messages.error(request, "Уровень должен быть 1, 2 или 3")
+        messages.error(request, "Уровень должен быть 1 - 4")
         return
 
     _, created = UserSkill.objects.get_or_create(
@@ -210,9 +210,9 @@ def profile_page(request, user_id: int):
         ],
         "levels": sorted(VALID_LEVELS),
         "projects": [
-            {"name": up.project.name, "description": up.project.description, "icon": f"Component-{randint(1, 5)}.svg"}
+            {"name": up.project.name, "description": up.project.description, "icon": f"proj-icons/Project-icon-{randint(1, 5)}.svg"}
             for up in projects_qs
         ],
         "search": search,
     }
-    return render(request, "edit_profile.html", context)
+    return render(request, "profile.html", context)

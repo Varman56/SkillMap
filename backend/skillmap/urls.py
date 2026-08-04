@@ -28,21 +28,6 @@ urlpatterns = [
         {"document_root": settings.MEDIA_ROOT},
         name="media",
     ),
-    # Отдаём SPA-ассеты (bundle.js, картинки, css) из backend/spa/
-    # по корневому пути: /bundle.js, /css/site.css и т.п.
-    re_path(
-        r"^(?P<path>.+\.[a-zA-Z0-9]+)$",
-        serve,
-        {"document_root": settings.BASE_DIR / "spa"},
-        name="spa-assets",
-    ),
-    # SPA fallback на любой URL без расширения: /hr, /dashboard, /profile и т.д.
-    # Клиентский роутер во фронте сам разрулит маршрут.
-    re_path(
-        r"^(?!api/).*$",
-        TemplateView.as_view(template_name="index.html"),
-        name="spa",
-    ),
 
     # HTML Страницы Django Templates
     # Заменяем TemplateView для пустого пути и login на нашу функцию
@@ -51,8 +36,7 @@ urlpatterns = [
 
     # Остальные страницы пока оставляем как есть,
     # позже для них тоже нужно будет написать свои views
-    path("profile/edit/", TemplateView.as_view(template_name="edit_profile.html"), name="edit_profile"),
-    path("profile/", TemplateView.as_view(template_name="profile.html"), name="profile"),
+    # path("profile/edit/", TemplateView.as_view(template_name="edit_profile.html"), name="edit_profile"),
     path("matrix/", TemplateView.as_view(template_name="matrix.html"), name="matrix"),
     path("hr/", TemplateView.as_view(template_name="hr.html"), name="hr"),
     path("ask/", TemplateView.as_view(template_name="ask.html"), name="ask"),

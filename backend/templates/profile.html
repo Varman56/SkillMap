@@ -1,143 +1,151 @@
-<!doctype html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8" />
-    <title>Профиль — {{ profile_user.full_name }}</title>
-</head>
-<body>
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/public-profile.css' %}">
+{% endblock %}
 
-    {% if messages %}
-        <ul>
-            {% for message in messages %}
-                <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
-    {% endif %}
+{% block title %}SkillMap | Редактирование профиля{% endblock %}
 
-    <h1>Профиль: {{ profile_user.full_name }}</h1>
+{% block content %}
+<div class="public-profile-page">
 
-    <h2>Основные данные</h2>
-    <ul>
-        <li>Email: {{ profile_user.email }}</li>
-        <li>Должность: {{ profile_user.position|default:"—" }}</li>
-        <li>Отдел: {{ departments_str }}</li>
-        <li>Телефон: {{ profile_user.phone|default:"—" }}</li>
-        <li>Город: {{ profile_user.city|default:"—" }}</li>
-        <li>О себе: {{ profile_user.about|default:"—" }}</li>
-        <li>
-            Фото:
-            {% if profile_user.photo %}<a href="{{ profile_user.photo }}">ссылка</a>{% else %}—{% endif %}
-        </li>
-        <li>
-            Резюме:
-            {% if profile_user.resume %}<a href="{{ profile_user.resume }}">ссылка</a>{% else %}—{% endif %}
-        </li>
-    </ul>
+    <!-- ОСНОВНОЙ КОНТЕНТ -->
+    <main class="public-main">
+        <div class="public-profile-wrapper">
+            <div class="public-profile-card">
 
-    <h2>Навыки</h2>
-    {% if skills %}
-        <table border="1" cellpadding="4">
-            {% for skill in skills %}
-                <tr>
-                    <td>{{ skill.display_name }}</td>
-                    <td>{% if skill.is_approved %}подтверждён{% else %}не подтверждён{% endif %}</td>
-                    {% if can_edit %}
-                    <td>
-                        <form method="post" style="display:inline">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="update_skill">
-                            <input type="hidden" name="user_skill_id" value="{{ skill.user_skill_id }}">
-                            <select name="level">
-                                {% for lvl in levels %}
-                                    <option value="{{ lvl }}" {% if lvl == skill.level %}selected{% endif %}>{{ lvl }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit">Сохранить уровень</button>
-                        </form>
-                    </td>
-                    <td>
-                        <form method="post" style="display:inline">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="delete_skill">
-                            <input type="hidden" name="user_skill_id" value="{{ skill.user_skill_id }}">
-                            <button type="submit">Удалить</button>
-                        </form>
-                    </td>
-                    {% else %}
-                    <td>{{ skill.level_label }}</td>
-                    {% endif %}
-                </tr>
-            {% endfor %}
-        </table>
-    {% else %}
-        <p>Навыков пока нет.</p>
-    {% endif %}
+                <!-- TOP -->
+                <div class="public-top">
+                    <div class="public-avatar-large">
+                        {% if profile_user.photo %}
+                            <img src="{{ profile_user.photo }}" alt="Аватар">
+                        {% else %}
+                            <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
+                        {% endif %}
+                    </div>
 
-    {% if can_edit %}
-    <h3>Добавить навык</h3>
-    {% if available_skills %}
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="add_skill">
-            <select name="skill_id">
-                {% for available in available_skills %}
-                    <option value="{{ available.id }}">{{ available.display_name }}</option>
-                {% endfor %}
-            </select>
-            <select name="level">
-                {% for lvl in levels %}
-                    <option value="{{ lvl }}">{{ lvl }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit">Добавить</button>
-        </form>
-    {% endif %}
-    {% endif %}
+                    <div class="public-user-info">
+                        <div class="public-name-container">
+                            <h2 class="public-name" id="userName">{{ profile_user.full_name }}</h2>
+                            <button class="public-name-edit" id="editNameBtn">
+                                <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="icon-small">
+                            </button>
+                        </div>
 
-    <h2>Проекты</h2>
-    <form method="get">
-        <input type="text" name="search" value="{{ search }}" placeholder="Поиск по названию проекта">
-        <button type="submit">Поиск</button>
-        {% if search %}<a href="?">Сбросить</a>{% endif %}
-    </form>
-    {% if projects %}
-        <ul>
-            {% for project in projects %}
-                <li><strong>{{ project.name }}</strong> — {{ project.description|default:"—" }}</li>
-            {% endfor %}
-        </ul>
-    {% elif search %}
-        <p>По запросу «{{ search }}» ничего не найдено.</p>
-    {% endif %}
+                        <div class="public-title-row">
+                            <span>{{ profile_user.position|default:"—" }}</span>
+                            <span> • {{ departments_str|default:"—" }}</span>
+                        </div>
 
-    {% if can_edit %}
-    <h2>Редактировать профиль</h2>
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="update_profile">
-        <p>
-            <label>Телефон:</label><br>
-            <input type="text" name="phone" value="{{ profile_user.phone|default:'' }}">
-        </p>
-        <p>
-            <label>Город:</label><br>
-            <input type="text" name="city" value="{{ profile_user.city|default:'' }}">
-        </p>
-        <p>
-            <label>О себе:</label><br>
-            <textarea name="about">{{ profile_user.about|default:'' }}</textarea>
-        </p>
-        <p>
-            <label>Фото (JPEG/PNG/WEBP, до 5MB):</label><br>
-            <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
-        </p>
-        <p>
-            <label>Резюме (PDF или DOCX):</label><br>
-            <input type="file" name="resume" accept=".pdf,.docx">
-        </p>
-        <button type="submit">Сохранить</button>
-    </form>
-    {% endif %}
+                        <div class="public-info-items">
+                            <div class="public-info-item">
+                                <img src="{% static 'assets/city.svg' %}" class="public-info-icon" alt="город">
+                                <span>{{ profile_user.city|default:"—" }}</span>
+                            </div>
+                            <div class="public-info-item">
+                                <img src="{% static 'assets/phone.svg' %}" class="public-info-icon" alt="телефон">
+                                <span>{{ profile_user.phone|default:"—" }}</span>
+                            </div>
+                            <div class="public-info-item">
+                                <img src="{% static 'assets/email.svg' %}" class="public-info-icon" alt="почта">
+                                <span>{{ profile_user.email }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-</body>
-</html>
+                <!-- BOTTOM -->
+                <div class="public-bottom">
+                    <!-- LEFT -->
+                    <div class="public-left">
+                        <div class="public-about">
+                            <h3>Обо мне</h3>
+                            <p>{{ profile_user.about|default:"Информация не указана." }}</p>
+                        </div>
+
+                        <div class="public-skills-section">
+                            <div class="skills-edit">
+                                <h3 class="skills-text">Навыки</h3>
+                                <button class="public-name-edit" id="editNameBtn">
+                                    <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="skills-icon-small">
+                                </button>
+                            </div>
+
+                            <!-- Цикл вывода навыков -->
+                            {% for skill in skills %}
+                            <div class="skill-row">
+                                <span class="badge {{ skill.level_class|default:'' }}">{{ skill.level_label|default:skill.level }}</span>
+                                <span>{{ skill.display_name }}</span>
+                                {% if skill.is_approved %}
+                                    <small style="color: green;">(подтверждён)</small>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                            <div class="skill-row"><span>Навыки пока не добавлены.</span></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- PROJECTS -->
+                    <div class="public-projects-section">
+                        <div class="public-projects-header">
+                            <h3>Проекты</h3>
+                            <input
+                                type="text"
+                                class="public-projects-search"
+                                id="searchProjectInput"
+                                placeholder="Поиск"
+                                value="{{ search|default:'' }}"
+                            >
+                        </div>
+                        <div id="projectsContainer">
+
+                            <!-- Цикл вывода проектов -->
+                            {% for project in projects %}
+                            <div class="project" data-id="{{ project.id }}">
+                                <div class="project-header">
+                                    {% if project.icon %}
+                                        <img src="{% static 'assets/'|add:project.icon %}" alt="иконка" class="project-icon">
+                                    {% endif %}
+                                    <div class="project-title">{{ project.name }}</div>
+                                </div>
+                                <div class="project-desc">{{ project.description|default:"—" }}</div>
+                            </div>
+                            {% empty %}
+                            <div class="project">
+                                <div class="project-desc">У вас пока нет добавленных проектов.</div>
+                            </div>
+                            {% endfor %}
+                            
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Модальное окно -->
+    <div class="public-modal" id="addProjectModal">
+        <div class="public-modal-content">
+            <div class="public-modal-header">
+                <h3>Добавить проект</h3>
+            </div>
+            <form id="addProjectForm">
+                <div class="public-form-group">
+                    <label>Название проекта:</label>
+                    <input type="text" id="projectTitle" placeholder="Введите название проекта" required>
+                </div>
+                <div class="public-form-group">
+                    <label>Описание проекта:</label>
+                    <textarea id="projectDescription" rows="3" placeholder="Введите описание проекта" required></textarea>
+                </div>
+                <div class="public-form-buttons">
+                    <button type="submit" class="public-btn-submit">Сохранить</button>
+                    <button type="button" class="public-btn-cancel add-project-cancel">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

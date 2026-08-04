@@ -18,14 +18,14 @@
 
     <!-- ================= ХЕДЕР ================= -->
      {% block header %}
-    <header class="edit-public-header">
-        <div class="edit-public-header-left">
-            <div class="edit-public-logo">SkillMap</div>
-            <nav class="edit-public-nav">
+    <header class="public-header">
+        <div class="public-header-left">
+            <div class="public-logo">SkillMap</div>
+            <nav class="public-nav">
 
                 <!-- Навигация по ролям -->
                 {% if user.role == 'HR' %}
-                    <a href="{% url 'edit_profile' %}">Главная</a>
+                    <a href="{% url 'matrix' %}">Главная</a>
                     <a href="{% url 'matrix' %}">Матрица компетенций</a>
                     <a href="{% url 'ask' %}">Кого спросить?</a>
                     <a href="#">Кадровый резерв</a>
@@ -35,7 +35,7 @@
                     <a href="{% url 'ask' %}">Кого спросить?</a>
                 {% else %}
                     <!-- Employee (Сотрудник по умолчанию) -->
-                    <a href="{% url 'edit_profile' %}">Главная</a>
+                    <a href="{% url 'matrix' %}">Главная</a>
                     <a href="{% url 'ask' %}">Кого спросить?</a>
                 {% endif %}
             </nav>
@@ -69,7 +69,7 @@
                     <div class="profile-dropdown-divider"></div>
                     
                     <!-- Ссылка на редактирование профиля (укажите имя вашей view) -->
-                    <a href="{% url 'edit_profile' %}" class="profile-dropdown-item" id="editProfileBtn">
+                    <a href="{% url 'matrix' %}" class="profile-dropdown-item" id="editProfileBtn">
                         <img src="{% static 'assets/image-menu1.svg' %}" alt="Редактировать" class="profile-dropdown-icon">
                         Редактировать профиль
                     </a>

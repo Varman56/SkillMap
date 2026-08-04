@@ -16,8 +16,9 @@ from .models import (
     SubcategorySkill,
     UserRole,
 )
+from .views.profile_page import PROFILE_LEVEL_LABELS_EN
 
-LEVEL_LABELS = {1: "Junior", 2: "Middle", 3: "Senior"}
+LEVEL_LABELS = PROFILE_LEVEL_LABELS_EN
 LEVEL_LABEL_TO_INT = {v.lower(): k for k, v in LEVEL_LABELS.items()}
 
 
