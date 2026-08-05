@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/ask.css' %}">
+    <link rel="stylesheet" href="{% static 'css/edit-public-profile.css' %}">
+{% endblock %}
+
+{% block title %}SkillMap | Кого спросить?{% endblock %}
+
+{% block content %}
+<div class="ask-page">
+    <main class="ask-main">
+        <div class="ask-container">
+            <h1 class="ask-title">Кого спросить?</h1>
+            <p class="ask-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
+
+            <div class="ask-search-section">
+                <div class="ask-search-box">
+                    <input type="text" id="skillSearchInput" placeholder="Введите навык, например, Docker" class="ask-search-input" autocomplete="off">
+                    <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="ask-search-icon">
+                </div>
+            </div>
+
+            <div id="askResults" class="ask-results">
+                <div class="ask-empty">
+                    <p>Введите навык для поиска сотрудников</p>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById("skillSearchInput");
+        const resultsContainer = document.getElementById("askResults");
+        let debounceTimer = null;
+
+        // URL для API поиска. 
+        // ВАЖНО: Замените на актуальный путь из вашего urls.py
+        const SEARCH_API_URL = "/api/ask/search/"; 
+        
+        // Получаем путь к картинке через шаблонизатор Django
+        const lampIconUrl = "{% static 'assets/lamp.svg' %}";
+
+        // Генерация карточки сотрудника
+        function buildCardHTML(emp) {
+            let card = '<div class="ask-card">';
+            card += '<div class="ask-card-avatar"></div>';
+            card += '<div class="ask-card-info">';
+            card += '<div class="ask-card-name">' + emp.fullName + '</div>';
+            card += '<div class="ask-card-role">' + (emp.position || '') + '</div>';
+            card += '</div>';
+            
+            // Заменили кнопку на обычную ссылку, чтобы не писать JS-обработчики для перехода
+            card += `<a href="/public-profile/?id=${emp.publicId}" class="ask-card-btn" style="text-decoration: none; display: flex; align-items: center; justify-content: center;">Посмотреть профиль</a>`;
+            card += '</div>';
+            return card;
+        }
+
+        // Генерация категории с навыком
+        function buildCategoryHTML(title, dotClass, employees) {
+            let html = '<div class="ask-category">';
+            html += '<div class="ask-category-header">';
+            html += '<span class="ask-category-dot ' + dotClass + '"></span>';
+            html += '<h2 class="ask-category-title">' + title + '</h2>';
+            html += '</div>';
+            html += '<div class="ask-category-cards">';
+            html += employees.map(buildCardHTML).join('');
+            html += '</div>';
+            html += '</div>';
+            return html;
+        }
+
+        // Основная функция рендера результатов
+        async function renderResults(skillQuery) {
+            if (!resultsContainer) return;
+
+            if (!skillQuery || skillQuery.trim() === "") {
+                resultsContainer.innerHTML = `
+                    <div class="ask-empty">
+                        <p>Введите навык для поиска сотрудников</p>
+                    </div>
+                `;
+                return;
+            }
+
+            resultsContainer.innerHTML = '<div class="ask-empty"><p>Загрузка...</p></div>';
+
+            let employees = [];
+            try {
+                // Запрос к Django API
+                const res = await fetch(SEARCH_API_URL + "?skill=" + encodeURIComponent(skillQuery.trim()));
+                if (res.ok) {
+                    employees = await res.json();
+                }
+            } catch {
+                resultsContainer.innerHTML = '<div class="ask-empty"><p>Ошибка загрузки данных</p></div>';
+                return;
+            }
+
+            // Обработка пустого ответа
+            if (employees.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="ask-results-header">
+                        Результаты по запросу: <span class="ask-query">${skillQuery}</span>
+                    </div>
+                    <div class="ask-empty">
+                        <img class="lamp" src="${lampIconUrl}">
+                        <div class="ask-empty-content">
+                            <h3 class="ask-empty-title">Ничего не найдено</h3>
+                            <p class="ask-empty-text">
+                                Похоже, у нас пока нет сотрудников с опытом в навыке
+                                &laquo;${skillQuery}&raquo;. Хотите развить это направление?
+                            </p>
+                            <button class="ask-empty-btn" id="contactHrBtn">Обратиться к HR</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById("contactHrBtn")?.addEventListener("click", () => {
+                    alert("Запрос отправлен HR.");
+                });
+                return;
+            }
+
+            // Фильтрация по уровням
+            const experts     = employees.filter(e => e.level === "expert");
+            const advanced    = employees.filter(e => e.level === "advanced");
+            const experienced = employees.filter(e => e.level === "experienced");
+            const novices     = employees.filter(e => e.level === "novice");
+
+            let html = '<div class="ask-results-header">Результаты по запросу: <span class="ask-query">' + skillQuery + '</span></div>';
+
+            if (experts.length)     html += buildCategoryHTML("Эксперты",    "expert-dot",      experts);
+            if (advanced.length)    html += buildCategoryHTML("Продвинутые", "advanced-dot",    advanced);
+            if (experienced.length) html += buildCategoryHTML("Опытные",     "experienced-dot", experienced);
+            if (novices.length)     html += buildCategoryHTML("Новички",     "novice-dot",      novices);
+
+            resultsContainer.innerHTML = html;
+        }
+
+        // Слушатель на инпут с задержкой (debounce 300ms)
+        if (searchInput) {
+            searchInput.addEventListener("input", function (e) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => renderResults(e.target.value), 300);
+            });
+}
+});
+</script>
+{% endblock %}
