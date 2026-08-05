@@ -7,6 +7,7 @@ from drf_spectacular.views import (
 )
 from api.views.web_views import login_page, logout_page
 from api.views.profile_page import profile_page
+from api.views.matrix_page import matrix_page_data
 
 urlpatterns = [
     path("api/", include("api.urls")),
@@ -19,7 +20,7 @@ urlpatterns = [
 
     path("profile/", profile_page, name="my-profile"),
     path("profile/<int:user_id>/", profile_page, name="profile-page"),
-
+    path("matrix-data/", matrix_page_data, name="matrix-data"),
     # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.
     # Тоже должно стоять ДО spa-assets, иначе тот catch-all перехватит /media/*.jpg первым.
     re_path(
