@@ -234,7 +234,8 @@
         </div>
     </div>
 </div>
-
+{% if request.user == profile_user %}
 {% include "profile/_edit_dialog.html" %}
 {% include "profile/_skill_dialog.html" %}
+{% endif %}
 {% endblock %}
