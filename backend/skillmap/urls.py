@@ -8,6 +8,7 @@ from drf_spectacular.views import (
 )
 from api.views.web_views import login_page
 from api.views.profile_page import profile_page
+from api.views.matrix_page import matrix_page_data
 
 urlpatterns = [
     path("api/", include("api.urls")),
@@ -20,6 +21,11 @@ urlpatterns = [
     # Отдельная HTML-страница профиля (не API, обычный Django-темплейт).
     # Должна стоять ДО catch-all'ов SPA ниже, иначе их re_path перехватит путь первым.
     path("profile/<int:user_id>/", profile_page, name="profile-page"),
+    # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.
+    # Тоже должно стоять ДО spa-assets, иначе тот catch-all перехватит /media/*.jpg первым.
+    # JSON-данные для SPA-страницы "Матрица компетенций" (не HTML, не DRF-ручка).
+    # Тоже должно стоять ДО catch-all'ов ниже.
+    path("matrix-data/", matrix_page_data, name="matrix-data"),
     # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.
     # Тоже должно стоять ДО spa-assets, иначе тот catch-all перехватит /media/*.jpg первым.
     re_path(
