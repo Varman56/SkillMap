@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.urls import include, path, re_path
+from django.views.generic import TemplateView
 from django.views.static import serve
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -39,7 +40,7 @@ urlpatterns = [
     # Остальные страницы пока оставляем как есть,
     # позже для них тоже нужно будет написать свои views
     # path("profile/edit/", TemplateView.as_view(template_name="edit_profile.html"), name="edit_profile"),
-    # path("matrix/", TemplateView.as_view(template_name="matrix.html"), name="matrix"),
+    path("matrix/", TemplateView.as_view(template_name="matrix.html"), name="matrix"),
     # path("hr/", TemplateView.as_view(template_name="hr.html"), name="hr"),
-    # path("ask/", TemplateView.as_view(template_name="ask.html"), name="ask"),
+    path("ask/", TemplateView.as_view(template_name="ask.html"), name="ask"),
 ]
