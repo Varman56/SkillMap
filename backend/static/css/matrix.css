@@ -89,52 +89,113 @@
     padding: 0px 20px 0px 0px;
 }
 
-.cm-slider-group {
+.cm-dropdown-filter {
+    position: relative;
+    min-width: 150px;
+}
+
+.cm-dropdown-btn {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 120px;
-    border: 1px solid #E5E7EB;
-    border-radius: 6px;
-    padding: 8px;
-}
-
-.cm-slider-group label {
-    font-size: 11px;
-    color: #6B7280;
-    font-weight: 500;
-    margin: 0;
-}
-
-.cm-slider-group input[type=range] {
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
     width: 100%;
-    accent-color: #60A5FA;
-    appearance: none;
-    height: 6px;
-    /* background: #E5E7EB; */
-    background: #60A5FA;
-    border-radius: 100px;
+    text-align: left;
     outline: none;
 }
 
-.cm-slider-group input[type=range]::-webkit-slider-thumb {
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    background: #60A5FA;
-    border: 3px solid white;
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.cm-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 180px;
+    background: #ffffff;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.cm-slider-group input[type=range]::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    background: #60A5FA;
-    border: 3px solid white;
-    border-radius: 50%;
+.cm-dropdown-menu.show {
+    display: flex;
+}
+
+.cm-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #374151;
     cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 6px;
+    user-select: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.cm-checkbox-item:hover {
+    background: #F3F4F6;
+}
+
+.cm-checkbox-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid #D1D5DB;
+    border-radius: 4px;
+    background-color: #ffffff;
+    cursor: pointer;
+    position: relative;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.cm-checkbox-item:hover input[type="checkbox"] {
+    border-color: #ab4ad5;
+}
+
+/* 3. Выбранное состояние: фиолетовый фон и фиолетовая рамка */
+.cm-checkbox-item input[type="checkbox"]:checked {
+    background-color: #ab4ad5;
+    border-color: #ab4ad5;
+}
+
+/* 4. Белая галочка внутри фиолетового квадратика */
+.cm-checkbox-item input[type="checkbox"]:checked::after {
+    content: "";
+    width: 10px;
+    height: 10px;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='20 6 9 17 4 12'%3e%3c/polyline%3e%3c/svg%3e");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    animation: checkmarkPop 0.15s ease-in-out; /* Плавность появление галочки */
+}
+
+/* Микро-анимация появления галочки */
+@keyframes checkmarkPop {
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 .cm-export-btn {
@@ -246,7 +307,7 @@
 }
 
 .cm-emp-name {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #111827;
 }

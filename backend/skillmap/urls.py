@@ -76,22 +76,18 @@ urlpatterns = [
             "categories": [
                 {
                     "name": "Языки программирования",
-                    "icon": "&lt;/&gt;",
                     "skills": ["Java", "Python", "JavaScript", "TypeScript", "SQL"],
                 },
                 {
                     "name": "Бэкенд",
-                    "icon": "⚙️",
                     "skills": ["Spring", "Django", "Node.js"],
                 },
                 {
                     "name": "DevOps",
-                    "icon": "☁️",
                     "skills": ["Docker", "Kubernetes", "AWS"],
                 },
                 {
                     "name": "Методологии",
-                    "icon": "📋",
                     "skills": ["Agile", "Scrum"],
                 },
             ],
