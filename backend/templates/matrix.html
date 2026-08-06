@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load dict_helpers %} <!-- Подключаем наш новый фильтр -->
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/matrix.css' %}">
@@ -22,27 +23,29 @@
             </div>
             
             <div class="cm-select-group">
-                <!-- 2. Фильтр Отдела -->
+                <!-- 2. Фильтр Отдела (данные из бэкенда) -->
                 <div class="cm-filter-item">
                     <label>Отдел</label>
                     <select id="deptFilter">
                         <option value="">Все отделы</option>
-                        <option value="Отдел разработки ПО">Отдел разработки ПО</option>
-                    </select>
-                </div>
-
-                <!-- 3. Фильтр Категории -->
-                <div class="cm-filter-item">
-                    <label>Категория навыка</label>
-                    <select id="categoryFilter">
-                        <option value="">Все категории</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat.name }}">{{ cat.name }}</option>
+                        {% for dept in filters.departments %}
+                            <option value="{{ dept }}">{{ dept }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- 4. Фильтр Подкатегории -->
+                <!-- 3. Фильтр Категории (данные из бэкенда) -->
+                <div class="cm-filter-item">
+                    <label>Категория навыка</label>
+                    <select id="categoryFilter">
+                        <option value="">Все категории</option>
+                        {% for cat in filters.categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 4. Фильтр Подкатегории (скрыт/пока без данных) -->
                 <div class="cm-filter-item">
                     <label>Подкатегория</label>
                     <select id="subcategoryFilter">
@@ -50,15 +53,13 @@
                     </select>
                 </div>
 
-                <!-- 5. Фильтр конкретного Навыка -->
+                <!-- 5. Фильтр конкретного Навыка (данные из бэкенда) -->
                 <div class="cm-filter-item">
                     <label>Навыки</label>
                     <select id="skillFilter">
                         <option value="">Все навыки</option>
-                        {% for cat in categories %}
-                            {% for skill in cat.skills %}
-                                <option value="{{ skill }}">{{ skill }}</option>
-                            {% endfor %}
+                        {% for skill_name in filters.skills %}
+                            <option value="{{ skill_name }}">{{ skill_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -104,7 +105,7 @@
     <div class="cm-table-container">
         <table class="cm-matrix-table" id="matrixTable">
             <thead id="matrixThead">
-                <!-- 1. Строка с категориями -->
+                <!-- 1. Строка с категориями (берется из columns) -->
                 <tr>
                     <th rowspan="2" style="padding: 0;">
                         <div class="cm-emp-header">
@@ -112,17 +113,17 @@
                             Сотрудники (<span id="empCount">{{ employees|length }}</span>)
                         </div>
                     </th>
-                    {% for cat in categories %}
-                        <th colspan="{{ cat.skills|length }}" class="cm-category-th" data-category="{{ cat.name }}">
-                            {{ cat.icon }} {{ cat.name }}
+                    {% for col in columns %}
+                        <th colspan="{{ col.skills|length }}" class="cm-category-th" data-category="{{ col.category }}">
+                            {{ col.category }}
                         </th>
                     {% endfor %}
                 </tr>
                 <!-- 2. Строка с названиями навыков -->
                 <tr>
-                    {% for cat in categories %}
-                        {% for skill in cat.skills %}
-                            <th class="cm-skill-th" data-category="{{ cat.name }}" data-skill="{{ skill }}">{{ skill }}</th>
+                    {% for col in columns %}
+                        {% for skill in col.skills %}
+                            <th class="cm-skill-th" data-category="{{ col.category }}" data-skill="{{ skill.name }}">{{ skill.name }}</th>
                         {% endfor %}
                     {% endfor %}
                 </tr>
@@ -130,24 +131,39 @@
             <tbody id="matrixTbody">
                 <!-- 3. Строки с сотрудниками -->
                 {% for emp in employees %}
-                    <tr data-dept="Отдел разработки ПО">
+                    <!-- Дата-атрибут отдела нужен для JS фильтра -->
+                    <tr data-dept="{{ emp.department|default_if_none:'' }}">
                         <td style="padding: 0;">
                             <div class="cm-emp-cell">
-                                {% if emp.avatar %}
-                                    <img src="{{ emp.avatar }}" alt="{{ emp.name }}" class="cm-emp-avatar">
+                                {% if emp.photo %}
+                                    <img src="{{ emp.photo.url }}" alt="{{ emp.fullName }}" class="cm-emp-avatar">
                                 {% else %}
-                                    <img src="https://ui-avatars.com/api/?background=f3f4f6&color=374151&name={{ emp.name|urlencode }}" alt="{{ emp.name }}" class="cm-emp-avatar">
+                                    <img src="https://ui-avatars.com/api/?background=f3f4f6&color=374151&name={{ emp.fullName|urlencode }}" alt="{{ emp.fullName }}" class="cm-emp-avatar">
                                 {% endif %}
                                 <div class="cm-emp-info">
-                                    <span class="cm-emp-name">{{ emp.name }}</span>
-                                    <span class="cm-emp-position">{{ emp.position }}</span>
+                                    <span class="cm-emp-name">{{ emp.fullName }}</span>
+                                    <span class="cm-emp-position">{{ emp.position|default_if_none:"—" }}</span>
                                 </div>
                             </div>
                         </td>
-                        {% for skill_name, skill_data in emp.skills.items %}
-                            <td data-skill="{{ skill_name }}" data-level="{{ skill_data.level }}" data-confirmed="{{ skill_data.confirmed|yesno:'true,false' }}">
-                                {% include 'includes/skill_icon.html' with level=skill_data.level confirmed=skill_data.confirmed %}
-                            </td>
+                        
+                        <!-- 4. Проходимся строго по колонкам и ищем скилл по ID -->
+                        {% for col in columns %}
+                            {% for skill in col.skills %}
+                                <!-- Используем наш кастомный тег get_item -->
+                                {% with skill_data=emp.skills|get_item:skill.id %}
+                                    {% if skill_data %}
+                                        <td data-skill="{{ skill.name }}" data-level="{{ skill_data.level }}" data-confirmed="{{ skill_data.isApproved|yesno:'true,false' }}">
+                                            {% include 'includes/skill_icon.html' with level=skill_data.level confirmed=skill_data.isApproved %}
+                                        </td>
+                                    {% else %}
+                                        <!-- Если навык пропущен в бэкенде, ставим 0 уровень -->
+                                        <td data-skill="{{ skill.name }}" data-level="0" data-confirmed="false">
+                                            {% include 'includes/skill_icon.html' with level=0 confirmed=False %}
+                                        </td>
+                                    {% endif %}
+                                {% endwith %}
+                            {% endfor %}
                         {% endfor %}
                     </tr>
                 {% endfor %}
@@ -160,14 +176,13 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Элементы UI
+    // Весь ваш JS для фильтрации остается неизменным
     const searchInput = document.getElementById('searchInput');
     const deptFilter = document.getElementById('deptFilter');
     const categoryFilter = document.getElementById('categoryFilter');
     const skillFilter = document.getElementById('skillFilter');
     const statusFilter = document.getElementById('statusFilter');
 
-    // Элементы выпадающего меню Уровней
     const levelsBtn = document.getElementById('levelsBtn');
     const levelsMenu = document.getElementById('levelsMenu');
     const levelsBtnText = document.getElementById('levelsBtnText');
@@ -175,7 +190,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = levelsMenu.querySelectorAll('input[type="checkbox"]');
     const empCountSpan = document.getElementById('empCount');
 
-    // 1. Открытие / Закрытие дропдауна уровней
     levelsBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         levelsMenu.classList.toggle('show');
@@ -187,7 +201,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 2. Главная функция фильтрации матрицы
     function applyMatrixFilters() {
         const searchText = searchInput.value.toLowerCase().trim();
         const selectedDept = deptFilter.value;
@@ -199,7 +212,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .filter(cb => cb.checked)
             .map(cb => cb.value);
 
-        // Обновляем текст на кнопке уровней
         if (selectedLevels.length === checkboxes.length) {
             levelsBtnText.textContent = "Все уровни (0–4)";
         } else if (selectedLevels.length === 0) {
@@ -208,7 +220,6 @@ document.addEventListener('DOMContentLoaded', function() {
             levelsBtnText.textContent = `Уровни: ${selectedLevels.join(', ')}`;
         }
 
-        // А. Фильтрация колонок (Категория и Навык)
         const categoryMap = {};
         document.querySelectorAll('.cm-category-th').forEach(th => {
             categoryMap[th.getAttribute('data-category')] = {
@@ -233,8 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 categoryMap[catName].visibleSkills++;
             }
 
-            // Переключаем видимость соответствующей ячейки в каждой строке
-            const cellIndex = index + 1; // +1 из-за первой колонки сотрудников
+            const cellIndex = index + 1; 
             document.querySelectorAll('#matrixTbody tr').forEach(row => {
                 if (row.children[cellIndex]) {
                     row.children[cellIndex].style.display = displayValue;
@@ -242,7 +252,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // Пересчитываем colspan и видимость заголовков категорий
         Object.values(categoryMap).forEach(catData => {
             if (catData.visibleSkills > 0) {
                 catData.thElement.style.display = '';
@@ -252,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Б. Фильтрация строк (Сотрудники по ФИО и Отделу)
         let visibleEmpCount = 0;
         document.querySelectorAll('#matrixTbody tr').forEach(row => {
             const empName = row.querySelector('.cm-emp-name')?.textContent.toLowerCase() || '';
@@ -276,7 +284,6 @@ document.addEventListener('DOMContentLoaded', function() {
             empCountSpan.textContent = visibleEmpCount;
         }
 
-        // В. Фильтрация самих ячеек навыков (Уровень + Статус)
         document.querySelectorAll('#matrixTbody td[data-level]').forEach(cell => {
             const level = cell.getAttribute('data-level');
             const isConfirmed = cell.getAttribute('data-confirmed') === 'true';
@@ -297,7 +304,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Слушатели событий для всех контролов
     searchInput.addEventListener('input', applyMatrixFilters);
     deptFilter.addEventListener('change', applyMatrixFilters);
     categoryFilter.addEventListener('change', applyMatrixFilters);
