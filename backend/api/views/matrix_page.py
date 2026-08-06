@@ -41,8 +41,8 @@ def _build_category_columns():
     return columns
 
 
-@login_required(login_url="/")
-@user_passes_test(_is_hr_or_manager, login_url="/")
+@login_required(login_url="/login/")
+@user_passes_test(_is_hr_or_manager, login_url="/login/")
 def matrix_page(request):
     user = request.user
 

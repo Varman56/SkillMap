@@ -6,14 +6,14 @@
     <link rel="stylesheet" href="{% static 'css/matrix.css' %}">
 {% endblock %}
 
-{% block title %}SkillMap | Матрица компетенций отдела{% endblock %}
+{% block title %}SkillMap | Матрица компетенций{% endblock %}
 
 {% block content %}
 <div class="cm-page">
     
     <!-- Верхняя панель -->
     <div class="cm-header-bar">
-        <h1 class="cm-title">Матрица компетенций отдела</h1>
+        <h1 class="cm-title">Матрица компетенций</h1>
         
         <div class="cm-filters">
             <!-- 1. Поиск по ФИО/должности -->
@@ -21,25 +21,27 @@
                 <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="matrix-search-icon">
                 <input type="text" id="searchInput" placeholder="Поиск по ФИО...">
             </div>
-            
+
+            {% if user.primary_role == "HR" %}
             <div class="cm-select-group">
                 <!-- 2. Фильтр Отдела (данные из бэкенда) -->
                 <div class="cm-filter-item">
                     <label>Отдел</label>
                     <select id="deptFilter">
                         <option value="">Все отделы</option>
-                        {% for dept in filters.departments %}
+                        {% for dept in departments %}
                             <option value="{{ dept }}">{{ dept }}</option>
                         {% endfor %}
                     </select>
                 </div>
+                {% endif %}
 
                 <!-- 3. Фильтр Категории (данные из бэкенда) -->
                 <div class="cm-filter-item">
                     <label>Категория навыка</label>
                     <select id="categoryFilter">
                         <option value="">Все категории</option>
-                        {% for cat in filters.categories %}
+                        {% for cat in categories %}
                             <option value="{{ cat }}">{{ cat }}</option>
                         {% endfor %}
                     </select>
@@ -61,7 +63,7 @@
                     <label>Навыки</label>
                     <select id="skillFilter">
                         <option value="">Все навыки</option>
-                        {% for skill_name in filters.skills %}
+                        {% for skill_name in skills %}
                             <option value="{{ skill_name }}">{{ skill_name }}</option>
                         {% endfor %}
                     </select>
@@ -194,7 +196,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Весь ваш JS для фильтрации остается неизменным
     const searchInput = document.getElementById('searchInput');
+    {% if user.primary_role == "HR" %}
     const deptFilter = document.getElementById('deptFilter');
+    {% endif %}
     const categoryFilter = document.getElementById('categoryFilter');
     const skillFilter = document.getElementById('skillFilter');
     const statusFilter = document.getElementById('statusFilter');
@@ -220,7 +224,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function applyMatrixFilters() {
         const searchText = searchInput.value.toLowerCase().trim();
+        {% if user.primary_role == "HR" %}
         const selectedDept = deptFilter.value;
+        {% endif %}
         const selectedCategory = categoryFilter.value;
         const selectedSubcategory = subcategoryFilter.value; // Новый фильтр
         const selectedSkill = skillFilter.value;
@@ -318,9 +324,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (searchText && !empName.includes(searchText) && !empposition.includes(searchText)) {
                 isRowVisible = false;
             }
+            {% if user.primary_role == "HR" %}
             if (selectedDept && empDept !== selectedDept) {
                 isRowVisible = false;
             }
+            {% endif %}
 
             row.style.display = isRowVisible ? '' : 'none';
             if (isRowVisible) visibleEmpCount++;
@@ -350,8 +358,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    searchInput.addEventListener('input', applyMatrixFilters);
+    {% if user.primary_role == "HR" %}
     deptFilter.addEventListener('change', applyMatrixFilters);
+    {% endif %}
+
+    searchInput.addEventListener('input', applyMatrixFilters);
     categoryFilter.addEventListener('change', applyMatrixFilters);
     skillFilter.addEventListener('change', applyMatrixFilters);
     statusFilter.addEventListener('change', applyMatrixFilters);

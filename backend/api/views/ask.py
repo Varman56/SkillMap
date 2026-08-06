@@ -1,17 +1,17 @@
 """/api/ask — поиск сотрудников по навыку."""
 from collections import defaultdict
- 
+
 from django.db.models import Q
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
- 
+
 from ..models import UserSkill
 from ..serializers import AskResultSerializer
- 
+
 LEVEL_TO_UI = {1: "experienced", 2: "advanced", 3: "expert"}
- 
- 
+
+
 class AskView(APIView):
     @extend_schema(
         operation_id="ask_search",
@@ -29,7 +29,7 @@ class AskView(APIView):
         skill_q = (request.query_params.get("skill") or "").strip().lower()
         if not skill_q:
             return Response([])
- 
+
         matches = list(
             UserSkill.objects.select_related("user", "skill")
             .filter(
@@ -39,13 +39,13 @@ class AskView(APIView):
             )
             .distinct()
         )
- 
+
         by_user = defaultdict(list)
         for us in matches:
             if us.user is None or us.skill is None:
                 continue
             by_user[us.user_id].append(us)
- 
+
         results = []
         for user_skills in by_user.values():
             best = max(user_skills, key=lambda us: us.level)
@@ -61,7 +61,7 @@ class AskView(APIView):
                     "matchingSkills": matching,
                 }
             )
- 
+
         results.sort(key=lambda r: r["_level"], reverse=True)
         for r in results:
             r["level"] = LEVEL_TO_UI.get(r.pop("_level"), "experienced")

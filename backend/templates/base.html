@@ -22,16 +22,15 @@
     <div class="public-header-left">
         <div class="public-logo">SkillMap</div>
         <nav class="public-nav">
-            <a href="{% url 'my-profile' %}">Мой профиль</a>
+<!--            <a href="{% url 'my-profile' %}">Мой профиль</a>-->
             <!-- Навигация по ролям -->
-            {% if user.role == 'HR' %}
-<!--            <a href="{% url 'matrix' %}">Главная</a>-->
-<!--            <a href="{% url 'matrix' %}">Матрица компетенций</a>-->
+            {% if user.primary_role == 'HR' %}
+            <a href="{% url 'matrix' %}">Матрица компетенций</a>
 <!--            <a href="{% url 'ask' %}">Кого спросить?</a>-->
-            <a href="#">Кадровый резерв</a>
-            {% elif user.role == 'Manager' %}
+<!--            <a href="#">Кадровый резерв</a>-->
+            {% elif user.primary_role == 'Manager' %}
 <!--            <a href="{% url 'matrix' %}">Мой отдел</a>-->
-<!--            <a href="{% url 'matrix' %}">Матрица компетенций</a>-->
+           <a href="{% url 'matrix' %}">Матрица компетенций</a>
 <!--            <a href="{% url 'ask' %}">Кого спросить?</a>-->
             {% else %}
             <!-- Employee (Сотрудник по умолчанию) -->
@@ -58,7 +57,7 @@
                         <!-- Должность и отдел -->
                         <div class="profile-dropdown-role">
                             {% if user.position %}
-                            {{ user.position }}{% if user.department %} • {{ user.department }}{% endif %}
+                            {{ user.position }}{% if user.primary_department %} • {{ user.primary_department }}{% endif %}
                             {% else %}
                             Дизайнер
                             {% endif %}
