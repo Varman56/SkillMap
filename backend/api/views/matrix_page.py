@@ -1,23 +1,5 @@
-"""/matrix-data/ — данные для SPA-страницы "Матрица компетенций отдела".
-
-Не HTML, не DRF-ручка — просто Python-функция, которая собирает всё
-нужное для этой страницы прямо из БД и отдаёт JSON (через JsonResponse).
-Фронт сам рисует таблицу/пироги/графики — эта функция только словарь
-с данными, ничего больше (по аналогии с profile_page.py, только вместо
-HTML-шаблона на выходе JSON для SPA-фетча).
-
-Доступ: только HR/Manager (та же логика, что и в DRF MatrixView).
-
-Фильтрация — через query-параметры:
-  ?search=...        — по ФИО, должности, отделу
-  ?department=...     — точное имя отдела
-  ?category=...        — точное имя категории навыков
-  ?subcategory=...      — точное имя подкатегории
-  ?level_min=1&level_max=4  — диапазон уровня навыка
-  ?status=approved|not_approved  — статус подтверждения навыка
-"""
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import JsonResponse
+from django.shortcuts import render
 
 from ..models import Category, Skill, User, UserSkill
 
@@ -53,7 +35,7 @@ def _build_category_columns():
 
 @login_required(login_url="/")
 @user_passes_test(_is_hr_or_manager, login_url="/")
-def matrix_page_data(request):
+def matrix_page(request):
     search = (request.GET.get("search") or "").strip()
     department_filter = (request.GET.get("department") or "").strip()
     category_filter = (request.GET.get("category") or "").strip()
@@ -200,4 +182,4 @@ def matrix_page_data(request):
         "columns": columns,
         "employees": employees,
     }
-    return JsonResponse(data)
+    return render(request, "matrix.html", data)

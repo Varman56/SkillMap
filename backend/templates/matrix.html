@@ -3,7 +3,6 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/matrix.css' %}">
-    <link rel="stylesheet" href="{% static 'css/edit-public-profile.css' %}">
 {% endblock %}
 
 {% block title %}SkillMap | Матрица компетенций отдела{% endblock %}
@@ -11,39 +10,71 @@
 {% block content %}
 <div class="cm-page">
     
-    <!-- Верхняя панель (остается без изменений) -->
+    <!-- Верхняя панель -->
     <div class="cm-header-bar">
         <h1 class="cm-title">Матрица компетенций отдела</h1>
         
         <div class="cm-filters">
+            <!-- 1. Поиск по ФИО/должности -->
             <div class="cm-search">
                 <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="matrix-search-icon">
-                <input type="text" placeholder="Поиск по ФИО...">
+                <input type="text" id="searchInput" placeholder="Поиск по ФИО...">
             </div>
             
             <div class="cm-select-group">
+                <!-- 2. Фильтр Отдела -->
                 <div class="cm-filter-item">
                     <label>Отдел</label>
-                    <select><option>Отдел разработки ПО</option></select>
+                    <select id="deptFilter">
+                        <option value="">Все отделы</option>
+                        <option value="Отдел разработки ПО">Отдел разработки ПО</option>
+                    </select>
                 </div>
+
+                <!-- 3. Фильтр Категории -->
                 <div class="cm-filter-item">
                     <label>Категория навыка</label>
-                    <select><option>Все категории</option></select>
+                    <select id="categoryFilter">
+                        <option value="">Все категории</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.name }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
+
+                <!-- 4. Фильтр Подкатегории -->
                 <div class="cm-filter-item">
                     <label>Подкатегория</label>
-                    <select><option>Все подкатегории</option></select>
+                    <select id="subcategoryFilter">
+                        <option value="">Все подкатегории</option>
+                    </select>
                 </div>
+
+                <!-- 5. Фильтр конкретного Навыка -->
                 <div class="cm-filter-item">
-                    <label>Владение</label>
-                    <select><option>Все навыки</option></select>
+                    <label>Навыки</label>
+                    <select id="skillFilter">
+                        <option value="">Все навыки</option>
+                        {% for cat in categories %}
+                            {% for skill in cat.skills %}
+                                <option value="{{ skill }}">{{ skill }}</option>
+                            {% endfor %}
+                        {% endfor %}
+                    </select>
                 </div>
+
+                <!-- 6. Фильтр Статуса -->
                 <div class="cm-filter-item">
                     <label>Статус навыка</label>
-                    <select><option>Все статусы</option></select>
+                    <select id="statusFilter">
+                        <option value="all">Все статусы</option>
+                        <option value="confirmed">Подтвержденные</option>
+                        <option value="unconfirmed">Не подтвержденные</option>
+                    </select>
                 </div>
             </div>
 
+            <!-- 7. Фильтр Уровней (Dropdown) -->
             <div class="cm-filter-item cm-dropdown-filter" id="levelsFilter">
                 <label>Уровень навыка</label>
                 <button type="button" class="cm-dropdown-btn" id="levelsBtn">
@@ -78,11 +109,11 @@
                     <th rowspan="2" style="padding: 0;">
                         <div class="cm-emp-header">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                            Сотрудники ({{ employees|length }})
+                            Сотрудники (<span id="empCount">{{ employees|length }}</span>)
                         </div>
                     </th>
                     {% for cat in categories %}
-                        <th colspan="{{ cat.skills|length }}" class="cm-category-th">
+                        <th colspan="{{ cat.skills|length }}" class="cm-category-th" data-category="{{ cat.name }}">
                             {{ cat.icon }} {{ cat.name }}
                         </th>
                     {% endfor %}
@@ -91,7 +122,7 @@
                 <tr>
                     {% for cat in categories %}
                         {% for skill in cat.skills %}
-                            <th class="cm-skill-th">{{ skill }}</th>
+                            <th class="cm-skill-th" data-category="{{ cat.name }}" data-skill="{{ skill }}">{{ skill }}</th>
                         {% endfor %}
                     {% endfor %}
                 </tr>
@@ -99,18 +130,22 @@
             <tbody id="matrixTbody">
                 <!-- 3. Строки с сотрудниками -->
                 {% for emp in employees %}
-                    <tr>
+                    <tr data-dept="Отдел разработки ПО">
                         <td style="padding: 0;">
                             <div class="cm-emp-cell">
-                                <img src="https://ui-avatars.com/api/?background=f3f4f6&color=374151&name={{ emp.name|urlencode }}" alt="{{ emp.name }}" class="cm-emp-avatar">
+                                {% if emp.avatar %}
+                                    <img src="{{ emp.avatar }}" alt="{{ emp.name }}" class="cm-emp-avatar">
+                                {% else %}
+                                    <img src="https://ui-avatars.com/api/?background=f3f4f6&color=374151&name={{ emp.name|urlencode }}" alt="{{ emp.name }}" class="cm-emp-avatar">
+                                {% endif %}
                                 <div class="cm-emp-info">
                                     <span class="cm-emp-name">{{ emp.name }}</span>
-                                    <span class="cm-emp-role">{{ emp.role }}</span>
+                                    <span class="cm-emp-position">{{ emp.position }}</span>
                                 </div>
                             </div>
                         </td>
-                        {% for skill_data in emp.skills.values %}
-                            <td data-level="{{ skill_data.level }}">
+                        {% for skill_name, skill_data in emp.skills.items %}
+                            <td data-skill="{{ skill_name }}" data-level="{{ skill_data.level }}" data-confirmed="{{ skill_data.confirmed|yesno:'true,false' }}">
                                 {% include 'includes/skill_icon.html' with level=skill_data.level confirmed=skill_data.confirmed %}
                             </td>
                         {% endfor %}
@@ -125,13 +160,22 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Элементы UI
+    const searchInput = document.getElementById('searchInput');
+    const deptFilter = document.getElementById('deptFilter');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const skillFilter = document.getElementById('skillFilter');
+    const statusFilter = document.getElementById('statusFilter');
+
+    // Элементы выпадающего меню Уровней
     const levelsBtn = document.getElementById('levelsBtn');
     const levelsMenu = document.getElementById('levelsMenu');
     const levelsBtnText = document.getElementById('levelsBtnText');
     const levelsFilter = document.getElementById('levelsFilter');
     const checkboxes = levelsMenu.querySelectorAll('input[type="checkbox"]');
+    const empCountSpan = document.getElementById('empCount');
 
-    // 1. Открытие / закрытие меню
+    // 1. Открытие / Закрытие дропдауна уровней
     levelsBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         levelsMenu.classList.toggle('show');
@@ -143,14 +187,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 2. Функция фильтрации таблицы по уровням
-    function filterMatrix() {
-        // Получаем массив выбранных уровней, например: ["1", "2", "4"]
+    // 2. Главная функция фильтрации матрицы
+    function applyMatrixFilters() {
+        const searchText = searchInput.value.toLowerCase().trim();
+        const selectedDept = deptFilter.value;
+        const selectedCategory = categoryFilter.value;
+        const selectedSkill = skillFilter.value;
+        const selectedStatus = statusFilter.value;
+
         const selectedLevels = Array.from(checkboxes)
             .filter(cb => cb.checked)
             .map(cb => cb.value);
 
-        // Обновляем текст на кнопке
+        // Обновляем текст на кнопке уровней
         if (selectedLevels.length === checkboxes.length) {
             levelsBtnText.textContent = "Все уровни (0–4)";
         } else if (selectedLevels.length === 0) {
@@ -159,25 +208,102 @@ document.addEventListener('DOMContentLoaded', function() {
             levelsBtnText.textContent = `Уровни: ${selectedLevels.join(', ')}`;
         }
 
-        // Фильтруем ячейки таблицы
-        const skillCells = document.querySelectorAll('#matrixTbody td[data-level]');
-        skillCells.forEach(cell => {
-            const cellLevel = cell.getAttribute('data-level');
-            
-            if (selectedLevels.includes(cellLevel)) {
+        // А. Фильтрация колонок (Категория и Навык)
+        const categoryMap = {};
+        document.querySelectorAll('.cm-category-th').forEach(th => {
+            categoryMap[th.getAttribute('data-category')] = {
+                thElement: th,
+                visibleSkills: 0
+            };
+        });
+
+        const skillHeaders = document.querySelectorAll('.cm-skill-th');
+        skillHeaders.forEach((th, index) => {
+            const catName = th.getAttribute('data-category');
+            const skillName = th.getAttribute('data-skill');
+
+            let isColVisible = true;
+            if (selectedCategory && catName !== selectedCategory) isColVisible = false;
+            if (selectedSkill && skillName !== selectedSkill) isColVisible = false;
+
+            const displayValue = isColVisible ? '' : 'none';
+            th.style.display = displayValue;
+
+            if (isColVisible && categoryMap[catName]) {
+                categoryMap[catName].visibleSkills++;
+            }
+
+            // Переключаем видимость соответствующей ячейки в каждой строке
+            const cellIndex = index + 1; // +1 из-за первой колонки сотрудников
+            document.querySelectorAll('#matrixTbody tr').forEach(row => {
+                if (row.children[cellIndex]) {
+                    row.children[cellIndex].style.display = displayValue;
+                }
+            });
+        });
+
+        // Пересчитываем colspan и видимость заголовков категорий
+        Object.values(categoryMap).forEach(catData => {
+            if (catData.visibleSkills > 0) {
+                catData.thElement.style.display = '';
+                catData.thElement.colSpan = catData.visibleSkills;
+            } else {
+                catData.thElement.style.display = 'none';
+            }
+        });
+
+        // Б. Фильтрация строк (Сотрудники по ФИО и Отделу)
+        let visibleEmpCount = 0;
+        document.querySelectorAll('#matrixTbody tr').forEach(row => {
+            const empName = row.querySelector('.cm-emp-name')?.textContent.toLowerCase() || '';
+            const empposition = row.querySelector('.cm-emp-position')?.textContent.toLowerCase() || '';
+            const empDept = row.getAttribute('data-dept') || '';
+
+            let isRowVisible = true;
+
+            if (searchText && !empName.includes(searchText) && !empposition.includes(searchText)) {
+                isRowVisible = false;
+            }
+            if (selectedDept && empDept !== selectedDept) {
+                isRowVisible = false;
+            }
+
+            row.style.display = isRowVisible ? '' : 'none';
+            if (isRowVisible) visibleEmpCount++;
+        });
+
+        if (empCountSpan) {
+            empCountSpan.textContent = visibleEmpCount;
+        }
+
+        // В. Фильтрация самих ячеек навыков (Уровень + Статус)
+        document.querySelectorAll('#matrixTbody td[data-level]').forEach(cell => {
+            const level = cell.getAttribute('data-level');
+            const isConfirmed = cell.getAttribute('data-confirmed') === 'true';
+
+            let levelMatch = selectedLevels.includes(level);
+            let statusMatch = true;
+
+            if (selectedStatus === 'confirmed' && !isConfirmed) statusMatch = false;
+            if (selectedStatus === 'unconfirmed' && isConfirmed) statusMatch = false;
+
+            if (levelMatch && statusMatch) {
                 cell.style.opacity = '1';
                 cell.style.filter = 'none';
             } else {
-                cell.style.opacity = '0.15'; // Приглушаем неудовлетворяющие навыки
+                cell.style.opacity = '0.15';
                 cell.style.filter = 'grayscale(100%)';
             }
         });
     }
 
-    // Вешаем фильтрацию на изменение любого чекбокса
-    checkboxes.forEach(cb => {
-        cb.addEventListener('change', filterMatrix);
-    });
+    // Слушатели событий для всех контролов
+    searchInput.addEventListener('input', applyMatrixFilters);
+    deptFilter.addEventListener('change', applyMatrixFilters);
+    categoryFilter.addEventListener('change', applyMatrixFilters);
+    skillFilter.addEventListener('change', applyMatrixFilters);
+    statusFilter.addEventListener('change', applyMatrixFilters);
+    checkboxes.forEach(cb => cb.addEventListener('change', applyMatrixFilters));
 });
 </script>
 {% endblock %}
