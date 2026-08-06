@@ -11,25 +11,33 @@ def _is_hr_or_manager(user) -> bool:
 
 
 def _build_category_columns():
-    """Структура колонок для шапки таблицы: категория -> список навыков."""
+    """Структура колонок: Категория -> Подкатегории -> Навыки."""
     columns = []
     categories = Category.objects.prefetch_related("subcategories__skills").order_by("name")
     for category in categories:
-        skills_seen = {}
+        subcategories_data = []
         for subcategory in category.subcategories.all():
+            skills_data = []
             for skill in subcategory.skills.all():
                 if skill.is_active:
-                    skills_seen[skill.id] = skill.name
-        if skills_seen:
-            columns.append(
-                {
-                    "category": category.name,
-                    "skills": [
-                        {"id": skill_id, "name": name}
-                        for skill_id, name in sorted(skills_seen.items(), key=lambda kv: kv[1])
-                    ],
-                }
-            )
+                    skills_data.append({"id": skill.id, "name": skill.name})
+            
+            if skills_data:
+                skills_data = sorted(skills_data, key=lambda x: x["name"])
+                subcategories_data.append({
+                    "name": subcategory.name,
+                    "skills": skills_data,
+                    "skill_count": len(skills_data) # Количество колонок для colspan подкатегории
+                })
+        
+        if subcategories_data:
+            subcategories_data = sorted(subcategories_data, key=lambda x: x["name"])
+            total_category_skills = sum(sub["skill_count"] for sub in subcategories_data)
+            columns.append({
+                "name": category.name,
+                "subcategories": subcategories_data,
+                "skill_count": total_category_skills # Количество колонок для colspan категории
+            })
     return columns
 
 
@@ -51,7 +59,7 @@ def matrix_page(request):
     all_users = list(users_qs)
 
     columns = _build_category_columns()
-    visible_skill_ids = {s["id"] for c in columns for s in c["skills"]}
+    visible_skill_ids = {s["id"] for c in columns for sub in c["subcategories"] for s in sub["skills"]}
 
     employees = []
     for emp in all_users:

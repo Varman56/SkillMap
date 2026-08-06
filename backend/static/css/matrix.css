@@ -271,22 +271,71 @@
     border-right: 1px solid #E5E7EB;
 }
 
-.cm-matrix-table thead tr:first-child th:first-child {
+.cm-matrix-table thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #fff;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+/* 2. Вторая строка (Подкатегории) */
+.cm-matrix-table thead tr:nth-child(2) th {
+    position: sticky;
+    top: 46px; 
+    z-index: 9; 
+    background: #fff;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+/* 3. Третья строка (Навыки) */
+.cm-matrix-table thead tr:nth-child(3) th {
+    position: sticky;
+    top: 92px; /* 46px + 46px */
+    z-index: 8; 
+    background: #fff;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+/* Левая колонка (Сотрудники в теле таблицы) */
+.cm-matrix-table tbody td:first-child {
     position: sticky;
     left: 0;
-    top: 0;
-    z-index: 20; /* Самый высокий z-index, чтобы всегда быть поверх всех остальных элементов */
+    z-index: 11; 
     background: #fff;
     border-right: 1px solid #E5E7EB;
 }
 
-/* Стили ячеек шапки */
+/* Пересечение левой колонки и шапки (Ячейка "Сотрудники", rowspan="3") */
+.cm-matrix-table thead tr:first-child th:first-child {
+    position: sticky;
+    left: 0;
+    top: 0;
+    z-index: 20; 
+    background: #fff;
+    border-right: 1px solid #E5E7EB;
+}
+
+/* ==========================================
+   Стили ячеек шапки 
+   ========================================== */
+
+.cm-category-th,
+.cm-subcategory-th {
+    font-weight: 600;
+    height: 46px; /* Жестко фиксируем высоту для правильного sticky */
+    box-sizing: border-box;
+}
+
 .cm-category-th {
     font-size: 13px;
-    font-weight: 600;
+    color: #374151;
+    background: #F9FAFB !important; /* Легкий фон для выделения верхнего уровня */
+}
+
+.cm-subcategory-th {
+    font-size: 12px;
     color: #4B5563;
-    height: 46px; /* Жестко фиксируем высоту, чтобы вторая строка прилипала без зазоров */
-    box-sizing: border-box;
 }
 
 .cm-skill-th {

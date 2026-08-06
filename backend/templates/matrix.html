@@ -50,6 +50,9 @@
                     <label>Подкатегория</label>
                     <select id="subcategoryFilter">
                         <option value="">Все подкатегории</option>
+                        {% for sub in subcategories %}
+                            <option value="{{ sub }}">{{ sub }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
@@ -105,33 +108,46 @@
     <div class="cm-table-container">
         <table class="cm-matrix-table" id="matrixTable">
             <thead id="matrixThead">
-                <!-- 1. Строка с категориями (берется из columns) -->
+                <!-- 1. Строка с категориями -->
                 <tr>
-                    <th rowspan="2" style="padding: 0;">
+                    <th rowspan="3" style="padding: 0;"> <!-- rowspan теперь 3 -->
                         <div class="cm-emp-header">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                             Сотрудники (<span id="empCount">{{ employees|length }}</span>)
                         </div>
                     </th>
-                    {% for col in columns %}
-                        <th colspan="{{ col.skills|length }}" class="cm-category-th" data-category="{{ col.category }}">
-                            {{ col.category }}
+                    {% for cat in columns %}
+                        <th colspan="{{ cat.skill_count }}" class="cm-category-th" data-category="{{ cat.name }}">
+                            {{ cat.name }}
                         </th>
                     {% endfor %}
                 </tr>
-                <!-- 2. Строка с названиями навыков -->
+                <!-- 2. Строка с подкатегориями -->
                 <tr>
-                    {% for col in columns %}
-                        {% for skill in col.skills %}
-                            <th class="cm-skill-th" data-category="{{ col.category }}" data-skill="{{ skill.name }}">{{ skill.name }}</th>
+                    {% for cat in columns %}
+                        {% for sub in cat.subcategories %}
+                            <th colspan="{{ sub.skill_count }}" class="cm-subcategory-th" data-category="{{ cat.name }}" data-subcategory="{{ sub.name }}">
+                                {{ sub.name }}
+                            </th>
+                        {% endfor %}
+                    {% endfor %}
+                </tr>
+                <!-- 3. Строка с названиями навыков -->
+                <tr>
+                    {% for cat in columns %}
+                        {% for sub in cat.subcategories %}
+                            {% for skill in sub.skills %}
+                                <th class="cm-skill-th" data-category="{{ cat.name }}" data-subcategory="{{ sub.name }}" data-skill="{{ skill.name }}">
+                                    {{ skill.name }}
+                                </th>
+                            {% endfor %}
                         {% endfor %}
                     {% endfor %}
                 </tr>
             </thead>
             <tbody id="matrixTbody">
-                <!-- 3. Строки с сотрудниками -->
+                <!-- Строки с сотрудниками -->
                 {% for emp in employees %}
-                    <!-- Дата-атрибут отдела нужен для JS фильтра -->
                     <tr data-dept="{{ emp.department|default_if_none:'' }}">
                         <td style="padding: 0;">
                             <div class="cm-emp-cell">
@@ -147,22 +163,22 @@
                             </div>
                         </td>
                         
-                        <!-- 4. Проходимся строго по колонкам и ищем скилл по ID -->
-                        {% for col in columns %}
-                            {% for skill in col.skills %}
-                                <!-- Используем наш кастомный тег get_item -->
-                                {% with skill_data=emp.skills|get_item:skill.id %}
-                                    {% if skill_data %}
-                                        <td data-skill="{{ skill.name }}" data-level="{{ skill_data.level }}" data-confirmed="{{ skill_data.isApproved|yesno:'true,false' }}">
-                                            {% include 'includes/skill_icon.html' with level=skill_data.level confirmed=skill_data.isApproved %}
-                                        </td>
-                                    {% else %}
-                                        <!-- Если навык пропущен в бэкенде, ставим 0 уровень -->
-                                        <td data-skill="{{ skill.name }}" data-level="0" data-confirmed="false">
-                                            {% include 'includes/skill_icon.html' with level=0 confirmed=False %}
-                                        </td>
-                                    {% endif %}
-                                {% endwith %}
+                        <!-- Проходимся по 3 уровням вложенности -->
+                        {% for cat in columns %}
+                            {% for sub in cat.subcategories %}
+                                {% for skill in sub.skills %}
+                                    {% with skill_data=emp.skills|get_item:skill.id %}
+                                        {% if skill_data %}
+                                            <td data-skill="{{ skill.name }}" data-level="{{ skill_data.level }}" data-confirmed="{{ skill_data.isApproved|yesno:'true,false' }}">
+                                                {% include 'includes/skill_icon.html' with level=skill_data.level confirmed=skill_data.isApproved %}
+                                            </td>
+                                        {% else %}
+                                            <td data-skill="{{ skill.name }}" data-level="0" data-confirmed="false">
+                                                {% include 'includes/skill_icon.html' with level=0 confirmed=False %}
+                                            </td>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endfor %}
                             {% endfor %}
                         {% endfor %}
                     </tr>
@@ -182,6 +198,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const categoryFilter = document.getElementById('categoryFilter');
     const skillFilter = document.getElementById('skillFilter');
     const statusFilter = document.getElementById('statusFilter');
+    const subcategoryFilter = document.getElementById('subcategoryFilter');
 
     const levelsBtn = document.getElementById('levelsBtn');
     const levelsMenu = document.getElementById('levelsMenu');
@@ -205,6 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchText = searchInput.value.toLowerCase().trim();
         const selectedDept = deptFilter.value;
         const selectedCategory = categoryFilter.value;
+        const selectedSubcategory = subcategoryFilter.value; // Новый фильтр
         const selectedSkill = skillFilter.value;
         const selectedStatus = statusFilter.value;
 
@@ -220,30 +238,47 @@ document.addEventListener('DOMContentLoaded', function() {
             levelsBtnText.textContent = `Уровни: ${selectedLevels.join(', ')}`;
         }
 
+        // Словари для подсчета видимых колонок
         const categoryMap = {};
         document.querySelectorAll('.cm-category-th').forEach(th => {
-            categoryMap[th.getAttribute('data-category')] = {
-                thElement: th,
-                visibleSkills: 0
-            };
+            categoryMap[th.getAttribute('data-category')] = { thElement: th, visibleSkills: 0 };
         });
 
+        const subcategoryMap = {};
+        document.querySelectorAll('.cm-subcategory-th').forEach(th => {
+            // Уникальный ключ: Категория + Подкатегория
+            const key = th.getAttribute('data-category') + '::' + th.getAttribute('data-subcategory');
+            subcategoryMap[key] = { thElement: th, visibleSkills: 0 };
+        });
+
+        // Фильтрация самих колонок
         const skillHeaders = document.querySelectorAll('.cm-skill-th');
         skillHeaders.forEach((th, index) => {
             const catName = th.getAttribute('data-category');
+            const subName = th.getAttribute('data-subcategory');
             const skillName = th.getAttribute('data-skill');
 
             let isColVisible = true;
+            
+            // Условия фильтрации колонок
             if (selectedCategory && catName !== selectedCategory) isColVisible = false;
+            if (selectedSubcategory && subName !== selectedSubcategory) isColVisible = false;
             if (selectedSkill && skillName !== selectedSkill) isColVisible = false;
 
             const displayValue = isColVisible ? '' : 'none';
             th.style.display = displayValue;
 
-            if (isColVisible && categoryMap[catName]) {
-                categoryMap[catName].visibleSkills++;
+            if (isColVisible) {
+                if (categoryMap[catName]) {
+                    categoryMap[catName].visibleSkills++;
+                }
+                const subKey = catName + '::' + subName;
+                if (subcategoryMap[subKey]) {
+                    subcategoryMap[subKey].visibleSkills++;
+                }
             }
 
+            // Прячем/показываем ячейки в теле таблицы
             const cellIndex = index + 1; 
             document.querySelectorAll('#matrixTbody tr').forEach(row => {
                 if (row.children[cellIndex]) {
@@ -252,6 +287,17 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
+        // Обновляем colSpan для подкатегорий
+        Object.values(subcategoryMap).forEach(subData => {
+            if (subData.visibleSkills > 0) {
+                subData.thElement.style.display = '';
+                subData.thElement.colSpan = subData.visibleSkills;
+            } else {
+                subData.thElement.style.display = 'none';
+            }
+        });
+
+        // Обновляем colSpan для категорий
         Object.values(categoryMap).forEach(catData => {
             if (catData.visibleSkills > 0) {
                 catData.thElement.style.display = '';
@@ -310,6 +356,7 @@ document.addEventListener('DOMContentLoaded', function() {
     skillFilter.addEventListener('change', applyMatrixFilters);
     statusFilter.addEventListener('change', applyMatrixFilters);
     checkboxes.forEach(cb => cb.addEventListener('change', applyMatrixFilters));
+    subcategoryFilter.addEventListener('change', applyMatrixFilters);
 });
 </script>
 {% endblock %}
