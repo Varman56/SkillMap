@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}SkillMap | Кого спросить?{% endblock %}
+
+{% block content %}
+<h1>Кого спросить?</h1>
+<p>Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
+
+<form method="get" action="">
+    <label for="skill">Навык:</label>
+    <input
+        type="text"
+        id="skill"
+        name="skill"
+        value="{{ search }}"
+        placeholder="Введите навык, например, Docker"
+    >
+    <button type="submit">Найти</button>
+</form>
+
+{% if has_search %}
+    <p>Результаты по запросу: <strong>{{ search }}</strong> (найдено: {{ total_count }})</p>
+
+    {% if groups %}
+        {% for group in groups %}
+            <section>
+                <h2>{{ group.label }} (уровень {{ group.level }})</h2>
+
+                <ul>
+                    {% for user in group.users %}
+                        <li>
+                            <strong>{{ user.full_name }}</strong>
+                            — {{ user.position|default:"—" }}
+                            • {{ user.department|default:"—" }}
+                            <br>
+                            Совпавшие навыки: {{ user.matching_skills|join:", " }}
+                            <br>
+                            <a href="{% url 'profile-page' user.id %}">Посмотреть профиль</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endfor %}
+    {% else %}
+        <p>По запросу «{{ search }}» никого не найдено.</p>
+    {% endif %}
+{% else %}
+    <p>Введите навык в поле поиска.</p>
+{% endif %}
+{% endblock %}

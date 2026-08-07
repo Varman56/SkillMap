@@ -6,8 +6,10 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 from api.views.web_views import login_page, logout_page
+from api.views.ask_page import ask_page
 from api.views.profile_page import profile_page
 from api.views.matrix_page import matrix_page_data
+from api.views.project_page import project_page
 
 urlpatterns = [
     path("api/", include("api.urls")),
@@ -20,6 +22,8 @@ urlpatterns = [
 
     path("profile/", profile_page, name="my-profile"),
     path("profile/<int:user_id>/", profile_page, name="profile-page"),
+    path("ask/", ask_page, name="ask-page"),
+    path("projects/<int:project_id>/", project_page, name="project-page"),
     path("matrix-data/", matrix_page_data, name="matrix-data"),
     # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.
     # Тоже должно стоять ДО spa-assets, иначе тот catch-all перехватит /media/*.jpg первым.
