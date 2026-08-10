@@ -12,6 +12,13 @@
         <div class="ask-container">
             <h1 class="ask-title">Кого спросить?</h1>
             <p class="ask-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
+            {% if is_department_scoped %}
+                {% if department_scope %}
+                    <p>🔒 Поиск ограничен вашим отделом: {{ department_scope }}</p>
+                {% else %}
+                    <p>⚠️ У вас не назначен отдел — поиск недоступен.</p>
+                {% endif %}
+            {% endif %}
 
             <form method="get" action="" class="ask-search-section">
                 <div class="ask-search-box">

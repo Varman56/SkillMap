@@ -4,12 +4,17 @@ GET ?skill=Docker — поиск сотрудников по навыку (ил�
 подкатегории/категории, куда навык входит).
 Результаты группируются по максимальному уровню владения найденным
 навыком (у одного user может совпасть несколько skills, берём лучший).
+
+Доступ: любой авторизованный. HR ищет по всей компании; Manager и
+Employee — только среди своего отдела (см. _department_scope).
+Ограничение — на бэкенде, а не только в UI: даже если в query string
+подставить чужой отдел, для не-HR он всё равно не учитывается.
 """
 from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 
 from api.models import UserSkill
 from .profile_page import PROFILE_LEVEL_LABELS_EN, VALID_LEVELS
@@ -20,9 +25,17 @@ from .profile_page import PROFILE_LEVEL_LABELS_EN, VALID_LEVELS
 LEVEL_GROUP_LABELS = {4: "Эксперты", 3: "Продвинутые", 2: "Опытные", 1: "Новички"}
 
 
-def _is_hr(user) -> bool:
-    """Страница доступна только HR — остальных отправляем в их профиль."""
-    return user.has_role("HR")
+def _department_scope(user):
+    """Отдел, к которому нужно ограничить поиск.
+
+    HR видит всю компанию — для них возвращаем None (без ограничения).
+    Остальные — только сотрудников своего отдела; если отдел вообще не
+    назначен, возвращаем "" (пустой отдел = искать некого, см. вызов
+    below) — тот же приём, что и в reserve_page.py.
+    """
+    if user.has_role("HR", "Manager"):
+        return None
+    return user.primary_department
 
 
 def _department_name(user) -> str:
@@ -39,8 +52,11 @@ def _department_name(user) -> str:
     return departments[0].name if departments else ""
 
 
-def _search_users_by_skill(skill_q: str) -> list[dict]:
+def _search_users_by_skill(skill_q: str, department_scope) -> list[dict]:
     if not skill_q:
+        return []
+    if department_scope is not None and not department_scope:
+        # Не-HR без назначенного отдела — искать буквально некого.
         return []
 
     matches = (
@@ -53,8 +69,12 @@ def _search_users_by_skill(skill_q: str) -> list[dict]:
             skill__is_active=True,
             user__is_active=True,
         )
-        .distinct()
     )
+
+    if department_scope is not None:
+        matches = matches.filter(user__departments__name=department_scope)
+
+    matches = matches.distinct()
 
     by_user: dict[int, list] = defaultdict(list)
     for us in matches:
@@ -109,12 +129,10 @@ def _group_by_level(flat_results: list[dict]) -> list[dict]:
 
 @login_required(login_url="/login/")
 def ask_page(request):
-    if not _is_hr(request.user):
-        return redirect("my-profile")
-
+    department_scope = _department_scope(request.user)
     skill_q = (request.GET.get("skill") or "").strip()
 
-    flat_results = _search_users_by_skill(skill_q)
+    flat_results = _search_users_by_skill(skill_q, department_scope)
     groups = _group_by_level(flat_results)
 
     context = {
