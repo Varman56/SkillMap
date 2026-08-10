@@ -3,7 +3,7 @@ from rest_framework.permissions import BasePermission
 
 
 def _has_role(user, roles: set[str]) -> bool:
-    return bool(user and user.is_authenticated and getattr(user, "role", "") in roles)
+    return bool(user and user.is_authenticated and user.has_role(*roles))
 
 
 class IsHR(BasePermission):

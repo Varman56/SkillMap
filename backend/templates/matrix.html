@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% load static %}
+{% load dict_helpers %} <!-- Подключаем наш новый фильтр -->
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/matrix.css' %}">
+{% endblock %}
+
+{% block title %}SkillMap | Матрица компетенций{% endblock %}
+
+{% block content %}
+<div class="cm-page">
+    
+    <!-- Верхняя панель -->
+    <div class="cm-header-bar">
+        <h1 class="cm-title">Матрица компетенций</h1>
+        
+        <div class="cm-filters">
+            <!-- 1. Поиск по ФИО/должности -->
+            <div class="cm-search">
+                <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="matrix-search-icon">
+                <input type="text" id="searchInput" placeholder="Поиск по ФИО...">
+            </div>
+
+            {% if user.primary_role == "HR" %}
+            <div class="cm-select-group">
+                <!-- 2. Фильтр Отдела (данные из бэкенда) -->
+                <div class="cm-filter-item">
+                    <label>Отдел</label>
+                    <select id="deptFilter">
+                        <option value="">Все отделы</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept }}">{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <!-- 3. Фильтр Категории (данные из бэкенда) -->
+                <div class="cm-filter-item">
+                    <label>Категория навыка</label>
+                    <select id="categoryFilter">
+                        <option value="">Все категории</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 4. Фильтр Подкатегории (скрыт/пока без данных) -->
+                <div class="cm-filter-item">
+                    <label>Подкатегория</label>
+                    <select id="subcategoryFilter">
+                        <option value="">Все подкатегории</option>
+                        {% for sub in subcategories %}
+                            <option value="{{ sub }}">{{ sub }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 5. Фильтр конкретного Навыка (данные из бэкенда) -->
+                <div class="cm-filter-item">
+                    <label>Навыки</label>
+                    <select id="skillFilter">
+                        <option value="">Все навыки</option>
+                        {% for skill_name in skills %}
+                            <option value="{{ skill_name }}">{{ skill_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 6. Фильтр Статуса -->
+                <div class="cm-filter-item">
+                    <label>Статус навыка</label>
+                    <select id="statusFilter">
+                        <option value="all">Все статусы</option>
+                        <option value="confirmed">Подтвержденные</option>
+                        <option value="unconfirmed">Не подтвержденные</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 7. Фильтр Уровней (Dropdown) -->
+            <div class="cm-filter-item cm-dropdown-filter" id="levelsFilter">
+                <label>Уровень навыка</label>
+                <button type="button" class="cm-dropdown-btn" id="levelsBtn">
+                    <span id="levelsBtnText">Все уровни (0–4)</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </button>
+
+                <div class="cm-dropdown-menu" id="levelsMenu">
+                    <label class="cm-checkbox-item"><input type="checkbox" value="0" checked><span>0 — Нет навыка</span></label>
+                    <label class="cm-checkbox-item"><input type="checkbox" value="1" checked><span>1 — Intern</span></label>
+                    <label class="cm-checkbox-item"><input type="checkbox" value="2" checked><span>2 — Junior</span></label>
+                    <label class="cm-checkbox-item"><input type="checkbox" value="3" checked><span>3 — Middle</span></label>
+                    <label class="cm-checkbox-item"><input type="checkbox" value="4" checked><span>4 — Senior</span></label>
+                </div>
+            </div>
+
+            <button class="cm-export-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Экспорт
+            </button>
+        </div>
+    </div>
+
+    <!-- Контейнер таблицы -->
+    <div class="cm-table-container">
+        <table class="cm-matrix-table" id="matrixTable">
+            <thead id="matrixThead">
+                <!-- 1. Строка с категориями -->
+                <tr>
+                    <th rowspan="3" style="padding: 0;"> <!-- rowspan теперь 3 -->
+                        <div class="cm-emp-header">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            Сотрудники (<span id="empCount">{{ employees|length }}</span>)
+                        </div>
+                    </th>
+                    {% for cat in columns %}
+                        <th colspan="{{ cat.skill_count }}" class="cm-category-th" data-category="{{ cat.name }}">
+                            {{ cat.name }}
+                        </th>
+                    {% endfor %}
+                </tr>
+                <!-- 2. Строка с подкатегориями -->
+                <tr>
+                    {% for cat in columns %}
+                        {% for sub in cat.subcategories %}
+                            <th colspan="{{ sub.skill_count }}" class="cm-subcategory-th" data-category="{{ cat.name }}" data-subcategory="{{ sub.name }}">
+                                {{ sub.name }}
+                            </th>
+                        {% endfor %}
+                    {% endfor %}
+                </tr>
+                <!-- 3. Строка с названиями навыков -->
+                <tr>
+                    {% for cat in columns %}
+                        {% for sub in cat.subcategories %}
+                            {% for skill in sub.skills %}
+                                <th class="cm-skill-th" data-category="{{ cat.name }}" data-subcategory="{{ sub.name }}" data-skill="{{ skill.name }}">
+                                    {{ skill.name }}
+                                </th>
+                            {% endfor %}
+                        {% endfor %}
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="matrixTbody">
+                <!-- Строки с сотрудниками -->
+                {% for emp in employees %}
+                    <tr data-dept="{{ emp.department|default_if_none:'' }}">
+                        <td style="padding: 0;">
+                            <div class="cm-emp-cell">
+                                {% if emp.photo %}
+                                    <img src="{{ emp.photo.url }}" alt="{{ emp.fullName }}" class="cm-emp-avatar">
+                                {% else %}
+                                    <img src="https://ui-avatars.com/api/?background=f3f4f6&color=374151&name={{ emp.fullName|urlencode }}" alt="{{ emp.fullName }}" class="cm-emp-avatar">
+                                {% endif %}
+                                <div class="cm-emp-info">
+                                    <span class="cm-emp-name">{{ emp.fullName }}</span>
+                                    <span class="cm-emp-position">{{ emp.position|default_if_none:"—" }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <!-- Проходимся по 3 уровням вложенности -->
+                        {% for cat in columns %}
+                            {% for sub in cat.subcategories %}
+                                {% for skill in sub.skills %}
+                                    {% with skill_data=emp.skills|get_item:skill.id %}
+                                        {% if skill_data %}
+                                            <td data-skill="{{ skill.name }}" data-level="{{ skill_data.level }}" data-confirmed="{{ skill_data.isApproved|yesno:'true,false' }}">
+                                                {% include 'includes/skill_icon.html' with level=skill_data.level confirmed=skill_data.isApproved %}
+                                            </td>
+                                        {% else %}
+                                            <td data-skill="{{ skill.name }}" data-level="0" data-confirmed="false">
+                                                {% include 'includes/skill_icon.html' with level=0 confirmed=False %}
+                                            </td>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endfor %}
+                            {% endfor %}
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Весь ваш JS для фильтрации остается неизменным
+    const searchInput = document.getElementById('searchInput');
+    {% if user.primary_role == "HR" %}
+    const deptFilter = document.getElementById('deptFilter');
+    {% endif %}
+    const categoryFilter = document.getElementById('categoryFilter');
+    const skillFilter = document.getElementById('skillFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const subcategoryFilter = document.getElementById('subcategoryFilter');
+
+    const levelsBtn = document.getElementById('levelsBtn');
+    const levelsMenu = document.getElementById('levelsMenu');
+    const levelsBtnText = document.getElementById('levelsBtnText');
+    const levelsFilter = document.getElementById('levelsFilter');
+    const checkboxes = levelsMenu.querySelectorAll('input[type="checkbox"]');
+    const empCountSpan = document.getElementById('empCount');
+
+    levelsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        levelsMenu.classList.toggle('show');
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!levelsFilter.contains(e.target)) {
+            levelsMenu.classList.remove('show');
+        }
+    });
+
+    function applyMatrixFilters() {
+        const searchText = searchInput.value.toLowerCase().trim();
+        {% if user.primary_role == "HR" %}
+        const selectedDept = deptFilter.value;
+        {% endif %}
+        const selectedCategory = categoryFilter.value;
+        const selectedSubcategory = subcategoryFilter.value; // Новый фильтр
+        const selectedSkill = skillFilter.value;
+        const selectedStatus = statusFilter.value;
+
+        const selectedLevels = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        if (selectedLevels.length === checkboxes.length) {
+            levelsBtnText.textContent = "Все уровни (0–4)";
+        } else if (selectedLevels.length === 0) {
+            levelsBtnText.textContent = "Не выбрано";
+        } else {
+            levelsBtnText.textContent = `Уровни: ${selectedLevels.join(', ')}`;
+        }
+
+        // Словари для подсчета видимых колонок
+        const categoryMap = {};
+        document.querySelectorAll('.cm-category-th').forEach(th => {
+            categoryMap[th.getAttribute('data-category')] = { thElement: th, visibleSkills: 0 };
+        });
+
+        const subcategoryMap = {};
+        document.querySelectorAll('.cm-subcategory-th').forEach(th => {
+            // Уникальный ключ: Категория + Подкатегория
+            const key = th.getAttribute('data-category') + '::' + th.getAttribute('data-subcategory');
+            subcategoryMap[key] = { thElement: th, visibleSkills: 0 };
+        });
+
+        // Фильтрация самих колонок
+        const skillHeaders = document.querySelectorAll('.cm-skill-th');
+        skillHeaders.forEach((th, index) => {
+            const catName = th.getAttribute('data-category');
+            const subName = th.getAttribute('data-subcategory');
+            const skillName = th.getAttribute('data-skill');
+
+            let isColVisible = true;
+            
+            // Условия фильтрации колонок
+            if (selectedCategory && catName !== selectedCategory) isColVisible = false;
+            if (selectedSubcategory && subName !== selectedSubcategory) isColVisible = false;
+            if (selectedSkill && skillName !== selectedSkill) isColVisible = false;
+
+            const displayValue = isColVisible ? '' : 'none';
+            th.style.display = displayValue;
+
+            if (isColVisible) {
+                if (categoryMap[catName]) {
+                    categoryMap[catName].visibleSkills++;
+                }
+                const subKey = catName + '::' + subName;
+                if (subcategoryMap[subKey]) {
+                    subcategoryMap[subKey].visibleSkills++;
+                }
+            }
+
+            // Прячем/показываем ячейки в теле таблицы
+            const cellIndex = index + 1; 
+            document.querySelectorAll('#matrixTbody tr').forEach(row => {
+                if (row.children[cellIndex]) {
+                    row.children[cellIndex].style.display = displayValue;
+                }
+            });
+        });
+
+        // Обновляем colSpan для подкатегорий
+        Object.values(subcategoryMap).forEach(subData => {
+            if (subData.visibleSkills > 0) {
+                subData.thElement.style.display = '';
+                subData.thElement.colSpan = subData.visibleSkills;
+            } else {
+                subData.thElement.style.display = 'none';
+            }
+        });
+
+        // Обновляем colSpan для категорий
+        Object.values(categoryMap).forEach(catData => {
+            if (catData.visibleSkills > 0) {
+                catData.thElement.style.display = '';
+                catData.thElement.colSpan = catData.visibleSkills;
+            } else {
+                catData.thElement.style.display = 'none';
+            }
+        });
+
+        let visibleEmpCount = 0;
+        document.querySelectorAll('#matrixTbody tr').forEach(row => {
+            const empName = row.querySelector('.cm-emp-name')?.textContent.toLowerCase() || '';
+            const empposition = row.querySelector('.cm-emp-position')?.textContent.toLowerCase() || '';
+            const empDept = row.getAttribute('data-dept') || '';
+
+            let isRowVisible = true;
+
+            if (searchText && !empName.includes(searchText) && !empposition.includes(searchText)) {
+                isRowVisible = false;
+            }
+            {% if user.primary_role == "HR" %}
+            if (selectedDept && empDept !== selectedDept) {
+                isRowVisible = false;
+            }
+            {% endif %}
+
+            row.style.display = isRowVisible ? '' : 'none';
+            if (isRowVisible) visibleEmpCount++;
+        });
+
+        if (empCountSpan) {
+            empCountSpan.textContent = visibleEmpCount;
+        }
+
+        document.querySelectorAll('#matrixTbody td[data-level]').forEach(cell => {
+            const level = cell.getAttribute('data-level');
+            const isConfirmed = cell.getAttribute('data-confirmed') === 'true';
+
+            let levelMatch = selectedLevels.includes(level);
+            let statusMatch = true;
+
+            if (selectedStatus === 'confirmed' && !isConfirmed) statusMatch = false;
+            if (selectedStatus === 'unconfirmed' && isConfirmed) statusMatch = false;
+
+            if (levelMatch && statusMatch) {
+                cell.style.opacity = '1';
+                cell.style.filter = 'none';
+            } else {
+                cell.style.opacity = '0.15';
+                cell.style.filter = 'grayscale(100%)';
+            }
+        });
+    }
+
+    {% if user.primary_role == "HR" %}
+    deptFilter.addEventListener('change', applyMatrixFilters);
+    {% endif %}
+
+    searchInput.addEventListener('input', applyMatrixFilters);
+    categoryFilter.addEventListener('change', applyMatrixFilters);
+    skillFilter.addEventListener('change', applyMatrixFilters);
+    statusFilter.addEventListener('change', applyMatrixFilters);
+    checkboxes.forEach(cb => cb.addEventListener('change', applyMatrixFilters));
+    subcategoryFilter.addEventListener('change', applyMatrixFilters);
+});
+</script>
+{% endblock %}

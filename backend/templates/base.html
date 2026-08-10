@@ -1,0 +1,110 @@
+<!-- templates/base.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SkillMap{% endblock %}</title>
+
+    <!-- Подключаем файл со стилями хедера (замените путь, если файл называется иначе) -->
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Amiko:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet"> -->
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- ================= ХЕДЕР ================= -->
+{% block header %}
+<header class="public-header">
+    <div class="public-header-left">
+        <div class="public-logo">SkillMap</div>
+        <nav class="public-nav">
+            <!-- Навигация по ролям -->
+            <a href="{% url 'ask-page' %}">Кого спросить?</a>
+
+            {% if user.primary_role == 'HR' %}
+            <a href="{% url 'matrix-page' %}">Матрица компетенций</a>
+            <a href="{% url 'reserve-page' %}">Кадровый резерв</a>
+
+            {% elif user.primary_role == 'Manager' %}
+            <a href="{% url 'matrix-page' %}">Матрица компетенций</a>
+            <a href="{% url 'approvals-page' %}">Страница подтверждения навыков</a>
+            {% endif %}
+        </nav>
+    </div>
+
+    <!-- Аватарка и меню профиля -->
+    <div class="profile-container-avatar">
+        <div class="profile-avatar">
+            <img src="{% static 'assets/profile-photo.svg' %}" alt="Профиль" class="profile-icon">
+        </div>
+        <div class="profile-arrow-wrapper">
+            <img src="{% static 'assets/Icon.svg' %}" alt="Стрелка" class="profile-arrow-icon" id="dropdownArrow">
+
+            <div class="profile-dropdown-menu" id="dropdownMenu">
+                <div class="profile-dropdown-header">
+                    <div class="profile-dropdown-info">
+                        <!-- Имя пользователя или дефолтное значение -->
+                        <div class="profile-dropdown-name">{{ user.full_name|default:"" }}</div>
+
+                        <!-- Должность и отдел -->
+                        <div class="profile-dropdown-role">
+                            {% if user.position %}
+                            {{ user.position }}{% if user.primary_department %} • {{ user.primary_department }}{% endif %}
+                            {% else %}
+                            Дизайнер
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-dropdown-divider"></div>
+
+                <!-- Ссылка на редактирование профиля (укажите имя вашей view) -->
+                <a href="{% url 'my-profile' %}"
+                   class="profile-dropdown-item"
+                   id="editProfileBtn">
+                    <img src="{% static 'assets/image-menu1.svg' %}"
+                         alt="Редактировать"
+                         class="profile-dropdown-icon">
+                    Мой профиль
+                </a>
+
+
+                <!-- Ссылка на выход -->
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button
+                            type="submit"
+                            class="profile-dropdown-item profile-logout"
+                    >
+                        <img
+                                src="{% static 'assets/image-menu2.svg' %}"
+                                alt=""
+                                class="profile-dropdown-icon"
+                        >
+                        Выйти
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</header>
+{% endblock %}
+<!-- ================= КОНЕЦ ХЕДЕРА ================= -->
+
+<!-- Основной контент (переопределяется в других шаблонах) -->
+<main>
+    {% block content %}
+    {% endblock %}
+</main>
+
+
+<!-- Блок для скриптов из дочерних страниц -->
+{% block extra_js %}{% endblock %}
+<script src="{% static 'js/dropdown.js' %}"></script>
+</body>
+</html>

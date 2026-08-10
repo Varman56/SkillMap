@@ -1,0 +1,50 @@
+{% if can_edit %}
+<dialog id="profileEditDialog" class="profile-dialog">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_profile">
+
+        <h3>Редактирование профиля</h3>
+
+        <label for="profile-phone">Телефон</label>
+        <input
+            id="profile-phone"
+            type="tel"
+            name="phone"
+            value="{{ profile_user.phone|default:'' }}"
+        >
+
+        <label for="profile-city">Город</label>
+        <input
+            id="profile-city"
+            type="text"
+            name="city"
+            value="{{ profile_user.city|default:'' }}"
+        >
+
+        <label for="profile-about">Обо мне</label>
+        <textarea id="profile-about" name="about">{{ profile_user.about|default:'' }}</textarea>
+
+        <label for="profile-photo">Фотография</label>
+        <input
+            id="profile-photo"
+            type="file"
+            name="photo"
+            accept="image/jpeg,image/png,image/webp"
+        >
+
+        <label for="profile-resume">Резюме</label>
+        <input
+            id="profile-resume"
+            type="file"
+            name="resume"
+            accept=".pdf,.docx"
+        >
+
+        <div class="profile-dialog-actions">
+            <button type="submit">Сохранить</button>
+            <button type="button" data-close-dialog>Отмена</button>
+        </div>
+    </form>
+</dialog>
+{% endif %}

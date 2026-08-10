@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/ask.css' %}">
+{% endblock %}
+
+{% block title %}SkillMap | Кого спросить?{% endblock %}
+
+{% block content %}
+<div class="ask-page">
+    <main class="ask-main">
+        <div class="ask-container">
+            <h1 class="ask-title">Кого спросить?</h1>
+            <p class="ask-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
+            {% if is_department_scoped %}
+                {% if department_scope %}
+                    <p>🔒 Поиск ограничен вашим отделом: {{ department_scope }}</p>
+                {% else %}
+                    <p>⚠️ У вас не назначен отдел — поиск недоступен.</p>
+                {% endif %}
+            {% endif %}
+
+            <form method="get" action="" class="ask-search-section">
+                <div class="ask-search-box">
+                    <input
+                        type="text"
+                        id="skill"
+                        name="skill"
+                        value="{{ search }}"
+                        placeholder="Введите навык, например, Docker"
+                        class="ask-search-input"
+                        autocomplete="off"
+                    >
+                    <button type="submit" style="background: none; border: none; padding: 0; cursor: pointer;">
+                        <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="ask-search-icon">
+                    </button>
+                </div>
+            </form>
+
+       <div class="ask-results">
+                {% if has_search %}
+                    <div class="ask-results-header">
+                        Результаты по запросу: <span class="ask-query">{{ search }}</span> (найдено: {{ total_count }})
+                    </div>
+
+                    {% if groups %}
+                        {% for group in groups %}
+                            <div class="ask-category">
+                                <div class="ask-category-header">
+                                    <!-- Определение цвета индикатора уровня -->
+                                    <span class="ask-category-dot
+                                        {% if group.level == 4 or group.level == 'expert' %}expert-dot
+                                        {% elif group.level == 3 or group.level == 'advanced' %}advanced-dot
+                                        {% elif group.level == 2 or group.level == 'experienced' %}experienced-dot
+                                        {% else %}novice-dot{% endif %}">
+                                    </span>
+                                    <h2 class="ask-category-title">{{ group.label }} (уровень {{ group.level }})</h2>
+                                </div>
+
+                                <div class="ask-category-cards">
+                                    {% for user in group.users %}
+                                        <div class="ask-card">
+                                            <div class="ask-card-avatar"></div>
+                                            <div class="ask-card-info">
+                                                <div class="ask-card-name">{{ user.full_name }}</div>
+                                                <div class="ask-card-role">
+                                                    {{ user.position|default:"—" }} • {{ user.department|default:"—" }}
+                                                </div>
+                                                {% if user.matching_skills %}
+                                                    <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                                                        Совпавшие навыки: {{ user.matching_skills|join:", " }}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <a href="{% url 'profile-page' user.id %}" class="ask-card-btn" style="text-decoration: none; display: flex; align-items: center; justify-content: center;">
+                                                Посмотреть профиль
+                                            </a>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Отображение, если ничего не найдено -->
+                        <div class="ask-empty">
+                            <img class="lamp" src="{% static 'assets/lamp.svg' %}" alt="Ничего не найдено">
+                            <div class="ask-empty-content">
+                                <h3 class="ask-empty-title">Ничего не найдено</h3>
+                                <p class="ask-empty-text">
+                                    По запросу «{{ search }}» никого не найдено. Похоже, у нас пока нет сотрудников с этим навыком.
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <!-- Начальное состояние до ввода запроса -->
+                    <div class="ask-empty">
+                        <p>Введите навык в поле поиска.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% endblock %}

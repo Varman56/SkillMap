@@ -1,0 +1,408 @@
+.ask-page {
+    margin: 0;
+    color: #535353;
+    background: #F2F5FF;
+    font-family: 'Cabin', sans-serif;
+    min-height: 90vh;
+    height: 90vh;           /* фиксированная высота на весь экран */
+
+}
+
+/* ХЕДЕР */
+.ask-header {
+    display: flex;
+    align-items: center;
+    gap: 30vh;
+    flex-shrink: 0;
+}
+
+.ask-header-left {
+    display: flex;
+    align-items: center;
+    background: #FFFFFF;
+    padding: 8px 40px;
+    border-radius: 21px;
+    margin: 14px;
+    gap: 5vh;
+}
+
+.ask-logo {
+    font-size: 24px;
+    font-weight: bold;
+    font-family: 'Amiko', sans-serif;
+    background: linear-gradient(90deg, #39376C, #ab4ad5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    margin: 0;
+}
+
+.ask-nav {
+    display: contents;
+}
+
+.ask-nav a {
+    text-decoration: none;
+    color: #444;
+    padding: 8px 80px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    margin: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.ask-nav a:hover {
+    box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.2);
+    color: #709FFA;
+}
+
+.ask-container-avatar {
+    display: flex;
+    align-items: center;
+}
+
+.ask-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #C02BFF;
+    background-size: cover;
+    box-shadow: 2px 4px 5px 0px rgba(0, 0, 0, 0.2);
+}
+
+.ask-arrow-icon {
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+    transition: transform 0.3s;
+    object-fit: contain;
+    margin-left: 22px;
+}
+
+/* ОСНОВНОЙ КОНТЕНТ */
+.ask-main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 30px;
+    background: white;
+    border-radius: 21px;
+    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.2);
+    margin-top: 5px;
+
+}
+.ask-main::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ask-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #393838;
+    margin-bottom: 10px;
+    margin-top: 0px;
+}
+
+.ask-subtitle {
+    font-size: 16px;
+    color: #535353;
+    margin-bottom: 25px;
+}
+
+/* ПОИСК */
+.ask-search-section {
+    margin-bottom: 10px;
+}
+
+.ask-search-box {
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    padding: 6px 20px;
+    border: 1px solid #A1A1A1;
+}
+
+.ask-search-icon {
+    width: 39px;
+    height: 39px;
+    opacity: 0.6;
+}
+
+.ask-search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 20px;
+    font-family: 'Cabin', sans-serif;
+}
+
+.ask-search-input::placeholder {
+    color: #aaa;
+}
+
+/* РЕЗУЛЬТАТЫ */
+.ask-results-header {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.ask-query {
+    color: #1860EA;
+    font-weight: 700;
+}
+
+.ask-category {
+    margin-bottom: 35px;
+    border: 1px solid #D3D3D3;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 1px 2px 4px 0px rgba(0, 0, 0, 0.1);
+}
+
+.ask-category-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 15px;
+    padding-left: 10px;
+}
+
+.ask-category-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ask-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: white;
+    border-radius: 16px;
+    padding: 16px 24px;
+    }
+
+
+
+.ask-card-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #C02BFF;
+    background-size: cover;
+    flex-shrink: 0;
+}
+
+.ask-card-info {
+    flex: 1;
+}
+
+.ask-card-name {
+    font-size: 16px;
+    font-weight: 400;
+    color: #1E1E1E;
+    margin-bottom: 10px;
+}
+
+.ask-card-role {
+    font-size: 14px;
+    color: #535353;
+    font-weight: 500;
+}
+
+.ask-card-btn {
+    background: #C02BFF;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.3s;
+    box-shadow: 0px 2px 3px 1px rgba(0, 0, 0, 0.2);
+}
+
+.ask-card-btn:hover {
+    background: #982EC4;
+    color: white;
+}
+
+.ask-empty {
+    padding: 30px 20px;
+    background: #FFEADAB2;
+    border-radius: 10px;
+    color: #535353;
+    margin: 57px 0;
+    display: flex;
+}
+.lamp{
+    width: 47px;
+    height: 47px;
+        margin-right: 20px;
+}
+.ask-empty-text{
+    max-width: 450px;
+    font-size: 16px;
+    margin: 8px 0;
+}
+.ask-enpty-title{
+        margin: 0px;
+}
+.ask-empty-btn{
+    margin-top: 20px;
+        cursor: pointer;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    background: #ffffff;
+    border: 1px solid #A1A1A1;
+    box-shadow: 0px 2px 3px 1px rgba(0, 0, 0, 0.2);
+        color: #535353;
+    font-weight: 700;
+}
+
+/* ДРОПДАУН МЕНЮ */
+.ask-arrow-wrapper {
+    position: relative;
+}
+
+.ask-dropdown-menu {
+    position: absolute;
+    top: 50px;
+    right: 0;
+    width: 222px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 8px 10px 3px 0px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.ask-dropdown-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    width: auto;
+}
+
+.ask-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 17px;
+    width: fit-content;
+}
+
+.ask-dropdown-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #C02BFF;
+    background-size: cover;
+    box-shadow: 1px 5px 3px rgba(0, 0, 0, 0.2);
+}
+
+.ask-dropdown-info {
+    flex: 1;
+}
+
+.ask-dropdown-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+
+.ask-dropdown-role {
+    font-size: 12px;
+    color: #888;
+}
+
+.ask-dropdown-item {
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: #535353;
+    transition: 0.2s;
+    text-align: left;
+    border: 1px solid #53535329;
+    border-radius: 10px;
+    display: flex;
+    white-space: nowrap;
+    margin: 17px;
+    margin-top: 5px;
+    box-shadow: 0px 3px 4px rgba(0, 0, 0, 0.2);
+    width: stretch;
+}
+
+.ask-dropdown-item:hover {
+    background: #f5f5f5;
+}
+
+.ask-dropdown-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+.ask-dropdown-item.ask-logout {
+    margin: 21px 17px 21px 17px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.novice-dot {
+    background: #C0E6BC;  /* зелёный — Новичок */
+}
+/* ЗАГОЛОВКИ КАТЕГОРИЙ С КРУЖКАМИ */
+.ask-category-header {
+    display: flex;
+    align-items: center;
+        margin-bottom: 15px;
+    padding-left: 10px;
+}
+
+.ask-category-dot {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+
+/* Цвета кружков как в других страницах */
+.expert-dot {
+    background: #F5969685;  /* розовый/красный — Эксперт */
+}
+
+.advanced-dot {
+    background: #FFCDA8B2;  /* бежевый/оранжевый — Продвинутый */
+}
+
+.experienced-dot {
+    background: #F4F3B5FC;  /* жёлтый — Опытный */
+}

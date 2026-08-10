@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}SkillMap | Авторизация{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="auth-container">
+        <!-- Твой оригинальный заголовок / картинка -->
+        <h1 class="title">SkillMap</h1>
+        <label class="subtitle">Введите данные для авторизации</label>
+
+        <form id="login-form" class="login-form" method="post" action="{% url 'login' %}" novalidate>
+            {% csrf_token %}
+
+            <!-- Блок для общих ошибок -->
+            <div id="general-error" class="error-message general-error hidden"></div>
+
+            <div class="form-group">
+                <label for="email">Корпоративная почта</label>
+                <input type="email" id="email" name="email" placeholder="examplemail@gmail.com" required>
+                <div class="error-message" id="email-error"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" name="password" placeholder="********" required>
+                <div class="error-message" id="password-error"></div>
+            </div>
+
+            <button type="submit" class="btn-primary">Войти</button>
+
+<!--            <div class="divider">-->
+<!--                <span>или</span>-->
+<!--            </div>-->
+
+<!--            <a-->
+<!--              class="btn-google"-->
+<!--            >-->
+<!--                <img-->
+<!--                        src="{% static 'assets/photo-yandex.png' %}"-->
+<!--                        alt="Yandex"-->
+<!--                        class="google-icon"-->
+<!--                >-->
+<!--                Войти через Яндекс-->
+<!--            </a>-->
+        </form>
+
+        <a href="#" class="forgot">Забыли пароль?</a>
+    </div>
+</div>
+{% endblock %}

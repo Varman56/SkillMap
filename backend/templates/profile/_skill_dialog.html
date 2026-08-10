@@ -1,0 +1,33 @@
+{% if can_edit %}
+<dialog id="skillDialog" class="profile-dialog">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_skill">
+
+        <h3>Добавить навык</h3>
+
+        <label for="skill-id">Навык</label>
+        <select id="skill-id" name="skill_id" required>
+            <option value="">Выберите навык</option>
+
+            {% for skill in available_skills %}
+                <option value="{{ skill.id }}">
+                    {{ skill.display_name }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="skill-level">Уровень</label>
+        <select id="skill-level" name="level" required>
+            {% for level in levels %}
+                <option value="{{ level }}">{{ level }}</option>
+            {% endfor %}
+        </select>
+
+        <div class="profile-dialog-actions">
+            <button type="submit">Добавить</button>
+            <button type="button" data-close-dialog>Отмена</button>
+        </div>
+    </form>
+</dialog>
+{% endif %}

@@ -1,0 +1,346 @@
+@charset "UTF-8";
+
+body {
+  margin: 0;
+}
+
+.main-container {
+  margin: 0;
+  color: #535353;
+  background: #F2F5FF;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Контейнер карточки */
+.auth-container {
+  background: #FFFFFF;
+  padding: 31px;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 452px;
+  min-height: 610px;
+  height: auto;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  font-family: "Cabin", sans-serif;
+  box-sizing: border-box;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Заголовок и подзаголовок */
+.title {
+  font-size: 36px;
+  font-weight: bold;
+  font-family: "Amiko", sans-serif;
+  background: linear-gradient(90deg, #39376C, #e097ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  margin: 0 0 8px 0;
+}
+
+.subtitle {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 25px;
+  color: #717171;
+}
+
+/* Форма */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+
+/* Блок инпута (Label + Input + Error) */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.login-form label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.login-form input {
+  padding: 12px;
+  border-radius: 10px;
+  color: #535353;
+  border: 1px solid #A1A1A1;
+  font-size: 14px;
+  font-family: "Cabin", sans-serif;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.login-form input:focus {
+  border-color: #C02BFF;
+}
+
+.login-form input.error {
+  border-color: #D64343;
+}
+
+/* Ошибки */
+.error-message {
+  color: #D64343;
+  font-size: 12px;
+  min-height: 16px; /* Чтобы текст ошибки не дергал верстку */
+}
+
+.general-error {
+  background-color: #fde8e8;
+  border: 1px solid #f8b4b4;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
+  color: #9b1c1c;
+}
+
+/* Кнопка входа */
+.btn-primary {
+  margin-top: 10px;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  background-color: #C02BFF;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 5px 15px rgba(147, 51, 234, 0.4);
+  transition: background-color 0.3s;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  background-color: #982EC4;
+}
+
+/* Разделитель */
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  color: #aaa;
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.divider span {
+  margin: 0 10px;
+}
+
+/* Яндекс / Google кнопка */
+.btn-google {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(161, 161, 161, 0.5);
+  background: white;
+  color: #535353;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
+}
+
+.btn-google:hover {
+  background: #f8f8f8;
+}
+
+.btn-google .google-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Ссылки и подвал карточки */
+.forgot {
+  display: inline-block;
+  color: #709FFA;
+  font-size: 14px;
+  margin-top: 15px;
+  text-decoration: none;
+}
+
+.forgot:hover, .info-auth a:hover {
+  text-decoration: underline;
+}
+
+.info-auth {
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.info-auth a {
+  color: #709FFA;
+  text-decoration: none;
+}
+
+/* 2. ХЕДЕР (Выровнен по центру и растянут) */
+.public-header {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Раздвигаем левую часть и аватарку по краям */
+    max-width: 1100px;              /* Ширина как у основного контента */
+    margin: 0 auto;                 /* По центру экрана */
+    padding: 15px 20px;
+    box-sizing: border-box;
+    width: 100%;
+    gap: 20px;
+}
+
+.public-header-left {
+    display: flex;
+    align-items: center;
+    background: #FFFFFF;
+    padding: 8px 24px;
+    border-radius: 21px;
+    gap: 80px;                     /* Исправлен корявый 5vh */
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.public-logo {
+    font-size: 24px;
+    font-weight: bold;
+    font-family: 'Amiko', sans-serif;
+    background: linear-gradient(90deg, #39376C, #ab4ad5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    margin: 0;
+}
+
+.public-nav {
+    display: flex;
+    gap: 80px;
+}
+
+.public-nav a {
+    text-decoration: none;
+    color: #444;
+    padding: 8px 16px;             /* Исправлено с 80px на адекватные 16px */
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    margin: 0;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.public-nav a:hover {
+    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+    color: #709FFA;
+}
+/* ===== КОНТЕЙНЕР АВАТАРКИ ===== */
+.profile-container-avatar {
+    display: flex;
+    align-items: center;
+}
+
+.profile-avatar {
+    width: 40px;
+    height: 40px;
+    background-size: cover;
+}
+
+.profile-arrow-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.profile-icon {
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    transition: transform 0.3s;
+    object-fit: contain;
+}
+
+.profile-arrow-icon {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    transition: transform 0.3s;
+    object-fit: contain;
+    margin-left: 12px;
+}
+
+/* ===== ВЫПАДАЮЩЕЕ МЕНЮ ===== */
+.profile-dropdown-menu {
+    position: absolute;
+    top: 50px;                     /* отступ от стрелки */
+    right: 0;
+    width: 220px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0px 8px 20px rgba(0,0,0,0.15);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+    z-index: 1000;
+}
+
+.profile-dropdown-menu.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@media (max-width: 768px) {
+    .public-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .public-header-left {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .public-top {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .public-bottom {
+        flex-direction: column;
+    }
+    .public-projects-section {
+        width: 100%;
+    }
+}
