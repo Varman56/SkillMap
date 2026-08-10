@@ -148,6 +148,13 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": "/api",
 }
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5181',
+    'http://127.0.0.1:5181',
+    'http://localhost',
+    'http://127.0.0.1',
+]
+
 CORS_ALLOWED_ORIGINS = _env_list(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,https://localhost:3000,"

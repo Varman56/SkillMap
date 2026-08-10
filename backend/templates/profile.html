@@ -209,30 +209,6 @@
             </div>
         </div>
     </main>
-
-    <!-- Модальное окно -->
-    <div class="public-modal" id="addProjectModal">
-        <div class="public-modal-content">
-            <div class="public-modal-header">
-                <h3>Добавить проект</h3>
-            </div>
-            <form id="addProjectForm">
-                <div class="public-form-group">
-                    <label>Название проекта:</label>
-                    <input type="text" id="projectTitle" placeholder="Введите название проекта" required>
-                </div>
-                <div class="public-form-group">
-                    <label>Описание проекта:</label>
-                    <textarea id="projectDescription" rows="3" placeholder="Введите описание проекта"
-                              required></textarea>
-                </div>
-                <div class="public-form-buttons">
-                    <button type="submit" class="public-btn-submit">Сохранить</button>
-                    <button type="button" class="public-btn-cancel add-project-cancel">Отмена</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 {% if request.user == profile_user %}
 {% include "profile/_edit_dialog.html" %}

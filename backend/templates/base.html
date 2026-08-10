@@ -24,9 +24,11 @@
         <nav class="public-nav">
             <!-- Навигация по ролям -->
             <a href="{% url 'ask-page' %}">Кого спросить?</a>
+
             {% if user.primary_role == 'HR' %}
             <a href="{% url 'matrix-page' %}">Матрица компетенций</a>
             <a href="{% url 'reserve-page' %}">Кадровый резерв</a>
+
             {% elif user.primary_role == 'Manager' %}
             <a href="{% url 'matrix-page' %}">Матрица компетенций</a>
             <a href="{% url 'approvals-page' %}">Страница подтверждения навыков</a>
