@@ -10,6 +10,8 @@ from api.views.ask_page import ask_page
 from api.views.profile_page import profile_page
 from api.views.matrix_page import matrix_page_data
 from api.views.project_page import project_page
+from api.views.reserve_page import reserve_page
+from api.views.approvals_page import approvals_page
 
 urlpatterns = [
     path("api/", include("api.urls")),
@@ -25,6 +27,8 @@ urlpatterns = [
     path("ask/", ask_page, name="ask-page"),
     path("projects/<int:project_id>/", project_page, name="project-page"),
     path("matrix-data/", matrix_page_data, name="matrix-data"),
+    path("reserve/", reserve_page, name="reserve-page"),
+    path("approvals/", approvals_page, name="approvals-page"),
     # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.
     # Тоже должно стоять ДО spa-assets, иначе тот catch-all перехватит /media/*.jpg первым.
     re_path(

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}SkillMap | Кадровый резерв{% endblock %}
+
+{% block content %}
+<h1>Кадровый резерв ({{ total_count }})</h1>
+
+<form method="get" action="">
+    <p>
+        <label for="department">Отдел</label><br>
+        {% if department_editable %}
+            <select id="department" name="department">
+                <option value="">Все отделы</option>
+                {% for d in departments %}
+                    <option value="{{ d.name }}" {% if d.name == department_filter %}selected{% endif %}>
+                        {{ d.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        {% else %}
+            <input type="text" value="{{ department_filter|default:'—' }}" disabled>
+            🔒
+        {% endif %}
+    </p>
+
+    <p>
+        <label for="category">Категория навыка</label><br>
+        <select id="category" name="category">
+            <option value="">Все категории</option>
+            {% for c in categories %}
+                <option value="{{ c.name }}" {% if c.name == category_filter %}selected{% endif %}>
+                    {{ c.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <p>
+        <label for="subcategory">Подкатегория</label><br>
+        <select id="subcategory" name="subcategory">
+            <option value="">Все подкатегории</option>
+            {% for s in subcategories %}
+                <option value="{{ s.name }}" {% if s.name == subcategory_filter %}selected{% endif %}>
+                    {{ s.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <p>
+        <label for="skill">Навык</label><br>
+        <select id="skill" name="skill">
+            <option value="">Все навыки</option>
+            {% for s in skills %}
+                <option value="{{ s.name }}" {% if s.name == skill_filter %}selected{% endif %}>
+                    {{ s.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </p>
+
+    <p>
+        <label for="status">Статус навыка</label><br>
+        <select id="status" name="status">
+            <option value="" {% if not status_filter %}selected{% endif %}>Все статусы</option>
+            <option value="approved" {% if status_filter == "approved" %}selected{% endif %}>Подтверждён</option>
+            <option value="not_approved" {% if status_filter == "not_approved" %}selected{% endif %}>Не подтверждён</option>
+        </select>
+    </p>
+
+    <p>
+        <label>Уровень навыка ({{ min_level }}–{{ max_level }})</label><br>
+        от <input type="number" name="level_min" value="{{ level_min }}" min="{{ min_level }}" max="{{ max_level }}" style="width:50px">
+        до <input type="number" name="level_max" value="{{ level_max }}" min="{{ min_level }}" max="{{ max_level }}" style="width:50px">
+    </p>
+
+    <p>
+        <label for="search">Поиск по ФИО или должности</label><br>
+        <input type="text" id="search" name="search" value="{{ search }}" placeholder="Введите ФИО или должность">
+    </p>
+
+    <p>
+        <label>
+            <input type="checkbox" name="only_interns" value="1" {% if only_interns %}checked{% endif %}>
+            Только практиканты
+        </label>
+    </p>
+
+    <p>
+        <label>
+            <input type="checkbox" name="only_terminated" value="1" {% if only_terminated %}checked{% endif %}>
+            Только уволенные
+        </label>
+    </p>
+
+    <p>
+        <label>
+            <input type="checkbox" name="sort" value="recent" {% if sort == "recent" %}checked{% endif %}>
+            Последние добавленные
+        </label>
+    </p>
+
+    <button type="submit">Применить фильтры</button>
+</form>
+
+<ul>
+    {% for employee in employees %}
+        <li>
+            <strong>{{ employee.full_name }}</strong>
+            {% if employee.is_intern %}[Практикант]{% endif %}
+            {% if not employee.is_active %}[Уволен]{% endif %}
+            <br>
+            {{ employee.position|default:"—" }}
+            <br>
+            <a href="{% url 'profile-page' employee.id %}">Посмотреть профиль</a>
+        </li>
+    {% empty %}
+        <li>Сотрудники не найдены.</li>
+    {% endfor %}
+</ul>
+{% endblock %}
