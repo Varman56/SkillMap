@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}SkillMap | Подтверждение навыков{% endblock %}
+
+{% block content %}
+{% if messages %}
+    <ul>
+        {% for message in messages %}
+            <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<h1>Подтверждение навыков сотрудников</h1>
+<p>Сотрудники добавили новые навыки или изменили уровень владения. Пожалуйста, подтвердите их навыки.</p>
+
+<p><strong>{{ waiting_employee_count }}</strong> сотрудников ожидают подтверждения</p>
+
+<form method="get" action="">
+    <p>
+        <label for="employee">Поиск по сотруднику (ФИО)</label><br>
+        <input type="text" id="employee" name="employee" value="{{ employee_search }}" placeholder="Введите ФИО, например, Иванов Иван">
+    </p>
+    <p>
+        <label for="skill">Поиск по навыку</label><br>
+        <input type="text" id="skill" name="skill" value="{{ skill_search }}" placeholder="Введите навык, например, Docker">
+    </p>
+    <button type="submit">Найти</button>
+</form>
+
+<table border="1" cellpadding="6">
+    <thead>
+        <tr>
+            <th>Сотрудник</th>
+            <th>Должность</th>
+            <th>Навык</th>
+            <th>Запрошенный уровень</th>
+            <th>Дата отправки</th>
+            <th>Подтвердить на уровне</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for req in requests %}
+            <tr>
+                <td>{{ req.full_name }}</td>
+                <td>{{ req.position|default:"—" }}</td>
+                <td>{{ req.skill_name }}</td>
+                <td><span class="badge {{ req.requested_level_class }}">{{ req.requested_level_label }}</span></td>
+                <td>{{ req.submitted_at|date:"d.m.Y" }}</td>
+                <td>
+                    <form method="post" action="" style="display:flex; gap:8px; align-items:center;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve_skill">
+                        <input type="hidden" name="user_skill_id" value="{{ req.id }}">
+                        <select name="level">
+                            {% for level, label in level_options %}
+                                <option value="{{ level }}" {% if level == req.requested_level %}selected{% endif %}>
+                                    {{ level }} — {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit">Подтвердить</button>
+                    </form>
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6">Заявок на подтверждение нет.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<p>
+    {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&employee={{ employee_search }}&skill={{ skill_search }}">&lt;</a>
+    {% endif %}
+    Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&employee={{ employee_search }}&skill={{ skill_search }}">&gt;</a>
+    {% endif %}
+</p>
+
+<hr>
+<p>
+    <strong>Как это работает?</strong><br>
+    Сотрудник добавляет новый навык или изменяет уровень владения. Навык получает статус
+    «На подтверждении» и становится виден вам. Вы можете подтвердить именно тот уровень,
+    который указал сотрудник, либо выбрать другой — например, если сотрудник переоценил себя.
+</p>
+{% endblock %}
