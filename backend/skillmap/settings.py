@@ -43,15 +43,10 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",
-    "rest_framework",
-    "rest_framework_simplejwt",
-    "corsheaders",
-    "drf_spectacular",
     "api",
 ]
 
 MIDDLEWARE = [
-     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -113,73 +108,30 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "UNAUTHENTICATED_USER": None,
-}
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(
-        minutes=int(os.getenv("JWT_ACCESS_LIFETIME_MINUTES", "60"))
-    ),
-    "REFRESH_TOKEN_LIFETIME": timedelta(
-        days=int(os.getenv("JWT_REFRESH_LIFETIME_DAYS", "7"))
-    ),
-    "AUTH_HEADER_TYPES": ("Bearer",),
-    "USER_ID_FIELD": "id",
-    "USER_ID_CLAIM": "user_id",
-    "TOKEN_OBTAIN_SERIALIZER": "api.serializers.SkillMapTokenObtainSerializer",
-}
-
-SPECTACULAR_SETTINGS = {
-    "TITLE": "SkillMap API",
-    "DESCRIPTION": "API для платформы SkillMap",
-    "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": False,
-    "SCHEMA_PATH_PREFIX": "/api",
-}
-
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5181',
-    'http://127.0.0.1:5181',
-    'http://localhost',
-    'http://127.0.0.1',
-]
-
-CORS_ALLOWED_ORIGINS = _env_list(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,https://localhost:3000,"
-    "http://localhost:5173,https://localhost:5173,"
-    "http://localhost:8080,https://localhost:8080",
+CSRF_TRUSTED_ORIGINS = _env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:5181,http://127.0.0.1:5181",
 )
-CORS_ALLOW_CREDENTIALS = True
 
-# Яндекс OAuth — заполни в .env, если хочешь включить вход через Яндекс ID.
-# Регистрация приложения: https://oauth.yandex.ru → Создать приложение,
-# Платформа: «Веб-сервисы», Redirect URI: <твой хост>/api/auth/yandex/callback,
-# Права: login:email, login:info.
-YANDEX_CLIENT_ID = os.getenv("YANDEX_CLIENT_ID", "")
-YANDEX_CLIENT_SECRET = os.getenv("YANDEX_CLIENT_SECRET", "")
-YANDEX_REDIRECT_URI = os.getenv("YANDEX_REDIRECT_URI", "")
 
-# Кэш — нужен для одноразовых OAuth ticket'ов и CSRF state'ов.
-# FileBasedCache, потому что под uWSGI/Gunicorn несколько worker-процессов,
-# и LocMemCache между ними не разделяется (state CSRF теряется).
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-        "LOCATION": str(BASE_DIR / "tmp_cache"),
-    }
-}
+
+# # Яндекс OAuth — заполни в .env, если хочешь включить вход через Яндекс ID.
+# # Регистрация приложения: https://oauth.yandex.ru → Создать приложение,
+# # Платформа: «Веб-сервисы», Redirect URI: <твой хост>/api/auth/yandex/callback,
+# # Права: login:email, login:info.
+# YANDEX_CLIENT_ID = os.getenv("YANDEX_CLIENT_ID", "")
+# YANDEX_CLIENT_SECRET = os.getenv("YANDEX_CLIENT_SECRET", "")
+# YANDEX_REDIRECT_URI = os.getenv("YANDEX_REDIRECT_URI", "")
+#
+# # Кэш — нужен для одноразовых OAuth ticket'ов и CSRF state'ов.
+# # FileBasedCache, потому что под uWSGI/Gunicorn несколько worker-процессов,
+# # и LocMemCache между ними не разделяется (state CSRF теряется).
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+#         "LOCATION": str(BASE_DIR / "tmp_cache"),
+#     }
+# }
 
 # Логи ошибок Django — в файл log/django.log (если папка log/ существует).
 _LOG_DIR = BASE_DIR.parent / "log"

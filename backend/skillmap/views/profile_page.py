@@ -218,8 +218,10 @@ def profile_page(request, user_id=None):
         ],
         "levels": sorted(VALID_LEVELS),
         "projects": [
-            {"name": up.project.name, "description": up.project.description,
-             "icon": f"proj-icons/Project-icon-{randint(1, 5)}.svg"}
+            {"name": up.project.name,
+             "description": up.project.description,
+             "icon": f"proj-icons/Project-icon-{randint(1, 5)}.svg",
+             "id": up.project.id}
             for up in projects_qs
         ],
         "search": search,

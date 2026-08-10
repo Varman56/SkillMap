@@ -187,13 +187,13 @@
                             <!-- Цикл вывода проектов -->
                             {% for project in projects %}
                             <div class="project" data-id="{{ project.id }}">
-                                <div class="project-header">
+                               <a class="project-header" href="{% url 'project-page' project.id %}">
                                     {% if project.icon %}
                                     <img src="{% static 'assets/'|add:project.icon %}" alt="иконка"
                                          class="project-icon">
                                     {% endif %}
                                     <div class="project-title">{{ project.name }}</div>
-                                </div>
+                                </a>
                                 <div class="project-desc">{{ project.description|default:"—" }}</div>
                             </div>
                             {% empty %}
