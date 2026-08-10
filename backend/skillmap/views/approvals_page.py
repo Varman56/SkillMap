@@ -28,7 +28,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import redirect, render
 
-from ..models import UserSkill
+from api.models import UserSkill
 from .profile_page import PROFILE_LEVEL_LABELS, PROFILE_LEVEL_LABELS_EN, VALID_LEVELS, _parse_level
 
 PAGE_SIZE = 8

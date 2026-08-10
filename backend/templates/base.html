@@ -22,20 +22,14 @@
     <div class="public-header-left">
         <div class="public-logo">SkillMap</div>
         <nav class="public-nav">
-<!--            <a href="{% url 'my-profile' %}">Мой профиль</a>-->
             <!-- Навигация по ролям -->
+            <a href="{% url 'ask-page' %}">Кого спросить?</a>
             {% if user.primary_role == 'HR' %}
-            <a href="{% url 'matrix' %}">Матрица компетенций</a>
-<!--            <a href="{% url 'ask' %}">Кого спросить?</a>-->
-<!--            <a href="#">Кадровый резерв</a>-->
+            <a href="{% url 'matrix-page' %}">Матрица компетенций</a>
+            <a href="{% url 'reserve-page' %}">Кадровый резерв</a>
             {% elif user.primary_role == 'Manager' %}
-<!--            <a href="{% url 'matrix' %}">Мой отдел</a>-->
-           <a href="{% url 'matrix' %}">Матрица компетенций</a>
-<!--            <a href="{% url 'ask' %}">Кого спросить?</a>-->
-            {% else %}
-            <!-- Employee (Сотрудник по умолчанию) -->
-<!--            <a href="{% url 'my-profile' %}">Главная</a>-->
-<!--            <a href="{% url 'ask' %}">Кого спросить?</a>-->
+            <a href="{% url 'matrix-page' %}">Матрица компетенций</a>
+            <a href="{% url 'approvals-page' %}">Страница подтверждения навыков</a>
             {% endif %}
         </nav>
     </div>

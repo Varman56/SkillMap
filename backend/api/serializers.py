@@ -1,10 +1,9 @@
 """Сериализаторы DRF — DTO между моделями и JSON."""
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
  
 from .helpers import skill_category_name
-from .models import Project, Skill, User, UserProject, UserSkill
+from .models import Skill, User
  
  
 class UserPublicSerializer(serializers.ModelSerializer):
@@ -48,23 +47,7 @@ class LoginRequestSerializer(serializers.Serializer):
 class SkillmapTokens(serializers.Serializer):
     access = serializers.CharField()
     refresh = serializers.CharField()
- 
- 
-class SkillMapTokenObtainSerializer(TokenObtainPairSerializer):
-    """Не используется напрямую: логин обрабатывает api.views.auth.LoginView,
-    но класс зарегистрирован в settings.SIMPLE_JWT на случай прямого вызова.
-    """
- 
-    username_field = "email"
- 
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        token["email"] = user.email
-        token["role"] = user.primary_role
-        token["full_name"] = user.full_name
-        return token
- 
+
  
 def issue_tokens_for_user(user) -> dict:
     refresh = RefreshToken.for_user(user)

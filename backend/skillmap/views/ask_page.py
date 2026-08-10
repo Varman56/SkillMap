@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import redirect, render
 
-from ..models import UserSkill
+from api.models import UserSkill
 from .profile_page import PROFILE_LEVEL_LABELS_EN, VALID_LEVELS
 
 # Заголовки групп — множественное число, т.к. это шапка списка людей

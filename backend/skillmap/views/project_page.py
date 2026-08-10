@@ -15,7 +15,7 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from ..models import Project, User, UserProject
+from api.models import Project, User, UserProject
 
 
 def _can_edit(user) -> bool:

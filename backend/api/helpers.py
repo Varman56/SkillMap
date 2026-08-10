@@ -16,7 +16,7 @@ from .models import (
     SubcategorySkill,
     UserRole,
 )
-from .views.profile_page import PROFILE_LEVEL_LABELS_EN
+from skillmap.views.profile_page import PROFILE_LEVEL_LABELS_EN
 
 LEVEL_LABELS = PROFILE_LEVEL_LABELS_EN
 LEVEL_LABEL_TO_INT = {v.lower(): k for k, v in LEVEL_LABELS.items()}

@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
 
-from ..models import Category, Department, Skill, Subcategory, User
+from api.models import Category, Department, Skill, Subcategory, User
 
 MAX_LEVEL = 4
 

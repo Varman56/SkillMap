@@ -27,7 +27,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import render
 
-from ..models import Category, Department, Skill, Subcategory, User, UserSkill
+from api.models import Category, Department, Skill, Subcategory, User, UserSkill
 from .profile_page import VALID_LEVELS
 
 MIN_LEVEL = min(VALID_LEVELS)

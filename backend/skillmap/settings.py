@@ -156,10 +156,6 @@ CORS_ALLOWED_ORIGINS = _env_list(
 )
 CORS_ALLOW_CREDENTIALS = True
 
-PASSWORD_HASHERS = [
-    "api.hashers.BCryptNetHasher",
-]
-
 # Яндекс OAuth — заполни в .env, если хочешь включить вход через Яндекс ID.
 # Регистрация приложения: https://oauth.yandex.ru → Создать приложение,
 # Платформа: «Веб-сервисы», Redirect URI: <твой хост>/api/auth/yandex/callback,

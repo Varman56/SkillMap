@@ -23,7 +23,7 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from ..models import DepartmentUser, Skill, User, UserProject, UserSkill
+from api.models import DepartmentUser, Skill, User, UserProject, UserSkill
 
 MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 MB
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}

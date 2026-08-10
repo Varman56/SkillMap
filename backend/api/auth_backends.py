@@ -1,4 +1,3 @@
-"""Кастомный auth backend: логин по email + проверка BCrypt."""
 from django.contrib.auth.backends import BaseBackend
 
 from .models import User
