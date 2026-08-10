@@ -2,7 +2,7 @@
     padding: 24px;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex;
-    max-height: 1000px;
+    max-height: 95vh;
     flex-direction: column;
     gap: 20px;
     max-width: max-content;
@@ -223,7 +223,7 @@
     border-radius: 12px;
     border: 1px solid #E5E7EB;
     overflow: auto;
-    max-height: 650px;
+    max-height: calc(100vh - 250px);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
@@ -254,19 +254,18 @@
     border-bottom: 1px solid #E5E7EB;
 }
 
+.cm-matrix-table thead tr:nth-child(3) th {
+    position: sticky;
+    top: 92px; /* 46px + 46px */
+    z-index: 8; 
+    background: #fff;
+    border-bottom: 1px solid #E5E7EB;
+}
+
 .cm-matrix-table tbody td:first-child {
     position: sticky;
     left: 0;
     z-index: 11; /* Должна быть поверх обычных колонок шапки при горизонтальном скролле */
-    background: #fff;
-    border-right: 1px solid #E5E7EB;
-}
-
-.cm-matrix-table thead th:first-child {
-    position: sticky;
-    left: 0;
-    top: 0;
-    z-index: 12; /* Самый высокий z-index, чтобы ячейка была поверх скролла со всех сторон */
     background: #fff;
     border-right: 1px solid #E5E7EB;
 }
@@ -295,25 +294,6 @@
     z-index: 8; 
     background: #fff;
     border-bottom: 1px solid #E5E7EB;
-}
-
-/* Левая колонка (Сотрудники в теле таблицы) */
-.cm-matrix-table tbody td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 11; 
-    background: #fff;
-    border-right: 1px solid #E5E7EB;
-}
-
-/* Пересечение левой колонки и шапки (Ячейка "Сотрудники", rowspan="3") */
-.cm-matrix-table thead tr:first-child th:first-child {
-    position: sticky;
-    left: 0;
-    top: 0;
-    z-index: 20; 
-    background: #fff;
-    border-right: 1px solid #E5E7EB;
 }
 
 /* ==========================================
@@ -379,7 +359,7 @@
 }
 
 .cm-emp-name {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     color: #111827;
 }
@@ -411,4 +391,82 @@
     position: absolute;
     left: 3%;
     bottom: 25%;
+}
+
+/* === ПОЛНЫЙ ФИКС МАТРИЦЫ === */
+
+/* 1. Чиним просвечивающийся текст (Баг №1) */
+.cm-matrix-table {
+    /* Обязательно separate для sticky-таблиц, иначе рамки глючат и фон становится "дырявым" */
+    border-collapse: separate !important; 
+    border-spacing: 0 !important;
+}
+
+/* Принудительно растягиваем фон ячеек до самых краев рамок */
+.cm-matrix-table th, 
+.cm-matrix-table td {
+    background-clip: padding-box !important;
+}
+
+/* 2. Чиним наложение категорий (Баг №2) */
+/* Чтобы top: 46px и 92px работали идеально, жестко фиксируем высоту строк шапки и запрещаем перенос текста */
+.cm-category-th,
+.cm-subcategory-th,
+.cm-skill-th {
+    height: 46px !important;
+    max-height: 46px !important;
+    white-space: nowrap !important; /* Текст не будет переноситься на 2 строки */
+    overflow: hidden !important;
+    text-overflow: ellipsis !important; /* Добавит троеточие, если текст не влезет */
+    box-sizing: border-box !important;
+}
+
+/* 3. Железобетонно закрепляем левую колонку и угол */
+.cm-matrix-table thead tr:first-child th:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    top: 0 !important;
+    z-index: 20 !important; /* Самый высокий приоритет для угловой ячейки */
+    background: #fff !important;
+}
+
+.cm-matrix-table tbody td:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 11 !important; /* Выше обычных ячеек, но ниже шапки */
+    background: #fff !important;
+}
+
+/* 4. Исправляем отступы для 2 и 3 строки шапки */
+.cm-matrix-table thead tr:nth-child(2) th {
+    position: sticky !important;
+    top: 46px !important; 
+    z-index: 9 !important;
+}
+
+.cm-matrix-table thead tr:nth-child(3) th {
+    position: sticky !important;
+    top: 92px !important; 
+    z-index: 8 !important;
+}
+
+.cm-reset-btn {
+    padding: 15px 16px;
+    border: 1px solid #ab4ad5; /* Фиолетовая рамка */
+    background: #ab4ad5;      /* Фиолетовый фон */
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;              /* Белый текст */
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.cm-reset-btn:hover {
+    background: #9333ea;      /* Чуть темнее при наведении */
+    border-color: #9333ea;
+}
+
+.cm-emp-position {
+    font-size: 14px;
 }
