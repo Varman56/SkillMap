@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}SkillMap | {{ project.name }}{% endblock %}
+
+{% block content %}
+{% if messages %}
+    <ul>
+        {% for message in messages %}
+            <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<p>Проекты / {{ project.name }}</p>
+<h1>{{ project.name }}</h1>
+<p>Статус: {{ project.status }}</p>
+<p>Начало проекта: {{ project.start_date|date:"d.m.Y"|default:"—" }}</p>
+<p>Окончание проекта: {{ project.end_date|date:"d.m.Y"|default:"—" }}</p>
+
+<section>
+    <h2>Сведения</h2>
+    <p>{{ project.description|default:"—" }}</p>
+</section>
+
+<section>
+    <h2>Владелец</h2>
+    {% if owner %}
+        <p>{{ owner.full_name }}</p>
+    {% else %}
+        <p>Не назначен</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Участники ({{ member_count }})</h2>
+
+    <form method="get" action="">
+        <input
+            type="text"
+            name="search"
+            value="{{ search }}"
+            placeholder="Поиск участника по ФИО"
+        >
+        <button type="submit">Найти</button>
+    </form>
+
+    <ul>
+        {% for member in members %}
+            <li>
+                {{ member.full_name }} — {{ member.position|default:"—" }}
+                {% if can_edit %}
+                    <form method="post" action="" style="display:inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="remove_member">
+                        <input type="hidden" name="user_id" value="{{ member.id }}">
+                        <button type="submit">Удалить</button>
+                    </form>
+                {% endif %}
+            </li>
+        {% empty %}
+            <li>Участников не найдено.</li>
+        {% endfor %}
+    </ul>
+
+    {% if can_edit %}
+        <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_member">
+            <select name="user_id" required>
+                <option value="">Выберите сотрудника</option>
+                {% for u in available_users %}
+                    <option value="{{ u.id }}">{{ u.full_name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Добавить</button>
+        </form>
+    {% endif %}
+</section>
+
+{% if can_edit %}
+    <section>
+        <h2>Редактировать проект</h2>
+        <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_project">
+
+            <label for="name">Название</label>
+            <input type="text" id="name" name="name" value="{{ project.name }}">
+
+            <label for="description">Описание</label>
+            <textarea id="description" name="description">{{ project.description }}</textarea>
+
+            <label for="status">Статус</label>
+            <input type="text" id="status" name="status" value="{{ project.status }}">
+
+            <button type="submit">Сохранить</button>
+        </form>
+    </section>
+{% endif %}
+{% endblock %}

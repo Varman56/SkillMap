@@ -274,7 +274,14 @@ class Project(models.Model):
     status = models.CharField(max_length=50, default="Active")
     start_date = models.DateTimeField(null=True, blank=True)
     end_date = models.DateTimeField(null=True, blank=True)
- 
+    created_by = models.ForeignKey(
+    User,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="created_projects",
+)
+    
     class Meta:
         db_table = "project"
         #managed = False
