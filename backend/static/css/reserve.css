@@ -1,0 +1,431 @@
+.resv-page {
+    margin: 0;
+    color: #535353;
+    background: #F2F5FF;
+    font-family: 'Cabin', sans-serif;
+    min-height: 90vh;
+}
+
+/* Верхний паддинг уменьшен до 5px (было 30px) — тот же зазор от хедера
+   до белого листа (.resv-container), что и у .ask-main в ask.css. Левый/
+   правый/нижний паддинги не трогаем — они не влияют на этот зазор. */
+.resv-main {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 5px 30px 30px;
+}
+
+.resv-container {
+    background: white;
+    border-radius: 21px;
+    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.2);
+    padding: 30px;
+}
+
+.resv-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #393838;
+    margin: 0 0 8px 0;
+}
+
+.resv-subtitle {
+    font-size: 16px;
+    color: #535353;
+    margin: 0 0 20px 0;
+}
+
+/* СТРОКА 1 — фильтры (тот же компактный вид, что и .cm-filter-item в matrix.css).
+   align-items: flex-start (вместо дефолтного stretch) — принципиально
+   важно: без этого все блоки в строке растягиваются по высоте САМОГО
+   высокого соседа. А .resv-level-filter выше остальных (у него ещё
+   строка с подписями "1"/"4" под ползунком) — из-за stretch все селекты
+   рядом с ним раздувались в высокий тонкий столбик. С flex-start каждый
+   блок высотой ровно по своему содержимому, как и должно быть. */
+.resv-filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+/* flex: 1 1 0 с min-width (а не фиксированная ширина и не просто
+   min-width, как было раньше по очереди) — решает сразу 2 проблемы:
+   1) раньше ширина "плавала" от длины текста выбранного option'а
+      (например, "Библиотеки/Фреймворки" у подкатегории заметно шире
+      "Git" у навыка) — из-за этого суммарная ширина 6 блоков то влезала
+      в один ряд, то нет, и уровень навыка иногда переносился на вторую
+      строку;
+   2) фиксированная ширина (160px) решала перенос, но оставляла пустое
+      место справа от блоков внутри широкого .resv-main — выглядело
+      обрезанным. flex-grow:1 растягивает все 6 блоков вровень на всю
+      ширину строки, как на макете, а min-width не даёт им схлопнуться
+      слишком узко. Текст, который всё равно не влезает — обрезаем
+      многоточием (см. .resv-filter-item select ниже), сам option виден
+      целиком в раскрытом списке. */
+.resv-filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 6px 10px;
+    flex: 1 1 0;
+    min-width: 140px;
+    box-sizing: border-box;
+}
+
+.resv-filter-item label {
+    font-size: 11px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+.resv-filter-item select {
+    width: 100%;
+    max-width: 100%;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    color: #374151;
+    background: #FFF;
+    cursor: pointer;
+    font-family: 'Cabin', sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 16px;
+    padding-right: 20px;
+}
+
+/* Двуручечный ползунок уровня — та же flex-логика, что и у остальных
+   блоков (см. комментарий выше про .resv-filter-item), только чуть
+   больший flex-grow и min-width — самому ползунку нужно немного больше
+   места, чтобы ручки не были совсем впритык друг к другу. */
+.resv-level-filter {
+    flex: 1.2 1 0;
+    min-width: 160px;
+}
+
+.resv-level-slider {
+    position: relative;
+    height: 20px;
+    margin-top: 4px;
+}
+
+.resv-level-track,
+.resv-level-track-fill {
+    position: absolute;
+    top: 50%;
+    height: 4px;
+    transform: translateY(-50%);
+    border-radius: 2px;
+}
+
+.resv-level-track {
+    left: 0;
+    right: 0;
+    background: #E5E7EB;
+}
+
+.resv-level-track-fill {
+    background: #ab4ad5;
+}
+
+.resv-level-slider input[type="range"] {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    width: 100%;
+    margin: 0;
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: none;
+}
+
+.resv-level-slider input[type="range"]::-webkit-slider-runnable-track {
+    background: transparent;
+}
+
+.resv-level-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #ab4ad5;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px #ab4ad5;
+    cursor: pointer;
+    margin-top: 0;
+}
+
+.resv-level-slider input[type="range"]::-moz-range-track {
+    background: transparent;
+    border: none;
+}
+
+.resv-level-slider input[type="range"]::-moz-range-thumb {
+    pointer-events: auto;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #ab4ad5;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px #ab4ad5;
+    cursor: pointer;
+}
+
+.resv-level-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #9CA3AF;
+    margin-top: 2px;
+}
+
+/* СТРОКА 2 — поиск, переключатели, сортировка */
+.resv-search-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.resv-search-box {
+    flex: 1;
+    min-width: 260px;
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    padding: 8px 16px;
+    border: 1px solid #A1A1A1;
+    position: relative;
+}
+
+.resv-search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    font-family: 'Cabin', sans-serif;
+}
+
+.resv-search-input::placeholder {
+    color: #aaa;
+}
+
+/* Поиск теперь фильтрует "на лету" (input-событие в JS), кнопки-сабмита
+   у иконки больше нет — просто декоративная лупа справа в поле. */
+.resv-search-icon {
+    width: 20px;
+    height: 20px;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Переключатели (checkbox, стилизованный под тумблер) */
+.resv-toggles {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.resv-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.resv-toggle input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.resv-toggle-track {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: #D1D5DB;
+    border-radius: 999px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.resv-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s;
+}
+
+.resv-toggle input[type="checkbox"]:checked + .resv-toggle-track {
+    background: #C02BFF;
+}
+
+.resv-toggle input[type="checkbox"]:checked + .resv-toggle-track .resv-toggle-thumb {
+    transform: translateX(18px);
+}
+
+.resv-toggle-label {
+    font-size: 14px;
+    color: #535353;
+}
+
+/* Кнопка сортировки "Последние добавленные" */
+.resv-sort-btn {
+    background: white;
+    border: 1px solid #A1A1A1;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #535353;
+    font-family: 'Cabin', sans-serif;
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+.resv-sort-btn:hover {
+    border-color: #C02BFF;
+    color: #C02BFF;
+}
+
+.resv-sort-btn-active {
+    background: #F6E1FF;
+    border-color: #C02BFF;
+    color: #C02BFF;
+    font-weight: 600;
+}
+
+/* Счётчик найденных */
+.resv-count {
+    font-size: 14px;
+    color: #6B7280;
+    margin-bottom: 12px;
+}
+
+/* СПИСОК СОТРУДНИКОВ */
+.resv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.resv-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: #FBFAFF;
+    border: 1px solid #F0EAFB;
+    border-radius: 16px;
+    padding: 14px 20px;
+}
+
+.resv-card-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #C02BFF;
+    background-size: cover;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.resv-card-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.resv-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.resv-card-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.resv-card-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: #1E1E1E;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.resv-card-position {
+    font-size: 14px;
+    color: #535353;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.resv-badge {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.resv-badge-intern {
+    background: #EDE4FF;
+    color: #7C3AED;
+}
+
+.resv-badge-terminated {
+    background: #FDE8E8;
+    color: #9b1c1c;
+}
+
+.resv-card-btn {
+    background: #C02BFF;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: 0.2s;
+    box-shadow: 0px 2px 3px 1px rgba(0, 0, 0, 0.2);
+}
+
+.resv-card-btn:hover {
+    background: #982EC4;
+}
+
+.resv-empty {
+    padding: 30px 20px;
+    background: #FFEADAB2;
+    border-radius: 10px;
+    color: #535353;
+    text-align: center;
+}

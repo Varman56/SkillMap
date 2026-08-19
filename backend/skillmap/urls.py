@@ -9,6 +9,7 @@ from skillmap.views.matrix_page import matrix_page
 from skillmap.views.project_page import project_page
 from skillmap.views.reserve_page import reserve_page
 from skillmap.views.approvals_page import approvals_page
+from skillmap.views.department_page import department_page
 
 urlpatterns = [
     path("profile/", profile_page, name="my-profile"),
@@ -18,6 +19,7 @@ urlpatterns = [
     path("reserve/", reserve_page, name="reserve-page"),
     path("approvals/", approvals_page, name="approvals-page"),
     path("matrix/", matrix_page, name="matrix-page"),
+    path("my-department/", department_page, name="my-department-page"),
 
     # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.
     # Тоже должно стоять ДО spa-assets, иначе тот catch-all перехватит /media/*.jpg первым.

@@ -47,8 +47,12 @@ class User(AbstractBaseUser):
     is_intern = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
  
-    departments = models.ManyToManyField(
-        "Department", through="DepartmentUser", related_name="users"
+    department = models.ForeignKey(
+        "Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
     )
     roles = models.ManyToManyField(
         "Role", through="UserRole", related_name="users"
@@ -91,9 +95,14 @@ class User(AbstractBaseUser):
  
     @property
     def primary_department(self) -> str:
-        """Имя первого департамента — для мест, где старому коду нужна одна строка."""
-        department = self.departments.first()
-        return department.name if department else ""
+        """Имя департамента пользователя — для мест, где старому коду нужна одна строка.
+
+        Раньше у юзера могло быть несколько отделов (M2M через DepartmentUser),
+        теперь отдел ровно один (User.department), поэтому это просто обёртка
+        над полем, а не .first() по связи. Имя сохранено для обратной
+        совместимости со всеми местами, которые его уже вызывают.
+        """
+        return self.department.name if self.department_id else ""
  
  
 class Department(models.Model):
@@ -106,26 +115,6 @@ class Department(models.Model):
  
     def __str__(self) -> str:
         return self.name
- 
- 
-class DepartmentUser(models.Model):
-    id = models.AutoField(primary_key=True)
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="department_links",
-    )
-    department = models.ForeignKey(
-        Department,
-        on_delete=models.RESTRICT,
-        related_name="user_links",
-    )
-    joined_at = models.DateTimeField(auto_now_add=True)
- 
-    class Meta:
-        db_table = "department_user"
-        #managed = False
-        unique_together = (("user", "department"),)
  
  
 class Role(models.Model):
@@ -243,6 +232,22 @@ class SubcategorySkill(models.Model):
  
  
 class UserSkill(models.Model):
+    """Владение навыком.
+
+    У одного (user, skill) может быть до ДВУХ строк одновременно: одна с
+    is_approved=True (подтверждённый уровень) и одна с is_approved=False
+    (заявка на рассмотрении — новый/изменённый уровень, который сотрудник
+    хочет зафиксировать). Вторая строка не обязана быть выше первой.
+
+    Инвариант поддерживается на уровне БД через unique_together на
+    (user, skill, is_approved) — двух строк с одинаковым статусом
+    подтверждения для одного навыка одного юзера быть не может. Логика,
+    которая следит, чтобы при подтверждении новой заявки старая
+    подтверждённая строка удалялась (не более 2 строк на пару в принципе),
+    находится в skillmap/views/profile_page.py (добавление/изменение) и
+    skillmap/views/approvals_page.py (подтверждение).
+    """
+
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(
         User,
@@ -260,11 +265,11 @@ class UserSkill(models.Model):
     is_approved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(null=True, blank=True)
- 
+
     class Meta:
         db_table = "user_skill"
         #managed = False
-        unique_together = (("user", "skill"),)
+        unique_together = (("user", "skill", "is_approved"),)
  
  
 class Project(models.Model):

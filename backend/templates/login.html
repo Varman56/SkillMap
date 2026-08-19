@@ -15,8 +15,25 @@
         <form id="login-form" class="login-form" method="post" action="{% url 'login' %}" novalidate>
             {% csrf_token %}
 
-            <!-- Блок для общих ошибок -->
-            <div id="general-error" class="error-message general-error hidden"></div>
+            <!-- Блок для общих ошибок — раньше тут был статичный div с
+                 class="... hidden", который никогда никем не снимался (ни
+                 одного JS-обработчика на #general-error в проекте не было),
+                 то есть ошибка "Неверная почта или пароль" из login_page()
+                 (web_views.py, messages.error(...)) вообще никогда не
+                 показывалась здесь. web_views.py при неверном пароле не
+                 делает редирект, а сразу же рендерит login.html — то есть
+                 django messages в этот же самый ответ и попадают, просто
+                 раньше их никто не выводил на экран. Из-за этого сообщение
+                 повисало в сессии и неожиданно всплывало на следующей
+                 странице, которая ЕСТЬ показывает messages (сейчас это
+                 profile.html — та же история, что уже чинили там). Выводим
+                 прямо тут, тем же классом general-error, что и раньше
+                 (стили уже есть в main.css). -->
+            {% if messages %}
+            {% for message in messages %}
+            <div class="error-message general-error">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
 
             <div class="form-group">
                 <label for="email">Корпоративная почта</label>

@@ -12,33 +12,61 @@
         <div class="ask-container">
             <h1 class="ask-title">Кого спросить?</h1>
             <p class="ask-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
-            {% if is_department_scoped %}
-                {% if department_scope %}
-                    <p>🔒 Поиск ограничен вашим отделом: {{ department_scope }}</p>
-                {% else %}
-                    <p>⚠️ У вас не назначен отдел — поиск недоступен.</p>
-                {% endif %}
-            {% endif %}
 
             <form method="get" action="" class="ask-search-section">
-                <div class="ask-search-box">
-                    <input
-                        type="text"
-                        id="skill"
-                        name="skill"
-                        value="{{ search }}"
-                        placeholder="Введите навык, например, Docker"
-                        class="ask-search-input"
-                        autocomplete="off"
-                    >
-                    <button type="submit" style="background: none; border: none; padding: 0; cursor: pointer;">
-                        <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="ask-search-icon">
-                    </button>
+                <div class="ask-filters-row">
+                    <div class="ask-search-box">
+                        <input
+                            type="text"
+                            id="skill"
+                            name="skill"
+                            value="{{ search }}"
+                            placeholder="Введите навык, например, Docker"
+                            class="ask-search-input"
+                            autocomplete="off"
+                        >
+                        <button type="submit" style="background: none; border: none; padding: 0; cursor: pointer;">
+                            <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="ask-search-icon">
+                        </button>
+                    </div>
+
+                    <!-- Отдел: только у HR — редактируемый список (может искать
+                         по всей компании или выбрать конкретный отдел). У
+                         остальных ролей — залоченное поле с их собственным
+                         отделом (тот же приём, что и в reserve.html). -->
+                    <div class="ask-dept-filter">
+                        <label for="department" class="ask-dept-label">Отдел</label>
+                        {% if department_editable %}
+                            <select id="department" name="department" class="ask-dept-select" onchange="this.form.submit()">
+                                <option value="" {% if not department_filter %}selected{% endif %}>Все отделы</option>
+                                {% for d in departments %}
+                                    <option value="{{ d.name }}" {% if d.name == department_filter %}selected{% endif %}>
+                                        {{ d.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% else %}
+                            <div class="ask-dept-locked" title="Доступно только вашему отделу">
+                                <span>{{ department_filter|default:"Отдел не назначен" }}</span>
+                                <span class="ask-dept-lock-icon" aria-hidden="true">🔒</span>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </form>
 
        <div class="ask-results">
-                {% if has_search %}
+                {% if search_too_short %}
+                    <!-- Запрос короче MIN_SEARCH_LENGTH (см. ask_page.py) — поиск
+                         матчит ещё и по названию подкатегории/категории навыка, а
+                         не только по самому навыку, и на 1 символе это находило
+                         кучу формально "совпавших" людей с навыками, которые сам
+                         запрос даже не содержит (например "т" — почти любая
+                         русскоязычная категория). Просим ввести чуть больше. -->
+                    <div class="ask-empty">
+                        <p>Введите минимум {{ min_search_length }} символа для поиска.</p>
+                    </div>
+                {% elif has_search %}
                     <div class="ask-results-header">
                         Результаты по запросу: <span class="ask-query">{{ search }}</span> (найдено: {{ total_count }})
                     </div>
@@ -60,7 +88,11 @@
                                 <div class="ask-category-cards">
                                     {% for user in group.users %}
                                         <div class="ask-card">
-                                            <div class="ask-card-avatar"></div>
+                                            <div class="ask-card-avatar">
+                                                {% if user.photo %}
+                                                    <img src="{{ user.photo }}" alt="Аватар">
+                                                {% endif %}
+                                            </div>
                                             <div class="ask-card-info">
                                                 <div class="ask-card-name">{{ user.full_name }}</div>
                                                 <div class="ask-card-role">

@@ -1,100 +1,298 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/project.css' %}">
+{% endblock %}
 
 {% block title %}SkillMap | {{ project.name }}{% endblock %}
 
 {% block content %}
-{% if messages %}
-    <ul>
-        {% for message in messages %}
-            <li>{{ message }}</li>
-        {% endfor %}
-    </ul>
-{% endif %}
+<div class="proj-page">
+    <main class="proj-main">
 
-<p>Проекты / {{ project.name }}</p>
-<h1>{{ project.name }}</h1>
-<p>Статус: {{ project.status }}</p>
-<p>Начало проекта: {{ project.start_date|date:"d.m.Y"|default:"—" }}</p>
-<p>Окончание проекта: {{ project.end_date|date:"d.m.Y"|default:"—" }}</p>
-
-<section>
-    <h2>Сведения</h2>
-    <p>{{ project.description|default:"—" }}</p>
-</section>
-
-<section>
-    <h2>Владелец</h2>
-    {% if owner %}
-        <p>{{ owner.full_name }}</p>
-    {% else %}
-        <p>Не назначен</p>
-    {% endif %}
-</section>
-
-<section>
-    <h2>Участники ({{ member_count }})</h2>
-
-    <form method="get" action="">
-        <input
-            type="text"
-            name="search"
-            value="{{ search }}"
-            placeholder="Поиск участника по ФИО"
-        >
-        <button type="submit">Найти</button>
-    </form>
-
-    <ul>
-        {% for member in members %}
-            <li>
-                {{ member.full_name }} — {{ member.position|default:"—" }}
-                {% if can_edit %}
-                    <form method="post" action="" style="display:inline">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="remove_member">
-                        <input type="hidden" name="user_id" value="{{ member.id }}">
-                        <button type="submit">Удалить</button>
-                    </form>
-                {% endif %}
-            </li>
-        {% empty %}
-            <li>Участников не найдено.</li>
-        {% endfor %}
-    </ul>
-
-    {% if can_edit %}
-        <form method="post" action="">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="add_member">
-            <select name="user_id" required>
-                <option value="">Выберите сотрудника</option>
-                {% for u in available_users %}
-                    <option value="{{ u.id }}">{{ u.full_name }}</option>
+        {% if messages %}
+            <div class="proj-messages">
+                {% for message in messages %}
+                    <div class="proj-message {% if message.tags %}proj-message-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
                 {% endfor %}
-            </select>
-            <button type="submit">Добавить</button>
-        </form>
-    {% endif %}
-</section>
+            </div>
+        {% endif %}
 
-{% if can_edit %}
-    <section>
-        <h2>Редактировать проект</h2>
-        <form method="post" action="">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="update_project">
+        <p class="proj-breadcrumb">Проекты / {{ project.name }}</p>
 
-            <label for="name">Название</label>
-            <input type="text" id="name" name="name" value="{{ project.name }}">
+        <div class="proj-title-row">
+            <h1 class="proj-title">{{ project.name }}</h1>
+            <span class="proj-status-pill {{ status_css_class }}">{{ status_label }}</span>
+        </div>
 
-            <label for="description">Описание</label>
-            <textarea id="description" name="description">{{ project.description }}</textarea>
+        <div class="proj-layout">
+            <!-- ЛЕВАЯ КАРТОЧКА — Сведения -->
+            <div class="proj-info-card">
+                <div class="proj-info-header">
+                    <span class="proj-info-label">
+                        Сведения
+                        {% if can_edit %}
+                        <button type="button" class="proj-edit-btn" id="projectEditButton" aria-label="Редактировать проект">
+                            <img src="{% static 'assets/edit.svg' %}" alt="" class="proj-icon-small">
+                        </button>
+                        {% endif %}
+                    </span>
+                    <span class="proj-info-date">Начало проекта: {{ project.start_date|date:"d.m.Y"|default:"—" }}</span>
+                </div>
 
-            <label for="status">Статус</label>
-            <input type="text" id="status" name="status" value="{{ project.status }}">
+                {% if project.end_date %}
+                <div class="proj-info-meta">
+                    <span>Окончание проекта: <strong>{{ project.end_date|date:"d.m.Y" }}</strong></span>
+                </div>
+                {% endif %}
 
-            <button type="submit">Сохранить</button>
-        </form>
-    </section>
-{% endif %}
+                <div class="proj-description-block">
+                    <div class="proj-description-view" id="descriptionView">
+                        {% if project.description %}
+                            <p class="proj-description-text" id="descriptionText">{{ project.description }}</p>
+                        {% else %}
+                            <p class="proj-description-text proj-description-empty" id="descriptionText">Сведения не указаны.</p>
+                        {% endif %}
+                        {% if can_edit %}
+                            <button type="button" class="proj-desc-edit-btn" id="descriptionEditButton">
+                                <img src="{% static 'assets/edit.svg' %}" alt="" class="proj-icon-small">
+                                Редактировать
+                            </button>
+                        {% endif %}
+                    </div>
+
+                    {% if can_edit %}
+                        <!-- Сведения — отдельная inline-форма прямо в карточке
+                             (не в общей модалке): текст может быть очень
+                             длинным, тесный textarea в модалке был неудобен.
+                             Своё action (update_description), скрыта по
+                             умолчанию, открывается по descriptionEditButton. -->
+                        <form method="post" action="" class="proj-description-form" id="descriptionEditForm">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_description">
+                            <textarea name="description" id="descriptionTextarea" class="proj-textarea proj-description-textarea" placeholder="Опишите проект...">{{ project.description }}</textarea>
+                            <div class="proj-dialog-actions">
+                                <button type="button" class="proj-dialog-cancel" id="descriptionCancelButton">Отмена</button>
+                                <button type="submit" class="proj-dialog-submit">Сохранить</button>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- ПРАВАЯ КАРТОЧКА — Владелец / Участники -->
+            <div class="proj-side-card">
+                <div>
+                    <span class="proj-pill">Владелец</span>
+                    {% if owner %}
+                        <div class="proj-owner">
+                            <a href="{% url 'profile-page' user_id=owner.id %}" class="proj-owner-avatar">
+                                {% if owner.photo %}
+                                    <img src="{{ owner.photo }}" alt="Аватар">
+                                {% else %}
+                                    <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
+                                {% endif %}
+                            </a>
+                            <span class="proj-owner-name">{{ owner.full_name }}</span>
+                        </div>
+                    {% else %}
+                        <p class="proj-owner-empty">Не назначен</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <div class="proj-members-header">
+                        <span class="proj-pill">
+                            Участники
+                            <span class="proj-pill-count">{{ member_count }}</span>
+                        </span>
+                        {% if can_edit %}
+                        <button type="button" class="proj-add-btn" id="memberAddButton" aria-label="Добавить участника">
+                            <img src="{% static 'assets/plus.svg' %}" alt="">
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <form method="get" action="" class="proj-member-search">
+                        <input
+                            type="text"
+                            name="search"
+                            value="{{ search }}"
+                            placeholder="Поиск участника по ФИО"
+                            class="proj-search-input"
+                            autocomplete="off"
+                        >
+                        <img src="{% static 'assets/search.svg' %}" alt="">
+                    </form>
+
+                    <div class="proj-members-list">
+                        {% for member in members %}
+                            <div class="proj-member-row">
+                                <a href="{% url 'profile-page' user_id=member.id %}" class="proj-member-avatar">
+                                    {% if member.photo %}
+                                        <img src="{{ member.photo }}" alt="Аватар">
+                                    {% else %}
+                                        <img src="{% static 'assets/icon-avatar.jpg' %}" alt="Аватар">
+                                    {% endif %}
+                                </a>
+                                <div class="proj-member-info">
+                                    <span class="proj-member-name">
+                                        {{ member.full_name }}
+                                        {% if member.is_owner %}
+                                            <span class="proj-member-owner-badge">Владелец</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="proj-member-position">{{ member.position|default:"—" }}</span>
+                                </div>
+                                {% if can_edit and not member.is_owner %}
+                                    <form method="post" action="" class="proj-member-remove-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="remove_member">
+                                        <input type="hidden" name="user_id" value="{{ member.id }}">
+                                        <button type="submit" class="proj-member-remove-btn" aria-label="Удалить участника">
+                                            <img src="{% static 'assets/trash.svg' %}" alt="">
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        {% empty %}
+                            <p class="proj-members-empty">
+                                {% if search %}Никого не найдено.{% else %}Участников пока нет.{% endif %}
+                            </p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if can_edit %}
+        <!-- Диалог редактирования проекта — открывается по карандашу
+             рядом с "Сведения" (projectEditButton), тот же showModal()/
+             close() паттерн, что и диалоги на profile.html. -->
+        <dialog class="proj-dialog" id="projectEditDialog">
+            <form method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_project">
+                <h3>Редактировать проект</h3>
+
+                <label class="proj-field-label" for="proj-name">Название</label>
+                <input type="text" id="proj-name" name="name" value="{{ project.name }}" class="proj-input" required>
+
+                <label class="proj-field-label" for="proj-status">Статус</label>
+                <select id="proj-status" name="status" class="proj-select">
+                    {% for choice in status_choices %}
+                        <option value="{{ choice.value }}" {% if choice.value == project.status %}selected{% endif %}>
+                            {{ choice.label }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <div class="proj-date-row">
+                    <div>
+                        <label class="proj-field-label" for="proj-start-date">Начало проекта</label>
+                        <input type="date" id="proj-start-date" name="start_date" value="{{ project.start_date|date:'Y-m-d' }}" class="proj-input">
+                    </div>
+                    <div>
+                        <label class="proj-field-label" for="proj-end-date">Окончание проекта</label>
+                        <input type="date" id="proj-end-date" name="end_date" value="{{ project.end_date|date:'Y-m-d' }}" class="proj-input">
+                    </div>
+                </div>
+
+                <div class="proj-dialog-actions">
+                    <button type="button" data-close-dialog class="proj-dialog-cancel">Отмена</button>
+                    <button type="submit" class="proj-dialog-submit">Сохранить</button>
+                </div>
+            </form>
+        </dialog>
+
+        <!-- Диалог добавления участника — открывается по "+" рядом с
+             "Участники" (memberAddButton). -->
+        <dialog class="proj-dialog" id="memberAddDialog">
+            <form method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_member">
+                <h3>Добавить участника</h3>
+
+                <label class="proj-field-label" for="proj-member-select">Сотрудник</label>
+                <select id="proj-member-select" name="user_id" class="proj-select" required>
+                    <option value="">Выберите сотрудника</option>
+                    {% for u in available_users %}
+                        <option value="{{ u.id }}">{{ u.full_name }}</option>
+                    {% endfor %}
+                </select>
+
+                <div class="proj-dialog-actions">
+                    <button type="button" data-close-dialog class="proj-dialog-cancel">Отмена</button>
+                    <button type="submit" class="proj-dialog-submit">Добавить</button>
+                </div>
+            </form>
+        </dialog>
+        {% endif %}
+
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        function wireDialog(buttonId, dialogId) {
+            var button = document.getElementById(buttonId);
+            var dialog = document.getElementById(dialogId);
+            if (!button || !dialog) return;
+
+            button.addEventListener("click", function () {
+                dialog.showModal();
+            });
+
+            dialog.querySelectorAll("[data-close-dialog]").forEach(function (closeBtn) {
+                closeBtn.addEventListener("click", function () {
+                    dialog.close();
+                });
+            });
+
+            // Закрытие по клику на затемнённый фон (::backdrop) — клик
+            // регистрируется на самом <dialog>, но не на его содержимом,
+            // поэтому проверяем, что клик пришёлся именно на сам элемент.
+            dialog.addEventListener("click", function (e) {
+                if (e.target === dialog) {
+                    dialog.close();
+                }
+            });
+        }
+
+        wireDialog("projectEditButton", "projectEditDialog");
+        wireDialog("memberAddButton", "memberAddDialog");
+
+        // Сведения — inline-редактирование прямо в карточке (не диалог):
+        // по кнопке "Редактировать" прячем текст и показываем textarea,
+        // "Отмена" возвращает как было, без отправки формы.
+        var descView = document.getElementById("descriptionView");
+        var descForm = document.getElementById("descriptionEditForm");
+        var descEditBtn = document.getElementById("descriptionEditButton");
+        var descCancelBtn = document.getElementById("descriptionCancelButton");
+        var descTextarea = document.getElementById("descriptionTextarea");
+
+        if (descView && descForm && descEditBtn && descTextarea) {
+            var descOriginalValue = descTextarea.value;
+
+            descEditBtn.addEventListener("click", function () {
+                descView.style.display = "none";
+                descForm.classList.add("proj-description-form-open");
+                descTextarea.focus();
+            });
+
+            if (descCancelBtn) {
+                descCancelBtn.addEventListener("click", function () {
+                    descTextarea.value = descOriginalValue;
+                    descForm.classList.remove("proj-description-form-open");
+                    descView.style.display = "flex";
+                });
+            }
+        }
+    })();
+</script>
 {% endblock %}

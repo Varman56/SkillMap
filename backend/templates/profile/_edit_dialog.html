@@ -33,13 +33,10 @@
             accept="image/jpeg,image/png,image/webp"
         >
 
-        <label for="profile-resume">Резюме</label>
-        <input
-            id="profile-resume"
-            type="file"
-            name="resume"
-            accept=".pdf,.docx"
-        >
+        <!-- Резюме сюда больше не входит — грузить и видеть его может
+             только HR, это отдельный блок/форма на странице профиля
+             (см. can_manage_resume в profile.html), а не часть общего
+             редактирования контактных данных. -->
 
         <div class="profile-dialog-actions">
             <button type="submit">Сохранить</button>

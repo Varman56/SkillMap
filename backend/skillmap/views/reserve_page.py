@@ -1,146 +1,111 @@
 """/reserve/ — HTML-страница «Кадровый резерв», БЕЗ DRF.
 
-Список сотрудников с широким набором фильтров: отдел, категория/подкатегория/
-навык, диапазон уровня владения, статус подтверждения навыка, «только
-практиканты», «только уволенные», поиск по ФИО/должности в одном поле.
+Раньше страница была полностью server-side: каждый фильтр слался на
+сервер новым GET-запросом (department/category/subcategory/skill/status/
+level_min/level_max/only_interns/only_terminated/search/sort), из-за
+чего при каждом клике перезагружалась вся страница — сначала это
+пробовали лечить через AJAX-подгрузку (fetch того же URL без полной
+навигации), но по итогу решили сделать так же, как в matrix_page.py/
+matrix.html: сервер ОДИН РАЗ отдаёт вообще ВСЕХ сотрудников со всеми
+данными, нужными для фильтрации, а дальше вся фильтрация — целиком на
+JS (см. extra_js в reserve.html), без единого запроса к серверу вообще.
 
-Страница целиком управляется через GET, без единого POST — все фильтры
-через query-параметры:
-  ?department=...                 — точное имя отдела. Для HR — свободно;
-                                     для Manager/Employee всегда принудительно
-                                     их собственный отдел (см. _resolve_department)
-  ?category=...                    — точное имя категории навыков
-  ?subcategory=...                 — точное имя подкатегории
-  ?skill=...                       — точное имя навыка
-  ?status=approved|not_approved    — статус подтверждения навыка (UserSkill.is_approved)
-  ?level_min=1&level_max=4         — диапазон уровня, границы см. VALID_LEVELS в profile_page.py
-  ?only_interns=1                  — только практиканты (User.is_intern)
-  ?only_terminated=1               — только уволенные (User.is_active=False);
-                                     без этого флага показываются только активные
-  ?search=...                      — по ФИО ИЛИ должности, одно поле на оба
-  ?sort=recent                     — сортировка по дате добавления, свежие сверху
-                                     (по умолчанию — по ФИО)
+Из-за этого решения вся логика совмещения фильтров (категория/
+подкатегория/навык через реальные M2M-связи Category->Subcategory->
+Skill, диапазон уровня, статус подтверждения и т.д. — та самая, что
+чинили из-за бага с несовместимыми фильтрами) теперь ПРОДУБЛИРОВАНА на
+JS. Это осознанный компромисс: два места с одной и той же бизнес-
+логикой придётся держать в синхроне вручную, если что-то в правилах
+фильтрации изменится.
 
-Доступ: любой авторизованный. Свобода выбора отдела — только у HR.
+Списки подкатегорий/навыков с данными для каскада (data-categories/
+data-subcategories) теперь строит api/helpers.py (build_subcategories_
+cascade_data/build_skills_cascade_data) — та же самая функция, что
+использует и matrix_page.py, чтобы в обоих местах карточка "категория ->
+подкатегория -> навык" считалась ОДИНАКОВО, без дублирования в двух
+view-файлах.
+
+Доступ: только HR (см. _can_view) — остальных отправляем в их профиль,
+тот же приём, что и в approvals_page.py.
 """
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
-from api.models import Category, Department, Skill, Subcategory, User, UserSkill
+from api.helpers import build_skills_cascade_data, build_subcategories_cascade_data
+from api.models import Category, Department, User
 from .profile_page import VALID_LEVELS
 
 MIN_LEVEL = min(VALID_LEVELS)
 MAX_LEVEL = max(VALID_LEVELS)
 
 
-def _resolve_department(request) -> tuple[str, bool]:
-    """Возвращает (имя_отдела_для_фильтра, редактируем_ли_фильтр_на_странице).
-
-    HR может выбрать любой отдел через ?department=.
-    Manager и Employee всегда видят только свой отдел — фильтр залочен
-    (замок в UI) и здесь же принудительно подставляется их primary_department,
-    даже если в query string прислано что-то другое: иначе ограничение
-    легко обойти, просто исправив URL в адресной строке.
-    """
-    if request.user.has_role("HR"):
-        return (request.GET.get("department") or "").strip(), True
-    return request.user.primary_department, False
+def _can_view(user) -> bool:
+    return user.has_role("HR")
 
 
-def _parse_level(raw, default: int) -> int:
-    try:
-        value = int(raw)
-    except (TypeError, ValueError):
-        return default
-    return max(MIN_LEVEL, min(MAX_LEVEL, value))
+def _build_employees():
+    users_qs = (
+        User.objects.select_related("department")
+        .prefetch_related("user_skills__skill__subcategories__categories")
+        .order_by("full_name")
+    )
+
+    employees = []
+    for user in users_qs:
+        skills = []
+        for user_skill in user.user_skills.all():
+            skill = user_skill.skill
+            subcategory_names = sorted(s.name for s in skill.subcategories.all())
+            category_names = sorted({
+                c.name for s in skill.subcategories.all() for c in s.categories.all()
+            })
+            skills.append({
+                "skill": skill.name,
+                "level": user_skill.level,
+                "approved": user_skill.is_approved,
+                "subcategories": subcategory_names,
+                "categories": category_names,
+            })
+
+        employees.append({
+            "id": user.id,
+            "full_name": user.full_name,
+            "position": user.position or "",
+            "photo": user.photo,
+            "is_intern": user.is_intern,
+            "is_active": user.is_active,
+            "department": user.department.name if user.department_id else "",
+            # Целое число, не float — Django рендерит float с запятой как
+            # разделитель дробной части (локаль), и JS Number("...,...")
+            # в data-атрибуте молча даёт NaN, из-за чего сортировка
+            # "Последние добавленные" переставала работать без единой
+            # ошибки в консоли.
+            "created_ts": int(user.created_at.timestamp()) if user.created_at else 0,
+            "skills": skills,
+            # id для {% json_script %} в шаблоне — там же, где карточка,
+            # лежит <script type="application/json"> с этим списком навыков,
+            # JS читает его по id при фильтрации/сравнении с фильтрами.
+            "skills_json_id": f"skills-data-{user.id}",
+        })
+    return employees
 
 
 @login_required(login_url="/login/")
 def reserve_page(request):
-    department_filter, department_editable = _resolve_department(request)
-    category_filter = (request.GET.get("category") or "").strip()
-    subcategory_filter = (request.GET.get("subcategory") or "").strip()
-    skill_filter = (request.GET.get("skill") or "").strip()
-    status_filter = (request.GET.get("status") or "").strip()
-    level_min = _parse_level(request.GET.get("level_min"), MIN_LEVEL)
-    level_max = _parse_level(request.GET.get("level_max"), MAX_LEVEL)
-    if level_min > level_max:
-        # Не даём выставить "от 4 до 2" — вместо пустого результата
-        # молча меняем местами, интервал всегда корректен.
-        level_min, level_max = level_max, level_min
-    only_interns = request.GET.get("only_interns") == "1"
-    only_terminated = request.GET.get("only_terminated") == "1"
-    search = (request.GET.get("search") or "").strip()
-    sort = request.GET.get("sort") or ""
-
-    users_qs = User.objects.prefetch_related("departments", "roles")
-    users_qs = users_qs.filter(is_active=False) if only_terminated else users_qs.filter(is_active=True)
-
-    if only_interns:
-        users_qs = users_qs.filter(is_intern=True)
-
-    if department_filter:
-        users_qs = users_qs.filter(departments__name=department_filter)
-    elif not department_editable:
-        # Manager/Employee без назначенного отдела — им попросту нечего показывать.
-        users_qs = users_qs.none()
-
-    if search:
-        users_qs = users_qs.filter(Q(full_name__icontains=search) | Q(position__icontains=search))
-
-    skill_context = skill_filter or subcategory_filter or category_filter
-    if skill_context:
-        skill_matches = UserSkill.objects.filter(level__gte=level_min, level__lte=level_max)
-        if status_filter == "approved":
-            skill_matches = skill_matches.filter(is_approved=True)
-        elif status_filter == "not_approved":
-            skill_matches = skill_matches.filter(is_approved=False)
-
-        if skill_filter:
-            skill_matches = skill_matches.filter(skill__name=skill_filter)
-        elif subcategory_filter:
-            skill_matches = skill_matches.filter(skill__subcategories__name=subcategory_filter)
-        elif category_filter:
-            skill_matches = skill_matches.filter(skill__subcategories__categories__name=category_filter)
-
-        users_qs = users_qs.filter(id__in=skill_matches.values_list("user_id", flat=True))
-
-    users_qs = users_qs.distinct()
-    users_qs = users_qs.order_by("-created_at") if sort == "recent" else users_qs.order_by("full_name")
-
-    employees = [
-        {
-            "id": user.id,
-            "full_name": user.full_name,
-            "position": user.position,
-            "photo": user.photo,
-            "is_intern": user.is_intern,
-            "is_active": user.is_active,
-        }
-        for user in users_qs
-    ]
+    if not _can_view(request.user):
+        return redirect("my-profile")
 
     context = {
-        "employees": employees,
-        "total_count": len(employees),
-        "department_filter": department_filter,
-        "department_editable": department_editable,
-        "category_filter": category_filter,
-        "subcategory_filter": subcategory_filter,
-        "skill_filter": skill_filter,
-        "status_filter": status_filter,
-        "level_min": level_min,
-        "level_max": level_max,
+        "employees": _build_employees(),
         "min_level": MIN_LEVEL,
         "max_level": MAX_LEVEL,
-        "only_interns": only_interns,
-        "only_terminated": only_terminated,
-        "search": search,
-        "sort": sort,
+        # Все уровни между MIN_LEVEL и MAX_LEVEL — для подписей "1 2 3 4"
+        # под слайдером диапазона уровня (раньше подписывались только
+        # края диапазона, средние уровни были не подписаны).
+        "levels": list(range(MIN_LEVEL, MAX_LEVEL + 1)),
         "departments": Department.objects.order_by("name"),
         "categories": Category.objects.order_by("name"),
-        "subcategories": Subcategory.objects.order_by("name"),
-        "skills": Skill.objects.filter(is_active=True).order_by("name"),
+        "subcategories": build_subcategories_cascade_data(),
+        "skills": build_skills_cascade_data(),
     }
     return render(request, "reserve.html", context)

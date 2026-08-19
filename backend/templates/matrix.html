@@ -22,19 +22,33 @@
                 <input type="text" id="searchInput" placeholder="Поиск по ФИО...">
             </div>
 
-            {% if user.primary_role == "HR" %}
             <div class="cm-select-group">
-                <!-- 2. Фильтр Отдела (данные из бэкенда) -->
+                <!-- 2. Фильтр Отдела (данные из бэкенда). У HR — обычный
+                     выпадающий список (может смотреть любой отдел или все
+                     сразу). У Manager сюда и так уже попадают только
+                     сотрудники его отдела (см. matrix_page.py), поэтому
+                     список нечего листать — вместо него залоченное поле с
+                     замком, тот же приём, что и в ask.html/reserve.html/
+                     approvals.html. Раньше блок отдела целиком прятался
+                     тегом if снаружи всего .cm-select-group — из-за этого
+                     у Manager ломалась вёрстка: закрывающий div у
+                     .cm-select-group оставался без открывающего. -->
                 <div class="cm-filter-item">
                     <label>Отдел</label>
-                    <select id="deptFilter">
-                        <option value="">Все отделы</option>
-                        {% for dept in departments %}
-                            <option value="{{ dept }}">{{ dept }}</option>
-                        {% endfor %}
-                    </select>
+                    {% if user.primary_role == "HR" %}
+                        <select id="deptFilter">
+                            <option value="">Все отделы</option>
+                            {% for dept in departments %}
+                                <option value="{{ dept }}">{{ dept }}</option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <div class="cm-dept-locked" title="Доступно только вашему отделу">
+                            <span>{{ user.primary_department|default:"—" }}</span>
+                            <span class="cm-dept-lock-icon" aria-hidden="true">🔒</span>
+                        </div>
+                    {% endif %}
                 </div>
-                {% endif %}
 
                 <!-- 3. Фильтр Категории (данные из бэкенда) -->
                 <div class="cm-filter-item">
@@ -47,24 +61,34 @@
                     </select>
                 </div>
 
-                <!-- 4. Фильтр Подкатегории (скрыт/пока без данных) -->
+                <!-- 4. Фильтр Подкатегории. data-categories — категории (через
+                     "|"), которым принадлежит подкатегория (см.
+                     build_subcategories_cascade_data в api/helpers.py) — по
+                     ней JS прячет варианты, не совместимые с выбранной
+                     категорией, тот же приём, что и в reserve.html. -->
                 <div class="cm-filter-item">
                     <label>Подкатегория</label>
                     <select id="subcategoryFilter">
                         <option value="">Все подкатегории</option>
                         {% for sub in subcategories %}
-                            <option value="{{ sub }}">{{ sub }}</option>
+                            <option value="{{ sub.name }}" data-categories="{{ sub.categories }}">{{ sub.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- 5. Фильтр конкретного Навыка (данные из бэкенда) -->
+                <!-- 5. Фильтр конкретного Навыка. data-subcategories/
+                     data-categories — та же каскадная логика для сужения
+                     списка навыков при выборе категории/подкатегории. -->
                 <div class="cm-filter-item">
                     <label>Навыки</label>
                     <select id="skillFilter">
                         <option value="">Все навыки</option>
-                        {% for skill_name in skills %}
-                            <option value="{{ skill_name }}">{{ skill_name }}</option>
+                        {% for skill_item in skills %}
+                            <option value="{{ skill_item.name }}"
+                                    data-subcategories="{{ skill_item.subcategories }}"
+                                    data-categories="{{ skill_item.categories }}">
+                                {{ skill_item.name }}
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -158,7 +182,7 @@
                         <td style="padding: 0;">
                             <div class="cm-emp-cell">
                                 {% if emp.photo %}
-                                    <img src="{{ emp.photo.url }}" alt="{{ emp.fullName }}" class="cm-emp-avatar">
+                                    <img src="{{ emp.photo }}" alt="{{ emp.fullName }}" class="cm-emp-avatar">
                                 {% else %}
                                     <img src="https://ui-avatars.com/api/?background=f3f4f6&color=374151&name={{ emp.fullName|urlencode }}" alt="{{ emp.fullName }}" class="cm-emp-avatar">
                                 {% endif %}
@@ -173,15 +197,23 @@
                         {% for cat in columns %}
                             {% for sub in cat.subcategories %}
                                 {% for skill in sub.skills %}
-                                    {% with skill_data=emp.skills|get_item:skill.id %}
-                                        {% if skill_data %}
-                                            <td data-skill="{{ skill.name }}" data-level="{{ skill_data.level }}" data-confirmed="{{ skill_data.isApproved|yesno:'true,false' }}">
-                                                {% include 'includes/skill_icon.html' with level=skill_data.level confirmed=skill_data.isApproved %}
-                                            </td>
+                                    {% with cell=emp.skills|get_item:skill.id %}
+                                        {% if cell %}
+                                        <!-- У навыка может быть 2 записи разом (подтверждённая +
+                                             заявка на рассмотрении, см. UserSkill) — matrix_page.py
+                                             уже свёл их в одну ячейку: cell.level — уровень контура
+                                             (больший из двух), cell.fillLevel — уровень, до которого
+                                             залито сплошным (подтверждённый), если он меньше контура.
+                                             data-level/data-confirmed-levels нужны JS-фильтру ниже. -->
+                                        <td data-skill="{{ skill.name }}"
+                                            data-level="{{ cell.level }}{% if cell.fillLevel %} {{ cell.fillLevel }}{% endif %}"
+                                            data-confirmed-levels="{% if cell.confirmed %}{{ cell.level }}{% endif %}{% if cell.fillLevel %} {{ cell.fillLevel }}{% endif %}">
+                                            {% include 'includes/skill_icon.html' with level=cell.level confirmed=cell.confirmed fill_level=cell.fillLevel %}
+                                        </td>
                                         {% else %}
-                                            <td data-skill="{{ skill.name }}" data-level="0" data-confirmed="false">
-                                                {% include 'includes/skill_icon.html' with level=0 confirmed=False %}
-                                            </td>
+                                        <td data-skill="{{ skill.name }}" data-level="0" data-confirmed-levels="">
+                                            {% include 'includes/skill_icon.html' with level=0 confirmed=False %}
+                                        </td>
                                         {% endif %}
                                     {% endwith %}
                                 {% endfor %}
@@ -215,6 +247,52 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = levelsMenu.querySelectorAll('input[type="checkbox"]');
     const empCountSpan = document.getElementById('empCount');
 
+    // КАСКАД "Категория" -> "Подкатегория" -> "Навык" (перенесено из
+    // reserve.html — там нашли и починили баг, что раньше можно было
+    // выбрать категорию и подкатегорию/навык из совсем разных веток
+    // дерева и получить нелогичный результат). Здесь фильтры прячут не
+    // сотрудников, а колонки таблицы, но сама проблема несовместимых
+    // вариантов в дропдаунах та же — чинится тем же способом: прячем
+    // варианты, не совместимые с уже выбранным уровнем выше, и сбрасываем
+    // выбор, если он стал недопустимым.
+    function cascadeSubcategoryOptions() {
+        const selectedCategory = categoryFilter.value;
+        let selectedStillValid = !selectedCategory;
+
+        Array.from(subcategoryFilter.options).forEach(function (opt) {
+            if (!opt.value) return;
+            const categories = (opt.getAttribute('data-categories') || '').split('|').filter(Boolean);
+            const visible = !selectedCategory || categories.includes(selectedCategory);
+            opt.hidden = !visible;
+            if (visible && opt.value === subcategoryFilter.value) selectedStillValid = true;
+        });
+
+        if (!selectedStillValid) subcategoryFilter.value = '';
+    }
+
+    function cascadeSkillOptions() {
+        const selectedCategory = categoryFilter.value;
+        const selectedSubcategory = subcategoryFilter.value;
+        let selectedStillValid = !skillFilter.value || (!selectedCategory && !selectedSubcategory);
+
+        Array.from(skillFilter.options).forEach(function (opt) {
+            if (!opt.value) return;
+            const subcategories = (opt.getAttribute('data-subcategories') || '').split('|').filter(Boolean);
+            const categories = (opt.getAttribute('data-categories') || '').split('|').filter(Boolean);
+
+            let visible = true;
+            if (selectedSubcategory) {
+                visible = subcategories.includes(selectedSubcategory);
+            } else if (selectedCategory) {
+                visible = categories.includes(selectedCategory);
+            }
+            opt.hidden = !visible;
+            if (visible && opt.value === skillFilter.value) selectedStillValid = true;
+        });
+
+        if (!selectedStillValid) skillFilter.value = '';
+    }
+
     levelsBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         levelsMenu.classList.toggle('show');
@@ -231,7 +309,15 @@ document.addEventListener('DOMContentLoaded', function() {
     resetBtn.addEventListener('click', function() {
         // 1. Сбрасываем текстовые и селект поля
         searchInput.value = '';
+        {% if user.primary_role == "HR" %}
+        // У Manager deptFilter вообще не объявлен (см. выше) — поле
+        // залочено на его собственный отдел, сбрасывать нечего. Раньше
+        // эта строка ничем не была защищена и падала с ReferenceError у
+        // Manager, из-за чего кнопка "Сбросить" переставала работать
+        // целиком (всё, что шло в обработчике ПОСЛЕ этой строки, тоже не
+        // выполнялось: чекбоксы уровней, applyMatrixFilters()).
         deptFilter.value = '';
+        {% endif %}
         categoryFilter.value = '';
         subcategoryFilter.value = '';
         skillFilter.value = '';
@@ -246,6 +332,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function applyMatrixFilters() {
+        // Сначала пересчитываем, какие варианты подкатегории/навыка вообще
+        // доступны при текущей категории/подкатегории — и, если выбранное
+        // значение стало недопустимым, сбрасываем его ДО того, как читаем
+        // .value ниже (иначе фильтровали бы по уже несовместимой комбинации).
+        cascadeSubcategoryOptions();
+        cascadeSkillOptions();
+
         const searchText = searchInput.value.toLowerCase().trim();
         {% if user.primary_role == "HR" %}
         const selectedDept = deptFilter.value;
@@ -362,16 +455,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         document.querySelectorAll('#matrixTbody td[data-level]').forEach(cell => {
-            const level = cell.getAttribute('data-level');
-            const isConfirmed = cell.getAttribute('data-confirmed') === 'true';
+            // В ячейке может быть 0, 1 или 2 записи навыка (подтверждённая +
+            // заявка на рассмотрении) — data-level/data-confirmed-levels
+            // хранят уровни через пробел. Ячейка видна, если ХОТЯ БЫ одна
+            // из записей проходит оба фильтра (уровень и статус).
+            const levels = (cell.getAttribute('data-level') || '').trim().split(/\s+/).filter(Boolean);
+            const confirmedLevels = (cell.getAttribute('data-confirmed-levels') || '').trim().split(/\s+/).filter(Boolean);
+            const entries = levels.length ? levels : ['0'];
 
-            let levelMatch = selectedLevels.includes(level);
-            let statusMatch = true;
+            let anyMatch = false;
+            entries.forEach(level => {
+                const isConfirmed = confirmedLevels.includes(level);
+                let levelMatch = selectedLevels.includes(level);
+                let statusMatch = true;
 
-            if (selectedStatus === 'confirmed' && !isConfirmed) statusMatch = false;
-            if (selectedStatus === 'unconfirmed' && isConfirmed) statusMatch = false;
+                if (selectedStatus === 'confirmed' && !isConfirmed) statusMatch = false;
+                if (selectedStatus === 'unconfirmed' && isConfirmed) statusMatch = false;
 
-            if (levelMatch && statusMatch) {
+                if (levelMatch && statusMatch) anyMatch = true;
+            });
+
+            if (anyMatch) {
                 cell.style.opacity = '1';
                 cell.style.filter = 'none';
             } else {

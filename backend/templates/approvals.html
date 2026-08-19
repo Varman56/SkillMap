@@ -1,89 +1,244 @@
 {% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/approvals.css' %}">
+{% endblock %}
 
 {% block title %}SkillMap | Подтверждение навыков{% endblock %}
 
 {% block content %}
-{% if messages %}
-    <ul>
-        {% for message in messages %}
-            <li>{{ message }}</li>
-        {% endfor %}
-    </ul>
-{% endif %}
+<div class="appr-page">
+    <main class="appr-main">
+        <div class="appr-container">
 
-<h1>Подтверждение навыков сотрудников</h1>
-<p>Сотрудники добавили новые навыки или изменили уровень владения. Пожалуйста, подтвердите их навыки.</p>
+            {% if messages %}
+                <div class="appr-messages">
+                    {% for message in messages %}
+                        <div class="appr-message {% if message.tags %}appr-message-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
 
-<p><strong>{{ waiting_employee_count }}</strong> сотрудников ожидают подтверждения</p>
+            <h1 class="appr-title">Подтверждение навыков сотрудников</h1>
+            <p class="appr-subtitle">
+                Сотрудники добавили новые навыки или изменили уровень владения. Пожалуйста, подтвердите их навыки.
+            </p>
 
-<form method="get" action="">
-    <p>
-        <label for="employee">Поиск по сотруднику (ФИО)</label><br>
-        <input type="text" id="employee" name="employee" value="{{ employee_search }}" placeholder="Введите ФИО, например, Иванов Иван">
-    </p>
-    <p>
-        <label for="skill">Поиск по навыку</label><br>
-        <input type="text" id="skill" name="skill" value="{{ skill_search }}" placeholder="Введите навык, например, Docker">
-    </p>
-    <button type="submit">Найти</button>
-</form>
+            <div class="appr-stat-box">
+                <div class="appr-stat-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                        <circle cx="9" cy="8" r="3.2" fill="#ab4ad5"/>
+                        <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#ab4ad5" stroke-width="1.8" stroke-linecap="round"/>
+                        <circle cx="17" cy="9" r="2.6" fill="#ab4ad5" opacity="0.55"/>
+                        <path d="M14.5 20c0-2.8 1.2-5 3.7-5.6" stroke="#ab4ad5" stroke-width="1.8" stroke-linecap="round" opacity="0.55"/>
+                    </svg>
+                </div>
+                <div class="appr-stat-text">
+                    <strong>{{ waiting_employee_count }}</strong>
+                    <span>Сотрудников<br>ожидают подтверждения</span>
+                </div>
+            </div>
 
-<table border="1" cellpadding="6">
-    <thead>
-        <tr>
-            <th>Сотрудник</th>
-            <th>Должность</th>
-            <th>Навык</th>
-            <th>Запрошенный уровень</th>
-            <th>Дата отправки</th>
-            <th>Подтвердить на уровне</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for req in requests %}
-            <tr>
-                <td>{{ req.full_name }}</td>
-                <td>{{ req.position|default:"—" }}</td>
-                <td>{{ req.skill_name }}</td>
-                <td><span class="badge {{ req.requested_level_class }}">{{ req.requested_level_label }}</span></td>
-                <td>{{ req.submitted_at|date:"d.m.Y" }}</td>
-                <td>
-                    <form method="post" action="" style="display:flex; gap:8px; align-items:center;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="approve_skill">
-                        <input type="hidden" name="user_skill_id" value="{{ req.id }}">
-                        <select name="level">
-                            {% for level, label in level_options %}
-                                <option value="{{ level }}" {% if level == req.requested_level %}selected{% endif %}>
-                                    {{ level }} — {{ label }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        <button type="submit">Подтвердить</button>
-                    </form>
-                </td>
-            </tr>
-        {% empty %}
-            <tr><td colspan="6">Заявок на подтверждение нет.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+            <!-- ФИЛЬТРЫ: поиск по сотруднику + поиск по навыку, отдельными
+                 полями, как на остальных страницах (ask.html/reserve.html) -->
+            <form method="get" action="" class="appr-filters-row">
+                <div class="appr-search-box">
+                    <label for="employee" class="appr-search-label">Поиск по сотруднику (ФИО)</label>
+                    <div class="appr-search-input-wrap">
+                        <input
+                                type="text"
+                                id="employee"
+                                name="employee"
+                                value="{{ employee_search }}"
+                                placeholder="Введите ФИО, например, Иванов Иван"
+                                class="appr-search-input"
+                                autocomplete="off"
+                        >
+                        <button type="submit" class="appr-search-btn">
+                            <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="appr-search-icon">
+                        </button>
+                    </div>
+                </div>
 
-<p>
-    {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}&employee={{ employee_search }}&skill={{ skill_search }}">&lt;</a>
-    {% endif %}
-    Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
-    {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&employee={{ employee_search }}&skill={{ skill_search }}">&gt;</a>
-    {% endif %}
-</p>
+                <div class="appr-search-box">
+                    <label for="skill" class="appr-search-label">Поиск по навыку</label>
+                    <div class="appr-search-input-wrap">
+                        <input
+                                type="text"
+                                id="skill"
+                                name="skill"
+                                value="{{ skill_search }}"
+                                placeholder="Введите навык, например, Docker"
+                                class="appr-search-input"
+                                autocomplete="off"
+                        >
+                        <button type="submit" class="appr-search-btn">
+                            <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="appr-search-icon">
+                        </button>
+                    </div>
+                </div>
 
-<hr>
-<p>
-    <strong>Как это работает?</strong><br>
-    Сотрудник добавляет новый навык или изменяет уровень владения. Навык получает статус
-    «На подтверждении» и становится виден вам. Вы можете подтвердить именно тот уровень,
-    который указал сотрудник, либо выбрать другой — например, если сотрудник переоценил себя.
-</p>
+                <!-- Отдел — всегда залоченное поле (не выпадающий список):
+                     сюда попадает только Manager (HR доступа к странице не
+                     имеет вообще, см. approvals_page.py), он видит только
+                     заявки своего отдела, без исключений — тот же приём
+                     "замочка", что и в ask.html/reserve.html. -->
+                <div class="appr-search-box appr-dept-box">
+                    <span class="appr-search-label">Отдел</span>
+                    <div class="appr-dept-locked" title="Доступно только вашему отделу">
+                        <span>{{ department_filter|default:"—" }}</span>
+                        <span class="appr-dept-lock-icon" aria-hidden="true">🔒</span>
+                    </div>
+                </div>
+            </form>
+
+            <div class="appr-table-wrap">
+                <table class="appr-table">
+                    <thead>
+                        <tr>
+                            <th>Сотрудник</th>
+                            <th>Должность</th>
+                            <th>Навык</th>
+                            <th>Уровень</th>
+                            <th>
+                                <a href="?{{ qs_for_sort_toggle }}" class="appr-sort-link">
+                                    Дата отправки {% if sort_dir == "desc" %}↓{% else %}↑{% endif %}
+                                </a>
+                            </th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requests %}
+                            <tr>
+                                <td class="appr-employee-cell">
+                                    <a href="{% url 'profile-page' req.user_id %}" class="appr-avatar">
+                                        {% if req.photo %}
+                                            <img src="{{ req.photo }}" alt="Аватар">
+                                        {% endif %}
+                                    </a>
+                                    <span>{{ req.full_name }}</span>
+                                </td>
+                                <td>{{ req.position|default:"—" }}</td>
+                                <td>{{ req.skill_name }}</td>
+                                <td>
+                                    <form method="post" action="" class="appr-approve-form" id="approveForm{{ req.id }}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="approve_skill">
+                                        <input type="hidden" name="user_skill_id" value="{{ req.id }}">
+
+                                        <div class="appr-level-slider-wrap">
+                                            <input
+                                                    type="range"
+                                                    name="level"
+                                                    class="appr-level-range"
+                                                    min="{{ min_level }}"
+                                                    max="{{ max_level }}"
+                                                    step="1"
+                                                    value="{{ req.requested_level }}"
+                                                    data-min-selectable="{{ req.min_selectable_level }}"
+                                            >
+                                            <div class="appr-level-ticks">
+                                                {% for level, label in level_options %}
+                                                    <span>{{ level }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </form>
+                                </td>
+                                <td>{{ req.submitted_at|date:"d.m.Y" }}</td>
+                                <td>
+                                    <button type="submit" form="approveForm{{ req.id }}" class="appr-approve-btn">
+                                        Подтвердить
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="appr-empty-row">Заявок на подтверждение нет.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page_obj.paginator.num_pages > 1 %}
+                <div class="appr-pagination">
+                    {% if page_obj.has_previous %}
+                        <a href="?{{ qs_without_page }}&page={{ page_obj.previous_page_number }}" class="appr-page-arrow">&lt;</a>
+                    {% else %}
+                        <span class="appr-page-arrow appr-page-arrow-disabled">&lt;</span>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        <a href="?{{ qs_without_page }}&page={{ num }}"
+                           class="appr-page-num {% if num == page_obj.number %}appr-page-num-active{% endif %}">{{ num }}</a>
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <a href="?{{ qs_without_page }}&page={{ page_obj.next_page_number }}" class="appr-page-arrow">&gt;</a>
+                    {% else %}
+                        <span class="appr-page-arrow appr-page-arrow-disabled">&gt;</span>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <div class="appr-info-box">
+                <div class="appr-info-box-title">
+                    <span class="appr-info-icon appr-info-icon-static">i</span>
+                    Как это работает?
+                </div>
+                <p>
+                    Сотрудник добавляет новый навык или изменяет уровень владения. Навык получает статус
+                    «На подтверждении» и становится виден вам. Вы можете подтвердить именно тот уровень,
+                    который указал сотрудник, либо выбрать другой — например, если сотрудник переоценил себя.
+                    После подтверждения навык будет отображаться в матрице компетенций как подтверждённый.
+                </p>
+            </div>
+
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Заливка ползунка уровня фиолетовым до текущего значения — только
+    // визуал, само значение уходит в форму как обычно через name="level".
+    //
+    // min у ползунка НАМЕРЕННО остаётся общим (min_level=1) для всех строк,
+    // а не поднимается индивидуально до уже подтверждённого уровня: ползунок
+    // — это HTML <input type="range"> с фиксированной длиной дорожки, а
+    // подписи "1 2 3 4" под ним — отдельный ряд из четырёх элементов с
+    // justify-content: space-between, который всегда делит дорожку на 4
+    // равные части независимо от реального min/max самого input. Если
+    // поднять min только у input (например, до 3), его дорожка визуально
+    // растягивается на весь тот же участок между "1" и "4", и бегунок
+    // перестаёт совпадать с подписями — из-за этого ползунок выглядел
+    // "сломанным" (не останавливался на делениях).
+    //
+    // Вместо этого не даём бегунку УЙТИ ниже уже подтверждённого уровня
+    // программно: если пользователь тащит его ниже data-min-selectable
+    // (записан в шаблоне из min_selectable_level), значение сразу же
+    // одёргивается обратно на эту границу — визуально это ощущается как
+    // "упор", а подписи под дорожкой остаются на своих местах. Финальная
+    // защита в любом случае на бэкенде (_handle_approve), это только UX.
+    document.querySelectorAll(".appr-level-range").forEach(function (range) {
+        var minSelectable = Number(range.dataset.minSelectable || range.min);
+
+        function update() {
+            if (Number(range.value) < minSelectable) {
+                range.value = minSelectable;
+            }
+            var min = Number(range.min), max = Number(range.max), val = Number(range.value);
+            var pct = ((val - min) / (max - min)) * 100;
+            range.style.background =
+                "linear-gradient(to right, #ab4ad5 0%, #ab4ad5 " + pct + "%, #E5E7EB " + pct + "%, #E5E7EB 100%)";
+        }
+        range.addEventListener("input", update);
+        update();
+    });
+</script>
 {% endblock %}

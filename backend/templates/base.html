@@ -22,30 +22,61 @@
     <div class="public-header-left">
         <div class="public-logo">SkillMap</div>
         <nav class="public-nav">
-            <!-- Навигация по ролям -->
-            <a href="{% url 'ask-page' %}">Кого спросить?</a>
+            <!-- Навигация по ролям. Подсветка активного пункта
+                 (public-nav-active) раньше стояла только на "Мой отдел" —
+                 остальные пункты никогда не подсвечивались фиолетовым на
+                 своей же странице. Теперь у каждого пункта та же проверка
+                 request.resolver_match.url_name, каждый под свой url_name. -->
+            <a href="{% url 'ask-page' %}"
+               class="{% if request.resolver_match.url_name == 'ask-page' %}public-nav-active{% endif %}">Кого спросить?</a>
 
             {% if user.primary_role == 'HR' %}
-            <a href="{% url 'matrix-page' %}">Матрица компетенций</a>
-            <a href="{% url 'reserve-page' %}">Кадровый резерв</a>
+            <a href="{% url 'matrix-page' %}"
+               class="{% if request.resolver_match.url_name == 'matrix-page' %}public-nav-active{% endif %}">Матрица компетенций</a>
+            <a href="{% url 'reserve-page' %}"
+               class="{% if request.resolver_match.url_name == 'reserve-page' %}public-nav-active{% endif %}">Кадровый резерв</a>
 
             {% elif user.primary_role == 'Manager' %}
-            <a href="{% url 'matrix-page' %}">Матрица компетенций</a>
-            <a href="{% url 'approvals-page' %}">Страница подтверждения навыков</a>
+            <a href="{% url 'my-department-page' %}"
+               class="{% if request.resolver_match.url_name == 'my-department-page' %}public-nav-active{% endif %}">Мой отдел</a>
+            <a href="{% url 'matrix-page' %}"
+               class="{% if request.resolver_match.url_name == 'matrix-page' %}public-nav-active{% endif %}">Матрица компетенций</a>
+            <a href="{% url 'approvals-page' %}"
+               class="{% if request.resolver_match.url_name == 'approvals-page' %}public-nav-active{% endif %}">Подтверждение навыков</a>
             {% endif %}
         </nav>
     </div>
 
     <!-- Аватарка и меню профиля -->
     <div class="profile-container-avatar">
-        <div class="profile-avatar">
+        <!-- Раньше тут всегда была одна и та же заглушка-иконка (profile-photo.svg),
+             даже если у пользователя загружено настоящее фото — теперь, как и
+             везде в проекте (см. .public-avatar-large в profile.html), если
+             фото есть, показываем его, иначе — ту же заглушку, что и раньше.
+             id="profileAvatarBtn" — чтобы по клику на саму аватарку тоже
+             открывалось меню, не только по стрелочке (см. dropdown.js). -->
+        <div class="profile-avatar" id="profileAvatarBtn">
+            {% if user.photo %}
+            <img src="{{ user.photo }}" alt="Профиль" class="profile-icon">
+            {% else %}
             <img src="{% static 'assets/profile-photo.svg' %}" alt="Профиль" class="profile-icon">
+            {% endif %}
         </div>
         <div class="profile-arrow-wrapper">
             <img src="{% static 'assets/Icon.svg' %}" alt="Стрелка" class="profile-arrow-icon" id="dropdownArrow">
 
             <div class="profile-dropdown-menu" id="dropdownMenu">
                 <div class="profile-dropdown-header">
+                    <!-- Аватарка внутри самого меню — раньше её тут не было
+                         вообще, только текст. Тот же приём с фото/заглушкой,
+                         что и на аватарке в хедере чуть выше. -->
+                    <div class="profile-dropdown-avatar">
+                        {% if user.photo %}
+                        <img src="{{ user.photo }}" alt="Аватар">
+                        {% else %}
+                        <img src="{% static 'assets/profile-photo.svg' %}" alt="Аватар">
+                        {% endif %}
+                    </div>
                     <div class="profile-dropdown-info">
                         <!-- Имя пользователя или дефолтное значение -->
                         <div class="profile-dropdown-name">{{ user.full_name|default:"" }}</div>
@@ -95,6 +126,31 @@
 </header>
 {% endblock %}
 <!-- ================= КОНЕЦ ХЕДЕРА ================= -->
+
+<!-- Хедер теперь position: fixed (см. main.css) — он больше не занимает
+     место в потоке документа, поэтому контент под ним нужно сдвигать
+     руками отступом сверху. Раньше это делал position: sticky, но он
+     зависит от того, какой элемент является "ближайшим скроллящимся
+     предком" — на странице профиля после того, как со страницы убрали
+     жёсткий height:100vh/overflow:hidden (чтобы контент вообще можно
+     было прокрутить), хедер вместо того, чтобы остаться прибитым к
+     верху, начинал уезжать вместе со страницей при скролле. position:
+     fixed всегда крепится к вьюпорту напрямую и не зависит от того, что
+     происходит со скроллом внутри страницы — надёжнее.
+     Отступ считаем реальной высотой хедера (а не захардкоженным числом),
+     потому что высота меняется — например, на мобильной раскладке хедер
+     переходит в колонку и становится выше (см. media-query в main.css). -->
+<script>
+    (function () {
+        var header = document.querySelector(".public-header");
+        if (!header) return;
+        function syncHeaderOffset() {
+            document.body.style.paddingTop = header.offsetHeight + "px";
+        }
+        syncHeaderOffset();
+        window.addEventListener("resize", syncHeaderOffset);
+    })();
+</script>
 
 <!-- Основной контент (переопределяется в других шаблонах) -->
 <main>

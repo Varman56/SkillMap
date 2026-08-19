@@ -11,12 +11,19 @@
             <option value="">Выберите навык</option>
 
             {% for skill in available_skills %}
-                <option value="{{ skill.id }}">
+                <option value="{{ skill.id }}" data-approved-level="{{ skill.approved_level|default:'' }}">
                     {{ skill.display_name }}
                 </option>
             {% endfor %}
         </select>
 
+        <!-- Список уровней подстраивается под выбранный навык JS'ом ниже
+             (см. base.html/extra_js этой страницы): если по навыку уже
+             есть подтверждённый уровень, в списке остаются только уровни
+             СТРОГО ВЫШЕ него — заявка на такой же или более низкий уровень
+             сервер всё равно отклонит (см. _handle_add_skill), но не
+             давать выбрать её вовсе — понятнее для пользователя. Пока
+             навык не выбран — показываем все уровни как раньше. -->
         <label for="skill-level">Уровень</label>
         <select id="skill-level" name="level" required>
             {% for level in levels %}

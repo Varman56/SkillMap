@@ -1,11 +1,19 @@
-/* 1. Сброс базовых отступов браузера (Убирает белую рамку) */
+/* 1. Сброс базовых отступов браузера (Убирает белую рамку).
+   Раньше здесь были ещё height: 100vh + overflow: hidden — жёстко
+   запирали страницу в высоту экрана и отключали любой скролл целиком.
+   Единственная страница в проекте с таким поведением (остальные —
+   min-height + обычный скролл, см. ask.css/matrix.css/approvals.css/
+   reserve.css). Пока контент помещался в экран, это было незаметно, но
+   стоило вырасти правой колонке (много проектов + комментарии, особенно
+   после того как в сид-данных стало больше проектов на человека) — и всё,
+   что не влезло по высоте, становилось физически недостижимо: прокрутить
+   вниз было невозможно ни колесом мыши, ни клавиатурой. Убрано — страница
+   ведёт себя как все остальные. */
 html, body {
     margin: 0;
     padding: 0;
     background-color: #F2F5FF;
     font-family: 'Cabin', sans-serif;
-    height: 100vh;
-    overflow: hidden;
 }
 
 .public-profile-page {
@@ -17,10 +25,13 @@ html, body {
 }
 
 /* 3. ОСНОВНОЙ КОНТЕНТ */
+/* margin-top: 5px — тот же зазор от хедера до белого листа, что и у
+   .ask-main в ask.css (было 20px, из-за чего профиль выделялся среди
+   остальных страниц). */
 .public-main {
     display: flex;
     justify-content: center;
-    margin-top: 20px;
+    margin-top: 5px;
     padding: 0 20px;
 }
 
@@ -29,11 +40,42 @@ html, body {
     max-width: 900px;             /* Сделали чуть шире для комфорта */
 }
 
+/* Тень/радиус/паддинг приведены к единому значению для всех страниц —
+   тем же, что у .ask-main в ask.css (было 20px радиус и еле заметная
+   тень 0px 4px 15px rgba(0,0,0,0.05), из-за чего "по краю листа" тень
+   была едва видна, в отличие от остальных страниц). */
 .public-profile-card {
     background: #ffffff;
-    padding: 35px;
-    border-radius: 20px;
-    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 30px;
+    border-radius: 21px;
+    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.2);
+}
+
+/* СООБЩЕНИЯ (django messages) — тот же приём/цвета, что и .appr-messages
+   в approvals.css, просто с префиксом public- под эту страницу. */
+.public-messages {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.public-message {
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.public-message-success {
+    background: #E3F7EA;
+    color: #1a8f4c;
+    border: 1px solid #BFEBD1;
+}
+
+.public-message-error {
+    background: #FDE8E8;
+    color: #9b1c1c;
+    border: 1px solid #F8B4B4;
 }
 
 /* TOP */
@@ -128,6 +170,7 @@ html, body {
 
 .public-left {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 25px;
@@ -143,10 +186,23 @@ html, body {
     max-height: 271px;
 }
 
+/* Навыков у сотрудника обычно заметно больше, чем текста "Обо мне" (тем
+   более что теперь на навык может приходиться до 2 строк — подтверждённая
+   + заявка, см. profile_page.py), поэтому просили сделать блок навыков
+   повыше остальных — меньше внутреннего скролла на каждый чих. */
+.public-skills-section {
+    max-height: 460px;
+}
+
 .public-about p {
     line-height: 1.6;
     margin: 0;
     font-size: 14px;
+    /* Без этого один длинный "текст" без пробелов (или случайно вставленный
+       мусор) не переносится и распирает всю колонку по ширине, вылезая
+       за карточку — ровно то, что сейчас видно в баге. */
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .public-about h3,
@@ -185,6 +241,37 @@ html, body {
     gap: 12px;
     margin-bottom: 10px;
     font-size: 14px;
+}
+
+/* Группа: одно название навыка, под ним — до 2 строк (подтверждённый
+   уровень + заявка на рассмотрении), см. profile_page.py. */
+.skill-group {
+    margin-bottom: 14px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.skill-group:last-child {
+    border-bottom: none;
+}
+
+.skill-group-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1E1E1E;
+    margin-bottom: 8px;
+}
+
+.skill-status {
+    font-size: 12px;
+}
+
+.skill-status-approved {
+    color: #1a8f4c;
+}
+
+.skill-status-pending {
+    color: #a1710f;
 }
 
 .public-projects-header {
@@ -256,14 +343,25 @@ html, body {
 .badge.experienced { background: #F4F3B5; }
 .badge.novice { background: #C0E6BC; }
 
-.public-projects-section {
+/* RIGHT — колонка с проектами и комментариями (см. .public-comments-section
+   ниже), раньше здесь была только .public-projects-section напрямую в
+   .public-bottom, теперь оборачивающий столбец, чтобы комментарии легли
+   ПОД проектами, а не сбоку. */
+.public-right {
     width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.public-projects-section {
     border: 1px solid #E5E5E5;
     padding: 20px;
     border-radius: 16px;
     box-sizing: border-box;
     max-height: 480px;
-    overflow-y: auto; 
+    overflow-y: auto;
     overflow-x: hidden;
 }
 
@@ -360,4 +458,217 @@ html, body {
     font-weight: bold;
     font-size: 14px;
     color: #535353;
+}
+
+/* РЕЗЮМЕ — виден только HR (см. can_manage_resume в profile_page.py).
+   Тот же "залоченный"/акцентный вид, что и у остальных HR-only
+   элементов в проекте (светлый фон, тонкая рамка). */
+.public-resume-box {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #F2F5FF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.public-resume-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.public-resume-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.public-resume-link {
+    color: #7C3AED;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.public-resume-link:hover {
+    text-decoration: underline;
+}
+
+.public-resume-empty {
+    color: #9CA3AF;
+}
+
+.public-resume-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.public-resume-upload-form {
+    display: inline-flex;
+}
+
+.public-resume-upload-btn {
+    background: #F6E1FF;
+    color: #7C3AED;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.public-resume-upload-btn:hover {
+    background: #e5c7f7;
+}
+
+.public-resume-delete-form {
+    display: inline-flex;
+}
+
+.public-resume-delete-btn {
+    background: none;
+    border: none;
+    padding: 5px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #9b1c1c;
+    white-space: nowrap;
+}
+
+.public-resume-delete-btn:hover {
+    text-decoration: underline;
+}
+
+/* КОММЕНТАРИИ — заметки HR/руководителя о сотруднике, см.
+   can_manage_comments в profile_page.py. Та же карточная стилистика,
+   что и .public-projects-section (рамка/паддинг/радиус), плюс
+   собственная прокрутка при большом числе комментариев. */
+.public-comments-section {
+    border: 1px solid #E5E5E5;
+    padding: 20px;
+    border-radius: 16px;
+    box-sizing: border-box;
+    max-height: 360px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.public-comments-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    color: #1E1E1E;
+}
+
+.public-comments-header h3 {
+    margin: 0;
+}
+
+.public-comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.public-comment-card {
+    border: 1px solid #F0EAFB;
+    background: #FBFAFF;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.public-comment-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.public-comment-level {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.public-comment-level-low {
+    background: #FDE8E8;
+    color: #9b1c1c;
+}
+
+.public-comment-level-medium {
+    background: #FCEFD1;
+    color: #a1710f;
+}
+
+.public-comment-level-high {
+    background: #D7F5E3;
+    color: #1a8f4c;
+}
+
+.public-comment-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.public-comment-actions .icon-small {
+    width: 16px;
+    height: 16px;
+    padding: 5px;
+}
+
+.public-comment-delete-form {
+    display: inline-flex;
+}
+
+.public-comment-delete-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+}
+
+.public-comment-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #374151;
+    margin: 0 0 8px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.public-comment-meta {
+    font-size: 12px;
+    color: #9CA3AF;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.public-comment-author {
+    font-weight: 500;
+    color: #6B7280;
+}
+
+.public-comment-empty {
+    font-size: 13px;
+    color: #9CA3AF;
+    text-align: center;
+    padding: 10px 0;
 }

@@ -6,6 +6,53 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+    // Поиск по проекту — раньше поле #searchProjectInput существовало
+    // в разметке (и даже подставляло {{ search }} обратно в value после
+    // серверной фильтрации по ?search=), но нигде не было ни обёрнуто в
+    // форму, ни подключено к JS — ввод в него буквально ничего не делал.
+    // Список проектов уже отрендерен на странице целиком, поэтому проще
+    // и быстрее фильтровать его на клиенте, без перезагрузки страницы,
+    // чем городить submit формы на каждый ввод.
+    //
+    // Поиск — ТОЛЬКО по названию проекта, не по описанию: раньше совпадение
+    // искалось и в описании тоже, из-за чего даже одна распространённая
+    // буква (например, "о") почти всегда находила совпадение в тексте
+    // описания какого-нибудь проекта — с точки зрения пользователя поиск
+    // "находил" случайные результаты на пустом месте. Название — короче
+    // и предметнее описания, поэтому по нему совпадение по 1 букве уже не
+    // даёт ложных срабатываний, и отдельный порог минимальной длины
+    // запроса (в отличие от ask_page.py) здесь не нужен.
+    const searchProjectInput = document.getElementById("searchProjectInput");
+    const projectsContainer = document.getElementById("projectsContainer");
+    const projectCards = projectsContainer
+        ? Array.from(projectsContainer.querySelectorAll(".project[data-id]"))
+        : [];
+    let projectsEmptyState = document.getElementById("projectsEmptyState");
+
+    function filterProjects() {
+        if (!projectCards.length) return;
+        const query = (searchProjectInput.value || "").trim().toLowerCase();
+        let visibleCount = 0;
+
+        projectCards.forEach((card) => {
+            const title = card.querySelector(".project-title")?.textContent.toLowerCase() || "";
+            const matches = !query || title.includes(query);
+            card.style.display = matches ? "" : "none";
+            if (matches) visibleCount++;
+        });
+
+        if (!projectsEmptyState) {
+            projectsEmptyState = document.createElement("div");
+            projectsEmptyState.id = "projectsEmptyState";
+            projectsEmptyState.className = "project";
+            projectsEmptyState.innerHTML = '<div class="project-desc">Ничего не найдено.</div>';
+            projectsContainer.appendChild(projectsEmptyState);
+        }
+        projectsEmptyState.style.display = visibleCount === 0 ? "" : "none";
+    }
+
+    searchProjectInput?.addEventListener("input", filterProjects);
+
     const profileDialog = document.getElementById("profileEditDialog");
     const profileEditButton = document.getElementById("profileEditButton");
 
@@ -30,6 +77,82 @@
         ?.addEventListener("click", () => {
             skillDialog.close();
         });
+
+    // Список уровней в диалоге "Добавить навык" зависит от выбранного
+    // навыка — если по нему уже есть подтверждённый уровень, оставляем в
+    // списке только уровни строго выше него (заявка на такой же или более
+    // низкий уровень сервер всё равно отклонит, см. _handle_add_skill в
+    // profile_page.py — это только чтобы не дать выбрать заведомо
+    // отклоняемое значение).
+    const skillIdSelect = document.getElementById("skill-id");
+    const skillLevelSelect = document.getElementById("skill-level");
+    const allLevelOptions = skillLevelSelect
+        ? Array.from(skillLevelSelect.options).map((opt) => opt.value)
+        : [];
+
+    function refreshSkillLevelOptions() {
+        if (!skillIdSelect || !skillLevelSelect) return;
+        const chosen = skillIdSelect.options[skillIdSelect.selectedIndex];
+        const approvedLevel = chosen ? chosen.dataset.approvedLevel : "";
+        const previousValue = skillLevelSelect.value;
+
+        const allowed = approvedLevel
+            ? allLevelOptions.filter((level) => Number(level) > Number(approvedLevel))
+            : allLevelOptions;
+
+        skillLevelSelect.innerHTML = "";
+        allowed.forEach((level) => {
+            const option = document.createElement("option");
+            option.value = level;
+            option.textContent = level;
+            skillLevelSelect.appendChild(option);
+        });
+
+        if (allowed.includes(previousValue)) {
+            skillLevelSelect.value = previousValue;
+        }
+    }
+
+    skillIdSelect?.addEventListener("change", refreshSkillLevelOptions);
+</script>
+<script>
+    // Диалог "Добавить/редактировать комментарий" — одна и та же <dialog>
+    // на оба случая, режим переключается через action (add_comment /
+    // update_comment) + comment_id. См. _comment_dialog.html и
+    // add_comment/update_comment в profile_page.py.
+    const commentDialog = document.getElementById("commentDialog");
+    const commentFormAction = document.getElementById("commentFormAction");
+    const commentFormId = document.getElementById("commentFormId");
+    const commentDialogTitle = document.getElementById("commentDialogTitle");
+    const commentLevelSelect = document.getElementById("comment-level");
+    const commentTextArea = document.getElementById("comment-text");
+
+    document.getElementById("commentAddButton")?.addEventListener("click", () => {
+        if (!commentDialog) return;
+        commentFormAction.value = "add_comment";
+        commentFormId.value = "";
+        commentDialogTitle.textContent = "Добавить комментарий";
+        commentLevelSelect.selectedIndex = 0;
+        commentTextArea.value = "";
+        commentDialog.showModal();
+    });
+
+    document.querySelectorAll(".public-comment-edit-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            if (!commentDialog) return;
+            commentFormAction.value = "update_comment";
+            commentFormId.value = btn.dataset.commentId;
+            commentDialogTitle.textContent = "Редактировать комментарий";
+            commentLevelSelect.value = btn.dataset.level;
+            commentTextArea.value = btn.dataset.text;
+            commentDialog.showModal();
+        });
+    });
+
+    commentDialog?.querySelector("[data-close-dialog]")
+        ?.addEventListener("click", () => {
+            commentDialog.close();
+        });
 </script>
 {% endblock %}
 
@@ -42,6 +165,28 @@
     <main class="public-main">
         <div class="public-profile-wrapper">
             <div class="public-profile-card">
+
+                <!-- СООБЩЕНИЯ (django messages) — раньше этого блока тут не было
+                     вообще, из-за чего сообщения от действий на этой странице
+                     (добавить/изменить/удалить комментарий, навык, резюме и т.д.)
+                     нигде не показывались: Django просто держит их в сессии до
+                     следующей страницы, которая ИХ выводит (например approvals) —
+                     и они неожиданно всплывали на совершенно других страницах
+                     (например "Комментарий добавлен" на "Подтверждении навыков"),
+                     если пользователь туда переходил раньше, чем успевал увидеть
+                     их здесь. Тот же приём/классы-суффиксы, что в approvals.html.
+                     ВАЖНО: не писать в этом комментарии литеральные фигурные
+                     теги Django — движок парсит их даже внутри HTML-комментариев,
+                     это один раз уже сломало страницу целиком. -->
+                {% if messages %}
+                    <div class="public-messages">
+                        {% for message in messages %}
+                            <div class="public-message {% if message.tags %}public-message-{{ message.tags }}{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
 
                 <!-- TOP -->
                 <div class="public-top">
@@ -87,6 +232,44 @@
                                 <span>{{ profile_user.email }}</span>
                             </div>
                         </div>
+
+                        <!-- РЕЗЮМЕ — видит и грузит только HR (см. can_manage_resume в
+                             profile_page.py), для остальных (даже для самого сотрудника
+                             и Manager) этого блока в разметке вообще нет. -->
+                        {% if can_manage_resume %}
+                        <div class="public-resume-box">
+                            <div class="public-resume-info">
+                                <span class="public-resume-icon">📄</span>
+                                {% if resume_url %}
+                                <!-- download (без target="_blank") — раньше ссылка открывала PDF
+                                     в новой вкладке, браузер пытался отрисовать его встроенным
+                                     PDF-вьюером; на большом файле (сотни страниц) это выглядело
+                                     как зависание, хотя кнопка называется "Скачать". С download
+                                     браузер сразу сохраняет файл, не пытаясь его отрендерить. -->
+                                <a href="{{ resume_url }}" download class="public-resume-link">Скачать резюме</a>
+                                {% else %}
+                                <span class="public-resume-empty">Резюме не загружено</span>
+                                {% endif %}
+                            </div>
+                            <div class="public-resume-actions">
+                                <form method="post" enctype="multipart/form-data" class="public-resume-upload-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_resume">
+                                    <label class="public-resume-upload-btn">
+                                        {% if resume_url %}Заменить{% else %}Загрузить{% endif %}
+                                        <input type="file" name="resume" accept=".pdf,.docx" onchange="this.form.submit()" hidden>
+                                    </label>
+                                </form>
+                                {% if resume_url %}
+                                <form method="post" class="public-resume-delete-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_resume">
+                                    <button type="submit" class="public-resume-delete-btn">Удалить</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -118,51 +301,61 @@
                                 {% endif %}
                             </div>
 
-                            <!-- Цикл вывода навыков -->
+                            <!-- Цикл вывода навыков. У одного навыка может быть до 2 записей
+                                 сразу — подтверждённая и заявка на рассмотрении (см.
+                                 profile_page.py) — показываем обе под одним названием. -->
                             {% for skill in skills %}
-                            <div class="skill-row">
-                                <span class="badge {{ skill.level_class|default:'' }}">{{ skill.level_label|default:skill.level }}</span>
-                                <span>{{ skill.display_name }}</span>
-                                {% if skill.is_approved %}
-                                <small style="color: green;">(подтверждён)</small>
-                                {% endif %}
-                                 {% if request.user == profile_user %}
-                                {% if can_edit %}
-                                <form method="post" class="skill-inline-form">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="update_skill">
-                                    <input
-                                            type="hidden"
-                                            name="user_skill_id"
-                                            value="{{ skill.user_skill_id }}"
-                                    >
-
-                                    <select name="level">
-                                        {% for level in levels %}
-                                        <option
-                                                value="{{ level }}"
-                                                {% if level == skill.level %}selected{% endif %}
+                            <div class="skill-group">
+                                <div class="skill-group-name">{{ skill.display_name }}</div>
+                                {% for entry in skill.entries %}
+                                <div class="skill-row">
+                                    <span class="badge {{ entry.level_class|default:'' }}">{{ entry.level_label|default:entry.level }}</span>
+                                    {% if entry.is_approved %}
+                                    <small class="skill-status skill-status-approved">подтверждён</small>
+                                    {% else %}
+                                    <small class="skill-status skill-status-pending">на рассмотрении</small>
+                                    {% endif %}
+                                    {% if request.user == profile_user %}
+                                    {% if can_edit %}
+                                    {% if not entry.is_approved %}
+                                    <form method="post" class="skill-inline-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="update_skill">
+                                        <input
+                                                type="hidden"
+                                                name="user_skill_id"
+                                                value="{{ entry.user_skill_id }}"
                                         >
-                                            {{ level }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
 
-                                    <button type="submit">Сохранить</button>
-                                </form>
+                                        <select name="level">
+                                            {% for level in entry.allowed_levels %}
+                                            <option
+                                                    value="{{ level }}"
+                                                    {% if level == entry.level %}selected{% endif %}
+                                            >
+                                                {{ level }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
 
-                                <form method="post" class="skill-inline-form">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="delete_skill">
-                                    <input
-                                            type="hidden"
-                                            name="user_skill_id"
-                                            value="{{ skill.user_skill_id }}"
-                                    >
-                                    <button type="submit">Удалить</button>
-                                </form>
-                                {% endif %}
-                                {% endif %}
+                                        <button type="submit">Сохранить</button>
+                                    </form>
+                                    {% endif %}
+
+                                    <form method="post" class="skill-inline-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="delete_skill">
+                                        <input
+                                                type="hidden"
+                                                name="user_skill_id"
+                                                value="{{ entry.user_skill_id }}"
+                                        >
+                                        <button type="submit">Удалить</button>
+                                    </form>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
                             </div>
                             {% empty %}
                             <div class="skill-row"><span>Навыки пока не добавлены.</span></div>
@@ -170,39 +363,102 @@
                         </div>
                     </div>
 
-                    <!-- PROJECTS -->
-                    <div class="public-projects-section">
-                        <div class="public-projects-header">
-                            <h3>Проекты</h3>
-                            <input
-                                    type="text"
-                                    class="public-projects-search"
-                                    id="searchProjectInput"
-                                    placeholder="Поиск"
-                                    value="{{ search|default:'' }}"
-                            >
-                        </div>
-                        <div id="projectsContainer">
-
-                            <!-- Цикл вывода проектов -->
-                            {% for project in projects %}
-                            <div class="project" data-id="{{ project.id }}">
-                               <a class="project-header" href="{% url 'project-page' project.id %}">
-                                    {% if project.icon %}
-                                    <img src="{% static 'assets/'|add:project.icon %}" alt="иконка"
-                                         class="project-icon">
-                                    {% endif %}
-                                    <div class="project-title">{{ project.name }}</div>
-                                </a>
-                                <div class="project-desc">{{ project.description|default:"—" }}</div>
+                    <!-- RIGHT -->
+                    <div class="public-right">
+                        <!-- PROJECTS -->
+                        <div class="public-projects-section">
+                            <div class="public-projects-header">
+                                <h3>Проекты</h3>
+                                <input
+                                        type="text"
+                                        class="public-projects-search"
+                                        id="searchProjectInput"
+                                        placeholder="Поиск"
+                                        value="{{ search|default:'' }}"
+                                >
                             </div>
-                            {% empty %}
-                            <div class="project">
-                                <div class="project-desc">У вас пока нет добавленных проектов.</div>
-                            </div>
-                            {% endfor %}
+                            <div id="projectsContainer">
 
+                                <!-- Цикл вывода проектов -->
+                                {% for project in projects %}
+                                <div class="project" data-id="{{ project.id }}">
+                                   <a class="project-header" href="{% url 'project-page' project.id %}">
+                                        {% if project.icon %}
+                                        <img src="{% static 'assets/'|add:project.icon %}" alt="иконка"
+                                             class="project-icon">
+                                        {% endif %}
+                                        <div class="project-title">{{ project.name }}</div>
+                                    </a>
+                                    <div class="project-desc">{{ project.description|default:"—" }}</div>
+                                </div>
+                                {% empty %}
+                                <div class="project">
+                                    <div class="project-desc">У вас пока нет добавленных проектов.</div>
+                                </div>
+                                {% endfor %}
+
+                            </div>
                         </div>
+
+                        <!-- КОММЕНТАРИИ — заметки HR/руководителя о сотруднике, сам
+                             сотрудник их не видит никогда (см. can_manage_comments в
+                             profile_page.py) — поэтому блока в разметке вообще нет,
+                             если у смотрящего нет прав. -->
+                        {% if can_manage_comments %}
+                        <div class="public-comments-section">
+                            <div class="public-comments-header">
+                                <h3>Комментарии</h3>
+                                <button type="button" class="public-projects-add" id="commentAddButton">
+                                    <img src="{% static 'assets/plus.svg' %}" alt="Добавить" class="plus-icon">
+                                    Добавить
+                                </button>
+                            </div>
+
+                            <div class="public-comments-list">
+                                {% for comment in comments %}
+                                <div class="public-comment-card">
+                                    <div class="public-comment-top">
+                                        <span class="public-comment-level public-comment-level-{{ comment.level_class }}">
+                                            {{ comment.level_label }}
+                                        </span>
+                                        {% if comment.is_mine %}
+                                        <div class="public-comment-actions">
+                                            <button
+                                                    type="button"
+                                                    class="public-comment-edit-btn"
+                                                    data-comment-id="{{ comment.id }}"
+                                                    data-level="{{ comment.level }}"
+                                                    data-text="{{ comment.text }}"
+                                            >
+                                                <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="icon-small">
+                                            </button>
+                                            <form method="post" class="public-comment-delete-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="delete_comment">
+                                                <input type="hidden" name="comment_id" value="{{ comment.id }}">
+                                                <button type="submit" class="public-comment-delete-btn" aria-label="Удалить">
+                                                    <img src="{% static 'assets/trash.svg' %}" alt="Удалить" class="icon-small">
+                                                </button>
+                                            </form>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <p class="public-comment-text">{{ comment.text }}</p>
+                                    <div class="public-comment-meta">
+                                        <span class="public-comment-author">{{ comment.author_name }}</span>
+                                        {% if comment.updated_at %}
+                                            <span>· изменено {{ comment.updated_at|date:"d.m.Y H:i" }}</span>
+                                        {% else %}
+                                            <span>· {{ comment.created_at|date:"d.m.Y H:i" }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="public-comment-empty">Комментариев пока нет.</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -213,5 +469,8 @@
 {% if request.user == profile_user %}
 {% include "profile/_edit_dialog.html" %}
 {% include "profile/_skill_dialog.html" %}
+{% endif %}
+{% if can_manage_comments %}
+{% include "profile/_comment_dialog.html" %}
 {% endif %}
 {% endblock %}

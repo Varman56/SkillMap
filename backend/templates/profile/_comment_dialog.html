@@ -1,0 +1,26 @@
+{% if can_manage_comments %}
+<dialog id="commentDialog" class="profile-dialog">
+    <form method="post" id="commentForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_comment" id="commentFormAction">
+        <input type="hidden" name="comment_id" value="" id="commentFormId">
+
+        <h3 id="commentDialogTitle">Добавить комментарий</h3>
+
+        <label for="comment-level">Оценка сотрудника</label>
+        <select id="comment-level" name="level" required>
+            {% for level, label in comment_level_choices %}
+                <option value="{{ level }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="comment-text">Комментарий</label>
+        <textarea id="comment-text" name="text" rows="4" required></textarea>
+
+        <div class="profile-dialog-actions">
+            <button type="submit">Сохранить</button>
+            <button type="button" data-close-dialog>Отмена</button>
+        </div>
+    </form>
+</dialog>
+{% endif %}

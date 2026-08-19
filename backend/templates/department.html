@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/department.css' %}">
+{% endblock %}
+{% block title %}SkillMap | Мой отдел{% endblock %}
+
+{% block content %}
+<div class="dept-page">
+    <main class="dept-main">
+
+        {% if messages %}
+            <div class="dept-messages">
+                {% for message in messages %}
+                    <div class="dept-message {% if message.tags %}dept-message-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if not department %}
+            <div class="dept-card dept-no-department">
+                <p>У вас не назначен отдел, поэтому сводку показать нельзя. Обратитесь к HR.</p>
+            </div>
+        {% else %}
+
+        <!-- РЯД ИЗ 4 КАРТОЧЕК: топ-навыки / редкие навыки / уровни / разрыв -->
+        <div class="dept-top-row">
+            <div class="dept-card dept-top-skills-card">
+                <h3 class="dept-card-title">Топ-5 навыков отдела:</h3>
+                {% if top_skills %}
+                    <ol class="dept-skill-bars">
+                        {% for skill in top_skills %}
+                            <li>
+                                <span class="dept-skill-bar-label">{{ forloop.counter }}. {{ skill.name }}</span>
+                                <div class="dept-skill-bar-track">
+                                    <!-- Ширину ставит JS из data-pct (см. блок скриптов внизу
+                                         шаблона) - в style="" не остаётся Django-тегов, чтобы
+                                         редакторские CSS-линтеры, не понимающие шаблонный
+                                         синтаксис внутри атрибута style, не подсвечивали это
+                                         красным. -->
+                                    <div class="dept-skill-bar-fill" data-pct="{{ skill.pct }}"></div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                {% else %}
+                    <p class="dept-card-empty">Пока нет подтверждённых навыков в отделе.</p>
+                {% endif %}
+            </div>
+
+            <div class="dept-card dept-rare-skills-card">
+                <h3 class="dept-card-title">Топ-5 редких навыков:</h3>
+                {% if rare_skills %}
+                    <ol class="dept-rare-list">
+                        {% for skill in rare_skills %}
+                            <li>
+                                <span class="dept-rare-num">{{ forloop.counter }}.</span>
+                                <span>{{ skill.name }}</span>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                {% else %}
+                    <p class="dept-card-empty">Недостаточно данных.</p>
+                {% endif %}
+            </div>
+
+            <div class="dept-card dept-donut-card">
+                <h3 class="dept-card-title">Распределение уровней навыков</h3>
+                {% if level_distribution.total %}
+                    <div class="dept-donut-wrap">
+                        <!-- Фон (conic-gradient) собирает JS из data-*-end (см. блок
+                             скриптов внизу шаблона) — та же причина, что и у
+                             dept-skill-bar-fill выше: ни одного Django-тега внутри
+                             style="" не остаётся. -->
+                        <div class="dept-donut"
+                             data-high-end="{{ level_distribution.high_end }}"
+                             data-medium-end="{{ level_distribution.medium_end }}">
+                            <div class="dept-donut-hole">
+                                <strong>{{ level_distribution.total }}</strong>
+                                <span>подтв. навыков</span>
+                            </div>
+                        </div>
+                        <ul class="dept-donut-legend">
+                            <li>
+                                <span class="dept-legend-label">
+                                    <span class="dept-legend-dot dept-legend-high"></span>
+                                    Высокий (ур. 4)
+                                </span>
+                                <b>{{ level_distribution.high.pct }}% ({{ level_distribution.high.count }})</b>
+                            </li>
+                            <li>
+                                <span class="dept-legend-label">
+                                    <span class="dept-legend-dot dept-legend-medium"></span>
+                                    Средний (ур. 2-3)
+                                </span>
+                                <b>{{ level_distribution.medium.pct }}% ({{ level_distribution.medium.count }})</b>
+                            </li>
+                            <li>
+                                <span class="dept-legend-label">
+                                    <span class="dept-legend-dot dept-legend-low"></span>
+                                    Низкий (ур. 1)
+                                </span>
+                                <b>{{ level_distribution.low.pct }}% ({{ level_distribution.low.count }})</b>
+                            </li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <p class="dept-card-empty">Пока нет навыков в отделе.</p>
+                {% endif %}
+            </div>
+
+            <div class="dept-card dept-gap-card">
+                <h3 class="dept-card-title">Навыки с разрывом:</h3>
+                {% if skill_gaps %}
+                    <ul class="dept-gap-list">
+                        {% for gap in skill_gaps %}
+                            <li>
+                                <div class="dept-gap-name">
+                                    <span aria-hidden="true">⚠️</span>
+                                    {{ gap.name }}
+                                </div>
+                                <div class="dept-gap-stats">
+                                    Новичков: {{ gap.novices }}<br>
+                                    Экспертов: {{ gap.experts }}<br>
+                                    Дефицит:
+                                    <span class="dept-gap-severity dept-gap-severity-{{ gap.severity }}">{{ gap.severity }}</span>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="dept-card-empty">Явных разрывов не обнаружено.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- СТАТ-СТРОКА -->
+        <div class="dept-stat-box">
+            <span class="dept-stat-icon" aria-hidden="true">👤</span>
+            <span>Сотрудников в отделе: <strong>{{ member_count }}</strong></span>
+        </div>
+
+        <!-- СОТРУДНИКИ / ПРОЕКТЫ ОТДЕЛА -->
+        <div class="dept-bottom-row">
+            <div class="dept-card dept-employees-card">
+                <div class="dept-card-header-row">
+                    <h3 class="dept-card-title">Сотрудники отдела</h3>
+                </div>
+
+                <div class="dept-toolbar">
+                    <div class="dept-search-box">
+                        <input type="text" id="deptEmployeeSearch"
+                               placeholder="Поиск по ФИО или должности" class="dept-search-input"
+                               autocomplete="off">
+                        <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="dept-search-icon">
+                    </div>
+                </div>
+
+                <div class="dept-employees-list" id="deptEmployeesList">
+                    {% for employee in employees %}
+                        <div class="dept-employee-row"
+                             data-search="{{ employee.full_name|lower }} {{ employee.position|lower }}">
+                            <a href="{% url 'profile-page' employee.id %}" class="dept-employee-avatar">
+                                {% if employee.photo %}
+                                    <img src="{{ employee.photo }}" alt="{{ employee.full_name }}">
+                                {% endif %}
+                            </a>
+                            <div class="dept-employee-info">
+                                <span class="dept-employee-name">{{ employee.full_name }}</span>
+                                <span class="dept-employee-position">{{ employee.position|default:"—" }}</span>
+                            </div>
+                            <a href="{% url 'profile-page' employee.id %}" class="dept-view-btn">Посмотреть профиль</a>
+                        </div>
+                    {% empty %}
+                        <p class="dept-card-empty">В отделе пока нет активных сотрудников.</p>
+                    {% endfor %}
+                    <p class="dept-card-empty" id="deptEmployeesEmptyState" style="display: none;">Никого не найдено.</p>
+                </div>
+
+                {% if employees|length > 5 %}
+                    <button type="button" class="dept-expand-btn" id="deptEmployeesExpandButton">
+                        <span class="dept-expand-label">Показать всех сотрудников</span>
+                        <span aria-hidden="true">›</span>
+                    </button>
+                {% endif %}
+            </div>
+
+            <div class="dept-card dept-projects-card">
+                <div class="dept-card-header-row">
+                    <h3 class="dept-card-title">Проекты отдела</h3>
+                </div>
+
+                <div class="dept-toolbar">
+                    <div class="dept-search-box">
+                        <input type="text" id="deptProjectSearch"
+                               placeholder="Поиск по названию или описанию проекта" class="dept-search-input"
+                               autocomplete="off">
+                        <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="dept-search-icon">
+                    </div>
+                </div>
+
+                <div class="dept-projects-list" id="deptProjectsList">
+                    {% for project in projects %}
+                        <div class="dept-project-row"
+                             data-search="{{ project.name|lower }} {{ project.description|lower }}">
+                            <div class="dept-project-icon" aria-hidden="true">📚</div>
+                            <div class="dept-project-info">
+                                <span class="dept-project-name">{{ project.name }}</span>
+                                <span class="dept-project-desc">{{ project.description|default:"" }}</span>
+                            </div>
+                            <div class="dept-project-avatars">
+                                {% for avatar in project.avatars %}
+                                    {% if avatar %}
+                                        <img src="{{ avatar }}" alt="" class="dept-project-avatar-img">
+                                    {% else %}
+                                        <span class="dept-project-avatar-placeholder"></span>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if project.extra_count %}
+                                    <span class="dept-project-avatar-more">+{{ project.extra_count }}</span>
+                                {% endif %}
+                            </div>
+                            <a href="{% url 'project-page' project.id %}" class="dept-view-btn">Подробнее</a>
+                        </div>
+                    {% empty %}
+                        <p class="dept-card-empty">У отдела пока нет проектов.</p>
+                    {% endfor %}
+                    <p class="dept-card-empty" id="deptProjectsEmptyState" style="display: none;">Ничего не найдено.</p>
+                </div>
+
+                {% if projects|length > 5 %}
+                    <button type="button" class="dept-expand-btn" id="deptProjectsExpandButton">
+                        <span class="dept-expand-label">Показать все проекты</span>
+                        <span aria-hidden="true">›</span>
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% endif %}
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        // Ширина полосок "Топ-10 навыков отдела" и фон доната "Распределение
+        // уровней" выставляются здесь из data-атрибутов, а не через
+        // Django-переменную прямо внутри атрибута style в шаблоне. Раньше
+        // style собирался в шаблоне (сначала из нескольких Django-тегов,
+        // потом из одного готового значения на бэкенде) — но CSS-линтер в
+        // редакторе (например, встроенный в VS Code) проверяет содержимое
+        // style="" как обычный CSS ещё ДО рендера шаблона Django и не умеет
+        // в шаблонный синтаксис внутри него в принципе, поэтому подсвечивал
+        // красным любой такой вариант, даже с одним готовым значением. На
+        // отрендеренный HTML/CSS в браузере это никогда не влияло (там уже
+        // подставлены обычные числа), но чтобы убрать и саму подсветку в
+        // редакторе — теперь в style="" вообще нет Django-тегов: числа
+        // кладутся в data-*, а style ставит этот код.
+        document.querySelectorAll(".dept-skill-bar-fill[data-pct]").forEach(function (bar) {
+            bar.style.width = bar.dataset.pct + "%";
+        });
+
+        // 3 сектора (Высокий/Средний/Низкий) — бакета "Нет данных" больше
+        // нет, донат считается только по подтверждённым навыкам (см.
+        // _level_distribution() в department_page.py), поэтому третий
+        // сектор всегда идёт до 100% и отдельная граница ему не нужна.
+        var donut = document.querySelector(".dept-donut[data-high-end]");
+        if (donut) {
+            var highEnd = donut.dataset.highEnd;
+            var mediumEnd = donut.dataset.mediumEnd;
+            donut.style.background =
+                "conic-gradient(#22C55E 0% " + highEnd + "%, " +
+                "#F59E0B " + highEnd + "% " + mediumEnd + "%, " +
+                "#EF4444 " + mediumEnd + "% 100%)";
+        }
+
+        // Список сотрудников: поиск по ФИО/должности + сворачивание списка
+        // до 5 строк с кнопкой "Показать всех". Оба состояния (поиск и
+        // сворачивание) считаются вместе через один render() при каждом
+        // изменении любого из них — так эти два механизма скрытия строк
+        // не могут "спорить" друг с другом за display одного и того же
+        // элемента (та же ошибка, что уже чинили в reserve.html, когда
+        // два независимых способа скрытия конфликтовали).
+        (function setupEmployeesList() {
+            var list = document.getElementById("deptEmployeesList");
+            var searchInput = document.getElementById("deptEmployeeSearch");
+            var expandButton = document.getElementById("deptEmployeesExpandButton");
+            var emptyState = document.getElementById("deptEmployeesEmptyState");
+            if (!list) return;
+
+            var rows = Array.from(list.querySelectorAll(".dept-employee-row"));
+            var VISIBLE_COUNT = 5;
+            var expanded = false;
+
+            function render() {
+                var query = (searchInput && searchInput.value || "").trim().toLowerCase();
+                var visibleSoFar = 0;
+                var matchCount = 0;
+
+                rows.forEach(function (row) {
+                    var matches = !query || row.dataset.search.indexOf(query) !== -1;
+                    if (!matches) {
+                        row.style.display = "none";
+                        return;
+                    }
+                    matchCount++;
+                    var withinLimit = expanded || query || visibleSoFar < VISIBLE_COUNT;
+                    row.style.display = withinLimit ? "" : "none";
+                    if (withinLimit) visibleSoFar++;
+                });
+
+                if (emptyState) {
+                    emptyState.style.display = matchCount === 0 ? "" : "none";
+                }
+                if (expandButton) {
+                    expandButton.querySelector(".dept-expand-label").textContent =
+                        expanded ? "Свернуть список" : "Показать всех сотрудников";
+                }
+            }
+
+            searchInput && searchInput.addEventListener("input", render);
+            expandButton && expandButton.addEventListener("click", function () {
+                expanded = !expanded;
+                render();
+            });
+
+            render();
+        })();
+
+        // Проекты отдела — тот же паттерн, что и у сотрудников выше: поиск
+        // по названию/описанию + сворачивание списка до 5 строк, оба
+        // состояния считаются вместе в одном render(), чтобы поиск и
+        // сворачивание не спорили друг с другом за display одной и той же
+        // строки.
+        (function setupProjectsList() {
+            var list = document.getElementById("deptProjectsList");
+            var searchInput = document.getElementById("deptProjectSearch");
+            var expandButton = document.getElementById("deptProjectsExpandButton");
+            var emptyState = document.getElementById("deptProjectsEmptyState");
+            if (!list) return;
+
+            var rows = Array.from(list.querySelectorAll(".dept-project-row"));
+            var VISIBLE_COUNT = 5;
+            var expanded = false;
+
+            function render() {
+                var query = (searchInput && searchInput.value || "").trim().toLowerCase();
+                var visibleSoFar = 0;
+                var matchCount = 0;
+
+                rows.forEach(function (row) {
+                    var matches = !query || row.dataset.search.indexOf(query) !== -1;
+                    if (!matches) {
+                        row.style.display = "none";
+                        return;
+                    }
+                    matchCount++;
+                    var withinLimit = expanded || query || visibleSoFar < VISIBLE_COUNT;
+                    row.style.display = withinLimit ? "" : "none";
+                    if (withinLimit) visibleSoFar++;
+                });
+
+                if (emptyState) {
+                    emptyState.style.display = matchCount === 0 ? "" : "none";
+                }
+                if (expandButton) {
+                    expandButton.querySelector(".dept-expand-label").textContent =
+                        expanded ? "Свернуть список" : "Показать все проекты";
+                }
+            }
+
+            searchInput && searchInput.addEventListener("input", render);
+            expandButton && expandButton.addEventListener("click", function () {
+                expanded = !expanded;
+                render();
+            });
+
+            render();
+        })();
+    })();
+</script>
+{% endblock %}

@@ -1,3 +1,11 @@
+/* Раньше у .cm-page не было ни фона, ни тени, ни радиуса вообще —
+   .cm-header-bar и .cm-table-container просто лежали каждый со своей
+   маленькой рамкой прямо на лавандовом фоне body, без общего "белого
+   листа", как на остальных страницах. Добавили белый фон + радиус +
+   тень — те же значения, что у .ask-main в ask.css — margin-top: 5px
+   даёт тот же зазор от хедера, что и на остальных страницах. Внутренние
+   .cm-header-bar/.cm-table-container сохранили свои рамки — это как
+   .ask-category внутри .ask-main, просто вложенные блоки. */
 .cm-page {
     padding: 24px;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -6,7 +14,11 @@
     flex-direction: column;
     gap: 20px;
     max-width: max-content;
-    margin: 0 auto;
+    margin: 5px auto 0;
+    background: white;
+    border-radius: 21px;
+    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
 }
 
 /* Верхняя панель (Заголовок + Фильтры) */
@@ -87,6 +99,32 @@
     background-position: right center;
     background-size: 16px; /* Размер новой стрелочки */
     padding: 0px 20px 0px 0px;
+}
+
+/* Залоченное поле "Отдел" для Manager — тот же приём "замочка", что и в
+   ask.css/approvals.css. Раньше было просто текстом внутри рамки
+   .cm-filter-item — визуально не читалось как заблокированное поле, в
+   отличие от ask.html/approvals.html. Добавили лёгкое затемнение фона
+   (тот же приём, что и там), чтобы поле однозначно выглядело "недоступно
+   для редактирования", а не просто подписью. */
+.cm-dept-locked {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 14px;
+    color: #374151;
+    white-space: nowrap;
+    background: #F2F5FF;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin: -1px;
+}
+
+.cm-dept-lock-icon {
+    font-size: 12px;
+    opacity: 0.7;
 }
 
 .cm-dropdown-filter {
@@ -356,12 +394,15 @@
 .cm-emp-info {
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .cm-emp-name {
     font-size: 16px;
     font-weight: 600;
     color: #111827;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .cm-emp-role {
@@ -469,4 +510,6 @@
 
 .cm-emp-position {
     font-size: 14px;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }

@@ -1,121 +1,413 @@
 {% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/reserve.css' %}">
+{% endblock %}
 
 {% block title %}SkillMap | Кадровый резерв{% endblock %}
 
 {% block content %}
-<h1>Кадровый резерв ({{ total_count }})</h1>
+<div class="resv-page">
+    <main class="resv-main">
+        <div class="resv-container">
+            <h1 class="resv-title">Кадровый резерв</h1>
+            <p class="resv-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
 
-<form method="get" action="">
-    <p>
-        <label for="department">Отдел</label><br>
-        {% if department_editable %}
-            <select id="department" name="department">
-                <option value="">Все отделы</option>
-                {% for d in departments %}
-                    <option value="{{ d.name }}" {% if d.name == department_filter %}selected{% endif %}>
-                        {{ d.name }}
-                    </option>
+            <!-- ФИЛЬТРАЦИЯ ЦЕЛИКОМ НА КЛИЕНТЕ — тот же принцип, что и в
+                 matrix.html: сервер (reserve_page.py) один раз отдаёт ВСЕХ
+                 сотрудников со всеми данными, дальше ни один клик по
+                 фильтру не уходит на сервер, JS просто показывает/прячет
+                 уже отрисованные .resv-card (см. extra_js). Раньше тут была
+                 обычная <form method="get">, отправлявшая новый GET на
+                 каждый select — теперь это просто набор полей без action,
+                 submit никуда не уходит вообще. -->
+            <div id="reserveFilters">
+                <div class="resv-filters-row">
+                    <div class="resv-filter-item">
+                        <label for="department">Отдел</label>
+                        <select id="department">
+                            <option value="">Все отделы</option>
+                            {% for d in departments %}
+                                <option value="{{ d.name }}">{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="resv-filter-item">
+                        <label for="category">Категория навыка</label>
+                        <select id="category">
+                            <option value="">Все категории</option>
+                            {% for c in categories %}
+                                <option value="{{ c.name }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="resv-filter-item">
+                        <!-- data-categories — список категорий (через "|"),
+                             которым принадлежит эта подкатегория. По ней JS
+                             прячет несовместимые с выбранной категорией
+                             варианты — та же каскадная логика, что раньше
+                             считал Python в reserve_page.py, теперь на JS. -->
+                        <label for="subcategory">Подкатегория</label>
+                        <select id="subcategory">
+                            <option value="">Все подкатегории</option>
+                            {% for s in subcategories %}
+                                <option value="{{ s.name }}" data-categories="{{ s.categories }}">
+                                    {{ s.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="resv-filter-item">
+                        <label for="skill">Навык</label>
+                        <select id="skill">
+                            <option value="">Все навыки</option>
+                            {% for s in skills %}
+                                <option value="{{ s.name }}"
+                                        data-subcategories="{{ s.subcategories }}"
+                                        data-categories="{{ s.categories }}">
+                                    {{ s.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="resv-filter-item">
+                        <label for="status">Статус навыка</label>
+                        <select id="status">
+                            <option value="">Все статусы</option>
+                            <option value="approved">Подтверждён</option>
+                            <option value="not_approved">Не подтверждён</option>
+                        </select>
+                    </div>
+
+                    <div class="resv-filter-item resv-level-filter">
+                        <label>Уровень навыка</label>
+                        <div class="resv-level-slider" id="levelSlider">
+                            <div class="resv-level-track"></div>
+                            <div class="resv-level-track-fill" id="levelTrackFill"></div>
+                            <input type="range" id="levelMinRange"
+                                   min="{{ min_level }}" max="{{ max_level }}" step="1" value="{{ min_level }}">
+                            <input type="range" id="levelMaxRange"
+                                   min="{{ min_level }}" max="{{ max_level }}" step="1" value="{{ max_level }}">
+                        </div>
+                        <div class="resv-level-labels">
+                            {% for level in levels %}
+                                <span>{{ level }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- СТРОКА 2: поиск по ФИО + переключатели "практиканты"/"уволенные" + сортировка -->
+                <div class="resv-search-row">
+                    <div class="resv-search-box">
+                        <input type="text" id="searchInput"
+                               placeholder="Введите ФИО или должность сотрудника для поиска" class="resv-search-input"
+                               autocomplete="off">
+                        <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="resv-search-icon">
+                    </div>
+
+                    <div class="resv-toggles">
+                        <label class="resv-toggle">
+                            <input type="checkbox" id="onlyInterns">
+                            <span class="resv-toggle-track"><span class="resv-toggle-thumb"></span></span>
+                            <span class="resv-toggle-label">Только практиканты</span>
+                        </label>
+
+                        <label class="resv-toggle">
+                            <input type="checkbox" id="onlyTerminated">
+                            <span class="resv-toggle-track"><span class="resv-toggle-thumb"></span></span>
+                            <span class="resv-toggle-label">Только уволенные</span>
+                        </label>
+                    </div>
+
+                    <button type="button" class="resv-sort-btn" id="sortRecentBtn">
+                        Последние добавленные
+                    </button>
+                </div>
+            </div>
+
+            <div class="resv-count" id="resultsCount">Найдено сотрудников: {{ employees|length }}</div>
+
+            <div class="resv-list" id="resultsList">
+                {% for employee in employees %}
+                    <!-- json_script — ВНУТРИ карточки (не соседним элементом
+                         в #resultsList): иначе JS, перебирающий
+                         resultsList.children, ловил бы заодно и сами
+                         <script> теги как "карточки" (их у getAttribute
+                         'data-active' и т.п. просто нет, что молча ломало
+                         фильтрацию/счётчик — ловили именно эту ошибку). -->
+                    <div class="resv-card"
+                         data-id="{{ employee.id }}"
+                         data-department="{{ employee.department }}"
+                         data-intern="{{ employee.is_intern|yesno:'1,0' }}"
+                         data-active="{{ employee.is_active|yesno:'1,0' }}"
+                         data-created-ts="{{ employee.created_ts }}"
+                         data-search="{{ employee.full_name|lower }} {{ employee.position|lower }}"
+                         data-skills-id="{{ employee.skills_json_id }}">
+                        {{ employee.skills|json_script:employee.skills_json_id }}
+                        <div class="resv-card-avatar">
+                            {% if employee.photo %}
+                                <img src="{{ employee.photo }}" alt="Аватар">
+                            {% endif %}
+                        </div>
+                        <div class="resv-card-info">
+                            <div class="resv-card-name-row">
+                                <span class="resv-card-name">{{ employee.full_name }}</span>
+                                {% if employee.is_intern %}
+                                    <span class="resv-badge resv-badge-intern">🎓 Практикант</span>
+                                {% endif %}
+                                {% if not employee.is_active %}
+                                    <span class="resv-badge resv-badge-terminated">Уволен</span>
+                                {% endif %}
+                            </div>
+                            <div class="resv-card-position">{{ employee.position|default:"—" }}</div>
+                        </div>
+                        <a href="{% url 'profile-page' employee.id %}" class="resv-card-btn">Посмотреть профиль</a>
+                    </div>
                 {% endfor %}
-            </select>
-        {% else %}
-            <input type="text" value="{{ department_filter|default:'—' }}" disabled>
-            🔒
-        {% endif %}
-    </p>
+            </div>
 
-    <p>
-        <label for="category">Категория навыка</label><br>
-        <select id="category" name="category">
-            <option value="">Все категории</option>
-            {% for c in categories %}
-                <option value="{{ c.name }}" {% if c.name == category_filter %}selected{% endif %}>
-                    {{ c.name }}
-                </option>
-            {% endfor %}
-        </select>
-    </p>
+            <div class="resv-empty" id="noResultsMessage" style="display: none;">Сотрудники не найдены.</div>
+        </div>
+    </main>
+</div>
+{% endblock %}
 
-    <p>
-        <label for="subcategory">Подкатегория</label><br>
-        <select id="subcategory" name="subcategory">
-            <option value="">Все подкатегории</option>
-            {% for s in subcategories %}
-                <option value="{{ s.name }}" {% if s.name == subcategory_filter %}selected{% endif %}>
-                    {{ s.name }}
-                </option>
-            {% endfor %}
-        </select>
-    </p>
+{% block extra_js %}
+<script>
+    // ФИЛЬТРАЦИЯ ЦЕЛИКОМ НА КЛИЕНТЕ (тот же принцип, что и в matrix.html —
+    // см. applyMatrixFilters() там). Сервер один раз отрисовал ВСЕХ
+    // сотрудников со всеми данными, нужными для фильтра (data-* атрибуты
+    // на .resv-card + json_script со списком навыков рядом с каждой
+    // карточкой) — дальше НИ ОДИН клик по фильтру не идёт на сервер, JS
+    // просто показывает/прячет уже существующие карточки и, при сортировке
+    // "Последние добавленные", переставляет их местами в DOM.
+    //
+    // ВАЖНО: вся логика совмещения фильтров (категория/подкатегория/навык
+    // через реальные связи, диапазон уровня, статус) продублирована здесь
+    // 1-в-1 с тем, что раньше считал reserve_page.py на Python — при любом
+    // изменении правил фильтрации нужно менять оба места.
+    (function () {
+        const departmentSelect = document.getElementById('department');
+        const categorySelect = document.getElementById('category');
+        const subcategorySelect = document.getElementById('subcategory');
+        const skillSelect = document.getElementById('skill');
+        const statusSelect = document.getElementById('status');
+        const searchInput = document.getElementById('searchInput');
+        const onlyInterns = document.getElementById('onlyInterns');
+        const onlyTerminated = document.getElementById('onlyTerminated');
+        const sortRecentBtn = document.getElementById('sortRecentBtn');
 
-    <p>
-        <label for="skill">Навык</label><br>
-        <select id="skill" name="skill">
-            <option value="">Все навыки</option>
-            {% for s in skills %}
-                <option value="{{ s.name }}" {% if s.name == skill_filter %}selected{% endif %}>
-                    {{ s.name }}
-                </option>
-            {% endfor %}
-        </select>
-    </p>
+        const minRange = document.getElementById('levelMinRange');
+        const maxRange = document.getElementById('levelMaxRange');
+        const fill = document.getElementById('levelTrackFill');
 
-    <p>
-        <label for="status">Статус навыка</label><br>
-        <select id="status" name="status">
-            <option value="" {% if not status_filter %}selected{% endif %}>Все статусы</option>
-            <option value="approved" {% if status_filter == "approved" %}selected{% endif %}>Подтверждён</option>
-            <option value="not_approved" {% if status_filter == "not_approved" %}selected{% endif %}>Не подтверждён</option>
-        </select>
-    </p>
+        const resultsList = document.getElementById('resultsList');
+        const resultsCount = document.getElementById('resultsCount');
+        const noResultsMessage = document.getElementById('noResultsMessage');
 
-    <p>
-        <label>Уровень навыка ({{ min_level }}–{{ max_level }})</label><br>
-        от <input type="number" name="level_min" value="{{ level_min }}" min="{{ min_level }}" max="{{ max_level }}" style="width:50px">
-        до <input type="number" name="level_max" value="{{ level_max }}" min="{{ min_level }}" max="{{ max_level }}" style="width:50px">
-    </p>
+        if (!resultsList) return;
 
-    <p>
-        <label for="search">Поиск по ФИО или должности</label><br>
-        <input type="text" id="search" name="search" value="{{ search }}" placeholder="Введите ФИО или должность">
-    </p>
+        let sortRecent = false;
 
-    <p>
-        <label>
-            <input type="checkbox" name="only_interns" value="1" {% if only_interns %}checked{% endif %}>
-            Только практиканты
-        </label>
-    </p>
+        // Кэш распарсенных json_script-блоков по data-skills-id, чтобы не
+        // дёргать JSON.parse на каждый пересчёт фильтров заново — навыки
+        // сотрудника не меняются, пока страница открыта.
+        const skillsCache = new Map();
+        function getSkills(card) {
+            const skillsId = card.getAttribute('data-skills-id');
+            if (skillsCache.has(skillsId)) return skillsCache.get(skillsId);
+            const scriptTag = document.getElementById(skillsId);
+            const parsed = scriptTag ? JSON.parse(scriptTag.textContent) : [];
+            skillsCache.set(skillsId, parsed);
+            return parsed;
+        }
 
-    <p>
-        <label>
-            <input type="checkbox" name="only_terminated" value="1" {% if only_terminated %}checked{% endif %}>
-            Только уволенные
-        </label>
-    </p>
+        function updateSliderFill() {
+            const min = Number(minRange.min), max = Number(minRange.max);
+            const minVal = Number(minRange.value), maxVal = Number(maxRange.value);
+            const leftPct = ((minVal - min) / (max - min)) * 100;
+            const rightPct = ((maxVal - min) / (max - min)) * 100;
+            fill.style.left = leftPct + '%';
+            fill.style.width = (rightPct - leftPct) + '%';
+        }
 
-    <p>
-        <label>
-            <input type="checkbox" name="sort" value="recent" {% if sort == "recent" %}checked{% endif %}>
-            Последние добавленные
-        </label>
-    </p>
+        // Каскад "Подкатегория" зависит от выбранной "Категории": прячем
+        // варианты, которые к ней не относятся, и если уже выбранная
+        // подкатегория стала недоступна — сбрасываем её (не оставляем
+        // несовместимую комбинацию висеть, как было в исходном баге).
+        function cascadeSubcategoryOptions() {
+            const selectedCategory = categorySelect.value;
+            let selectedStillValid = !selectedCategory;
 
-    <button type="submit">Применить фильтры</button>
-</form>
+            Array.from(subcategorySelect.options).forEach(function (opt) {
+                if (!opt.value) return;
+                const categories = (opt.getAttribute('data-categories') || '').split('|').filter(Boolean);
+                const visible = !selectedCategory || categories.includes(selectedCategory);
+                opt.hidden = !visible;
+                if (visible && opt.value === subcategorySelect.value) selectedStillValid = true;
+            });
 
-<ul>
-    {% for employee in employees %}
-        <li>
-            <strong>{{ employee.full_name }}</strong>
-            {% if employee.is_intern %}[Практикант]{% endif %}
-            {% if not employee.is_active %}[Уволен]{% endif %}
-            <br>
-            {{ employee.position|default:"—" }}
-            <br>
-            <a href="{% url 'profile-page' employee.id %}">Посмотреть профиль</a>
-        </li>
-    {% empty %}
-        <li>Сотрудники не найдены.</li>
-    {% endfor %}
-</ul>
+            if (!selectedStillValid) subcategorySelect.value = '';
+        }
+
+        // Каскад "Навык" зависит от выбранной "Подкатегории" (приоритетно)
+        // либо "Категории" (если подкатегория не выбрана) — та же логика,
+        // что раньше в Python: skills_qs.filter(subcategories__name=...)
+        // либо .filter(subcategories__categories__name=...).
+        function cascadeSkillOptions() {
+            const selectedCategory = categorySelect.value;
+            const selectedSubcategory = subcategorySelect.value;
+            let selectedStillValid = !skillSelect.value || (!selectedCategory && !selectedSubcategory);
+
+            Array.from(skillSelect.options).forEach(function (opt) {
+                if (!opt.value) return;
+                const subcategories = (opt.getAttribute('data-subcategories') || '').split('|').filter(Boolean);
+                const categories = (opt.getAttribute('data-categories') || '').split('|').filter(Boolean);
+
+                let visible = true;
+                if (selectedSubcategory) {
+                    visible = subcategories.includes(selectedSubcategory);
+                } else if (selectedCategory) {
+                    visible = categories.includes(selectedCategory);
+                }
+                opt.hidden = !visible;
+                if (visible && opt.value === skillSelect.value) selectedStillValid = true;
+            });
+
+            if (!selectedStillValid) skillSelect.value = '';
+        }
+
+        // Есть ли у сотрудника хотя бы одна запись навыка (строка
+        // UserSkill), которая одновременно проходит категорию/подкатегорию/
+        // навык/диапазон уровня/статус — 1-в-1 логика из reserve_page.py
+        // (skill_matches с последовательными .filter()).
+        function employeeMatchesSkillFilters(skills, filters) {
+            if (!filters.category && !filters.subcategory && !filters.skill) return true;
+
+            return skills.some(function (row) {
+                if (row.level < filters.levelMin || row.level > filters.levelMax) return false;
+                if (filters.status === 'approved' && !row.approved) return false;
+                if (filters.status === 'not_approved' && row.approved) return false;
+                if (filters.category && row.categories.indexOf(filters.category) === -1) return false;
+                if (filters.subcategory && row.subcategories.indexOf(filters.subcategory) === -1) return false;
+                if (filters.skill && row.skill !== filters.skill) return false;
+                return true;
+            });
+        }
+
+        function applyFilters() {
+            cascadeSubcategoryOptions();
+            cascadeSkillOptions();
+
+            const filters = {
+                department: departmentSelect.value,
+                category: categorySelect.value,
+                subcategory: subcategorySelect.value,
+                skill: skillSelect.value,
+                status: statusSelect.value,
+                levelMin: Number(minRange.value),
+                levelMax: Number(maxRange.value),
+                search: searchInput.value.toLowerCase().trim(),
+                interns: onlyInterns.checked,
+                terminated: onlyTerminated.checked,
+            };
+
+            let visibleCount = 0;
+
+            resultsList.querySelectorAll('.resv-card').forEach(function (card) {
+                const isActive = card.getAttribute('data-active') === '1';
+                const isIntern = card.getAttribute('data-intern') === '1';
+                const department = card.getAttribute('data-department');
+                const search = card.getAttribute('data-search');
+
+                let visible = true;
+
+                // Без "Только уволенные" показываем активных, с ним —
+                // только уволенных (взаимоисключающе, как и раньше).
+                if (filters.terminated) {
+                    if (isActive) visible = false;
+                } else if (!isActive) {
+                    visible = false;
+                }
+
+                if (visible && filters.interns && !isIntern) visible = false;
+                if (visible && filters.department && department !== filters.department) visible = false;
+                if (visible && filters.search && search.indexOf(filters.search) === -1) visible = false;
+                if (visible && !employeeMatchesSkillFilters(getSkills(card), filters)) visible = false;
+
+                card.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+
+            resultsCount.textContent = 'Найдено сотрудников: ' + visibleCount;
+            noResultsMessage.style.display = visibleCount === 0 ? '' : 'none';
+        }
+
+        // Исходный порядок карточек — как отрисовал сервер (по ФИО, через
+        // Django order_by). Запоминаем один раз при загрузке: при возврате
+        // к "обычному" порядку просто восстанавливаем его, а не пересчитываем
+        // localeCompare('ru') заново на JS — иначе для отдельных имён (там,
+        // где есть буква "ё") сортировка на JS и в SQLite расходится, и
+        // порядок после переключения туда-обратно едет на пару позиций.
+        const originalCardOrder = Array.from(resultsList.querySelectorAll('.resv-card'));
+
+        function applySort() {
+            if (sortRecent) {
+                const cards = Array.from(resultsList.querySelectorAll('.resv-card'));
+                cards.sort(function (a, b) {
+                    return Number(b.getAttribute('data-created-ts')) - Number(a.getAttribute('data-created-ts'));
+                });
+                cards.forEach(function (card) { resultsList.appendChild(card); });
+            } else {
+                originalCardOrder.forEach(function (card) { resultsList.appendChild(card); });
+            }
+        }
+
+        // Двуручечный слайдер уровня — визуально одна дорожка с двумя
+        // <input type="range">, наложенными друг на друга. При драге не
+        // даём ручкам "пройти" друг сквозь друга, обновляем закрашенный
+        // отрезок в реальном времени; сам пересчёт списка — по отпусканию
+        // ("change"), а не на каждый кадр перетаскивания.
+        function handleRangeInput(e) {
+            let minVal = Number(minRange.value);
+            let maxVal = Number(maxRange.value);
+            if (minVal > maxVal) {
+                if (e.target === minRange) {
+                    maxRange.value = minVal;
+                } else {
+                    minRange.value = maxVal;
+                }
+            }
+            updateSliderFill();
+        }
+
+        minRange.addEventListener('input', handleRangeInput);
+        maxRange.addEventListener('input', handleRangeInput);
+        minRange.addEventListener('change', applyFilters);
+        maxRange.addEventListener('change', applyFilters);
+
+        departmentSelect.addEventListener('change', applyFilters);
+        categorySelect.addEventListener('change', applyFilters);
+        subcategorySelect.addEventListener('change', applyFilters);
+        skillSelect.addEventListener('change', applyFilters);
+        statusSelect.addEventListener('change', applyFilters);
+        onlyInterns.addEventListener('change', applyFilters);
+        onlyTerminated.addEventListener('change', applyFilters);
+        searchInput.addEventListener('input', applyFilters);
+
+        sortRecentBtn.addEventListener('click', function () {
+            sortRecent = !sortRecent;
+            sortRecentBtn.classList.toggle('resv-sort-btn-active', sortRecent);
+            applySort();
+        });
+
+        updateSliderFill();
+        applyFilters();
+    })();
+</script>
 {% endblock %}

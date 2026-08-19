@@ -1,0 +1,584 @@
+/* СТРАНИЦА "МОЙ ОТДЕЛ" (department.html) */
+
+.dept-page {
+    margin: 0;
+    color: #535353;
+    background: #F2F5FF;
+    font-family: 'Cabin', sans-serif;
+    min-height: 90vh;
+}
+
+.dept-main {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 20px 30px 40px;
+}
+
+/* СООБЩЕНИЯ (django messages) — те же классы-обёртки/цвета, что и на
+   остальных страницах (approvals.css/project.css), просто с dept- */
+.dept-messages {
+    margin-bottom: 16px;
+}
+
+.dept-message {
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.dept-message-success {
+    background: #E6F9EE;
+    color: #1B7A43;
+    border: 1px solid #B7EACB;
+}
+
+.dept-message-error {
+    background: #FDE8E8;
+    color: #9b1c1c;
+    border: 1px solid #F8B4B4;
+}
+
+.dept-card {
+    background: white;
+    border: 1px solid #E5E5E5;
+    border-radius: 16px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.dept-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1E1E1E;
+    margin: 0 0 14px;
+}
+
+.dept-card-empty {
+    font-size: 13px;
+    color: #999;
+    margin: 0;
+}
+
+.dept-no-department {
+    text-align: center;
+    color: #999;
+}
+
+/* РЯД ИЗ 4 КАРТОЧЕК */
+.dept-top-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 1100px) {
+    .dept-top-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Топ-10 навыков — горизонтальные полоски-бары */
+.dept-skill-bars {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dept-skill-bars li {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.dept-skill-bar-label {
+    font-size: 12px;
+    color: #444;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.dept-skill-bar-track {
+    height: 6px;
+    border-radius: 3px;
+    background: #EEF0F6;
+    overflow: hidden;
+}
+
+.dept-skill-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #C02BFF, #ab4ad5);
+}
+
+/* Топ-5 редких навыков — нумерованный список */
+.dept-rare-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dept-rare-list li {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    color: #333;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #F0F0F0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    min-width: 0;
+}
+
+.dept-rare-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.dept-rare-num {
+    color: #EF4444;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* Донат распределения уровней.
+
+   Раньше донат и легенда стояли в ряд (donut слева, легенда справа) —
+   при таком узком столбце для легенды текст пункта "Средний (ур. 2-3)"
+   не помещался в одну строку и некрасиво переносился отдельным словом
+   вниз. Теперь донат крупнее и лежит сверху по центру, а легенда — под
+   ним на всю ширину карточки: там достаточно места, чтобы подпись и
+   значение уместились в одну строку каждый (см. dept-donut-legend li
+   ниже — label и value разведены по краям через justify-content). */
+.dept-donut-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.dept-donut {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dept-donut-hole {
+    position: absolute;
+    inset: 22px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.dept-donut-hole strong {
+    font-size: 24px;
+    color: #1E1E1E;
+    line-height: 1.1;
+}
+
+.dept-donut-hole span {
+    font-size: 10px;
+    color: #999;
+}
+
+.dept-donut-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+    color: #444;
+    width: 100%;
+}
+
+.dept-donut-legend li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: space-between;
+}
+
+/* Группирует точку-маркер с подписью в один flex-элемент, отдельный от
+   значения — иначе justify-content: space-between у li разводит по краям
+   точку/подпись/значение как 3 независимых элемента, а не "подпись слева,
+   значение справа" одним блоком. */
+.dept-legend-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.dept-donut-legend b {
+    font-weight: 600;
+    color: #1E1E1E;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.dept-legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dept-legend-high { background: #22C55E; }
+.dept-legend-medium { background: #F59E0B; }
+.dept-legend-low { background: #EF4444; }
+
+/* Навыки с разрывом */
+.dept-gap-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dept-gap-list li {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #F0F0F0;
+}
+
+.dept-gap-list li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.dept-gap-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E1E1E;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.dept-gap-stats {
+    font-size: 11px;
+    color: #777;
+    line-height: 1.6;
+}
+
+.dept-gap-severity {
+    font-weight: 700;
+}
+
+.dept-gap-severity-высокий {
+    color: #EF4444;
+}
+
+.dept-gap-severity-средний {
+    color: #F59E0B;
+}
+
+/* СТАТ-СТРОКА */
+.dept-stat-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: white;
+    border: 1px solid #E5E5E5;
+    border-radius: 16px;
+    padding: 14px 20px;
+    font-size: 14px;
+    color: #444;
+    margin-bottom: 16px;
+    width: fit-content;
+}
+
+.dept-stat-icon {
+    font-size: 16px;
+}
+
+/* СОТРУДНИКИ / ПРОЕКТЫ ОТДЕЛА */
+.dept-bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    /* Раньше было align-items: start — каждая карточка сжималась под свой
+       контент, из-за чего "Сотрудники отдела" и "Проекты отдела" выходили
+       разной высоты. Затем — align-items: stretch без фиксированной
+       высоты у карточек: grid сам вычислял высоту строки по "естественному"
+       (max-content) размеру самой высокой карточки и тянул обе к ней.
+       Баг: раскрытие списка сотрудников ("Показать всех сотрудников")
+       увеличивало этот max-content, а вместе с ним grid растягивал ОБЕ
+       карточки — "Проекты отдела" внезапно вырастала вслед за
+       сотрудниками, хотя её контент не менялся вообще. Исправлено —
+       у карточек теперь фиксированная высота (см. .dept-employees-card/
+       .dept-projects-card ниже), grid'у больше нечего пересчитывать. */
+    align-items: stretch;
+}
+
+@media (max-width: 1000px) {
+    .dept-bottom-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dept-employees-card,
+.dept-projects-card {
+    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    /* Фиксированная высота — не зависит от grid-stretch/содержимого (см.
+       комментарий у .dept-bottom-row выше). Список внутри — flex: 1 плюс
+       max-height (ниже) — сам подстраивается под то, что осталось от
+       фиксированной высоты карточки, но изменить саму карточку (и тем
+       более соседнюю) больше не может. */
+    height: 500px;
+}
+
+.dept-card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Общий тулбар для карточек "Сотрудники отдела"/"Проекты отдела" — сейчас
+   в нём только поле поиска (кнопка "Добавить практиканта" убрана
+   полностью по запросу — решение о том, как новые пользователи вообще
+   попадают в приложение, ещё не принято). dept-search-box — flex: 1, и
+   единственный ребёнок тулбара, поэтому само растягивается на всю его
+   ширину без дополнительных правил. */
+.dept-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.dept-search-box {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.dept-search-input {
+    width: 100%;
+    padding: 10px 38px 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #E5E5E5;
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.dept-search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.dept-employees-list,
+.dept-projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* flex: 1 — список занимает то, что осталось от фиксированной высоты
+       карточки (см. .dept-employees-card/.dept-projects-card выше), после
+       заголовка/тулбара/кнопки "Показать всех". min-height: 0 — без него
+       flex-элемент не может сжаться меньше своего содержимого, и
+       overflow-y: auto ниже перестал бы работать как скролл. Обе карточки
+       теперь одинаковой структуры (заголовок + тулбар с поиском + список +
+       кнопка "Показать всех"), поэтому max-height у списков — тоже общий:
+       под 5 строк с минимальным пустым "хвостом", сверх 5 — прокрутка. */
+    flex: 1;
+    min-height: 0;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.dept-employee-row,
+.dept-project-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #FBFAFF;
+    border: 1px solid #F0EAFB;
+    border-radius: 14px;
+    padding: 10px 16px;
+}
+
+.dept-employee-avatar {
+    display: block;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #C02BFF;
+    transition: box-shadow 0.2s;
+}
+
+.dept-employee-avatar:hover {
+    box-shadow: 0 0 0 2px #C02BFF;
+}
+
+.dept-employee-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.dept-employee-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.dept-employee-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1E1E1E;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+
+.dept-employee-position {
+    font-size: 12px;
+    color: #777;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.dept-view-btn {
+    flex-shrink: 0;
+    background: white;
+    color: #C02BFF;
+    border: 1px solid #C02BFF;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+.dept-view-btn:hover {
+    background: #C02BFF;
+    color: white;
+}
+
+.dept-project-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #EEF0F6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.dept-project-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.dept-project-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1E1E1E;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.dept-project-desc {
+    font-size: 12px;
+    color: #777;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.dept-project-avatars {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.dept-project-avatar-img,
+.dept-project-avatar-placeholder {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid white;
+    margin-left: -8px;
+    object-fit: cover;
+    background: #E5E7EB;
+}
+
+.dept-project-avatars > *:first-child {
+    margin-left: 0;
+}
+
+.dept-project-avatar-more {
+    margin-left: -8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: #F2E6FA;
+    color: #982EC4;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dept-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    background: none;
+    border: none;
+    border-top: 1px solid #F0F0F0;
+    margin-top: 14px;
+    padding-top: 14px;
+    color: #C02BFF;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.dept-expand-btn:hover {
+    text-decoration: underline;
+}

@@ -1,15 +1,15 @@
 """Общие вспомогательные функции, которые нужны сразу нескольким views.
 
-Схема теперь нормализована (category <-> subcategory <-> skill,
-role/department как M2M), а старому фронтенду по-прежнему удобнее получать
-плоские строки ("category", "role", "department"). Эти функции — мост
-между новой схемой и старым плоским API-контрактом.
+Схема теперь нормализована (category <-> subcategory <-> skill, role — M2M;
+department у юзера — обычный FK, один отдел на юзера), а старому фронтенду
+по-прежнему удобнее получать плоские строки ("category", "role",
+"department"). Эти функции — мост между новой схемой и старым плоским
+API-контрактом.
 """
 from .models import (
     Category,
     CategorySubcategory,
     Department,
-    DepartmentUser,
     Role,
     Skill,
     Subcategory,
@@ -32,6 +32,46 @@ def skill_category_name(skill: Skill | None) -> str:
         .first()
     )
     return category or ""
+
+
+def build_subcategories_cascade_data() -> list[dict]:
+    """Список подкатегорий с привязанными к ним категориями (через "|" —
+    удобно отдавать прямо в data-атрибут <option>) — нужно фронтенду для
+    каскадного сужения "Подкатегория" при выборе "Категории" (см.
+    reserve.html/matrix.html: без этого можно было выбрать категорию и
+    подкатегорию из совсем разных веток дерева и получить нелогичный
+    результат — см. историю бага в reserve_page.py)."""
+    subcategories_qs = Subcategory.objects.prefetch_related("categories").order_by("name")
+    return [
+        {
+            "name": sc.name,
+            "categories": "|".join(sorted(c.name for c in sc.categories.all())),
+        }
+        for sc in subcategories_qs
+    ]
+
+
+def build_skills_cascade_data() -> list[dict]:
+    """Список активных навыков с привязанными подкатегориями и
+    (транзитивно, через них) категориями — тот же каскад, но для
+    сужения "Навык" при выборе категории/подкатегории."""
+    skills_qs = (
+        Skill.objects.filter(is_active=True)
+        .prefetch_related("subcategories__categories")
+        .order_by("name")
+    )
+    skills_data = []
+    for sk in skills_qs:
+        subcategory_names = sorted(s.name for s in sk.subcategories.all())
+        category_names = sorted({
+            c.name for s in sk.subcategories.all() for c in s.categories.all()
+        })
+        skills_data.append({
+            "name": sk.name,
+            "subcategories": "|".join(subcategory_names),
+            "categories": "|".join(category_names),
+        })
+    return skills_data
 
 
 def skill_category_map() -> dict[int, str]:
@@ -70,8 +110,11 @@ def assign_role(user, role_name: str) -> None:
 
 
 def assign_department(user, department_name: str) -> None:
+    """Назначает пользователю отдел (заменяет прежний, если был — отдел один)."""
     department_name = (department_name or "").strip()
     if not department_name:
         return
     department, _ = Department.objects.get_or_create(name=department_name)
-    DepartmentUser.objects.get_or_create(user=user, department=department)
+    if user.department_id != department.id:
+        user.department = department
+        user.save(update_fields=["department"])
