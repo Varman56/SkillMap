@@ -5,13 +5,28 @@
     color: #535353;
     background: #F2F5FF;
     font-family: 'Cabin', sans-serif;
-    min-height: 90vh;
+    /* Была min-height: 90vh — та же причина, что и на ask.html (см. её
+       ask.css): сайт-хедер "плавающий" (position: fixed), место под него
+       компенсируется через padding-top на <body> (~70-80px, см. base.html
+       и main.css). 90vh + этот отступ почти всегда чуть-чуть БОЛЬШЕ
+       100vh, поэтому браузер рисовал вертикальный скроллбар даже когда
+       реальный контент странице умещался без него. Фон страницы (см.
+       background чуть выше) при этом никуда не денется — у <body> в
+       main.css тот же самый цвет фона, а раз у <html> своего фона нет,
+       браузер сам растягивает фон body на весь экран, даже если сам
+       .dept-page короче вьюпорта — поэтому убрать min-height можно без
+       риска "белой полосы" снизу на коротких экранах. */
 }
 
 .dept-main {
     max-width: 1300px;
     margin: 0 auto;
-    padding: 20px 30px 40px;
+    /* Было 20px/40px сверху/снизу — срезано по запросу ("чтобы при 100%
+       не приходилось прокручивать страницу"), вместе с уменьшенными
+       .dept-top-row/.dept-bottom-row ниже. Верхний отступ (первое число)
+       по запросу уравнен с "Матрицей" (.cm-page в matrix.css — там
+       margin-top: 5px от хедера) — было 14px. */
+    padding: 5px 30px 24px;
 }
 
 /* СООБЩЕНИЯ (django messages) — те же классы-обёртки/цвета, что и на
@@ -45,6 +60,13 @@
     border-radius: 16px;
     padding: 20px;
     box-sizing: border-box;
+    /* Раньше тень была только у .dept-employees-card/.dept-projects-card
+       (см. ниже) — 4 карточки верхнего ряда были плоскими, без "приподнятости"
+       над лавандовым фоном, в отличие от остальных страниц (ask.html/
+       matrix.html и т.д., там она есть у общей карточки страницы). По
+       запросу добавлена сюда, в базовый класс — теперь одинаковая у всех
+       6 карточек страницы, а не только у двух нижних. */
+    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.08);
 }
 
 .dept-card-title {
@@ -65,12 +87,15 @@
     color: #999;
 }
 
-/* РЯД ИЗ 4 КАРТОЧЕК */
+/* РЯД ИЗ 4 КАРТОЧЕК — уменьшен по запросу: меньше внутренних отступов и
+   чуть некрупнее заголовки/контент внутри, чем у карточек "Сотрудники"/
+   "Проекты" ниже (у тех своя фиксированная высота, см.
+   .dept-employees-card/.dept-projects-card, их не трогаем). */
 .dept-top-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 16px;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 @media (max-width: 1100px) {
@@ -79,14 +104,25 @@
     }
 }
 
-/* Топ-10 навыков — горизонтальные полоски-бары */
+.dept-top-row .dept-card {
+    padding: 12px 16px;
+}
+
+.dept-top-row .dept-card-title {
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+/* Топ-5 навыков / топ-5 редких — оба в одном стиле: горизонтальные
+   полоски-бары (по запросу; редкие раньше были простым нумерованным
+   списком, см. правку в department.html/department_page.py). */
 .dept-skill-bars {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
 }
 
 .dept-skill-bars li {
@@ -115,39 +151,6 @@
     background: linear-gradient(90deg, #C02BFF, #ab4ad5);
 }
 
-/* Топ-5 редких навыков — нумерованный список */
-.dept-rare-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.dept-rare-list li {
-    display: flex;
-    gap: 8px;
-    font-size: 13px;
-    color: #333;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #F0F0F0;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    min-width: 0;
-}
-
-.dept-rare-list li:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.dept-rare-num {
-    color: #EF4444;
-    font-weight: 700;
-    flex-shrink: 0;
-}
-
 /* Донат распределения уровней.
 
    Раньше донат и легенда стояли в ряд (donut слева, легенда справа) —
@@ -161,20 +164,27 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
 }
 
+/* Размер уменьшен со 150px по запросу — вместе с уменьшенными отступами
+   карточки (.dept-top-row .dept-card выше) это и даёт эффект "поменьше"
+   у всего верхнего ряда. */
 .dept-donut {
     position: relative;
-    width: 150px;
-    height: 150px;
+    /* Было 120px — ещё чуть уменьшено по запросу вместе с остальным
+       верхним рядом (см. .dept-top-row/.dept-main выше). */
+    width: 98px;
+    height: 98px;
     border-radius: 50%;
     flex-shrink: 0;
 }
 
 .dept-donut-hole {
     position: absolute;
-    inset: 22px;
+    /* Было 18px под 120px-донат — пересчитано под 98px, чтобы толщина
+       кольца осталась пропорционально той же (см. .dept-donut выше). */
+    inset: 14px;
     background: white;
     border-radius: 50%;
     display: flex;
@@ -185,7 +195,7 @@
 }
 
 .dept-donut-hole strong {
-    font-size: 24px;
+    font-size: 20px;
     color: #1E1E1E;
     line-height: 1.1;
 }
@@ -250,11 +260,14 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    /* Было 9px — карточка стала ниже за счёт однострочной dept-gap-stats
+       (см. её и department.html ниже), поэтому и промежутки между
+       пунктами чуть сжаты по запросу. */
+    gap: 6px;
 }
 
 .dept-gap-list li {
-    padding-bottom: 12px;
+    padding-bottom: 6px;
     border-bottom: 1px solid #F0F0F0;
 }
 
@@ -270,7 +283,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     overflow-wrap: break-word;
     word-break: break-word;
 }
@@ -278,7 +291,11 @@
 .dept-gap-stats {
     font-size: 11px;
     color: #777;
-    line-height: 1.6;
+    /* Раньше "Новичков/Экспертов/Дефицит" были 3 строки через <br> —
+       по запросу сведены в одну строку через "·" (см. department.html),
+       из-за чего вся карточка "Навыки с разрывом" стала заметно ниже.
+       line-height оставлен на случай переноса на узких экранах. */
+    line-height: 1.4;
 }
 
 .dept-gap-severity {
@@ -291,25 +308,6 @@
 
 .dept-gap-severity-средний {
     color: #F59E0B;
-}
-
-/* СТАТ-СТРОКА */
-.dept-stat-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: white;
-    border: 1px solid #E5E5E5;
-    border-radius: 16px;
-    padding: 14px 20px;
-    font-size: 14px;
-    color: #444;
-    margin-bottom: 16px;
-    width: fit-content;
-}
-
-.dept-stat-icon {
-    font-size: 16px;
 }
 
 /* СОТРУДНИКИ / ПРОЕКТЫ ОТДЕЛА */
@@ -339,21 +337,98 @@
 
 .dept-employees-card,
 .dept-projects-card {
-    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.08);
+    /* box-shadow теперь общий у всех карточек — см. .dept-card выше,
+       здесь была бы точная копия того же значения. */
     display: flex;
     flex-direction: column;
     /* Фиксированная высота — не зависит от grid-stretch/содержимого (см.
        комментарий у .dept-bottom-row выше). Список внутри — flex: 1 плюс
        max-height (ниже) — сам подстраивается под то, что осталось от
        фиксированной высоты карточки, но изменить саму карточку (и тем
-       более соседнюю) больше не может. */
-    height: 500px;
+       более соседнюю) больше не может. Была 500px — при такой высоте
+       страница целиком (даже без прежнего "лишнего" min-height: 90vh у
+       .dept-page) реально не помещается на невысоких окнах браузера, и
+       скролл появлялся заслуженно, не как баг. Срезано до 440px — золотая
+       середина между "совсем тесно" (420px) и "не влезает" (500px); см.
+       max-height у списка ниже — она тоже уменьшена в ту же сторону. */
+    height: 440px;
 }
 
 .dept-card-header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    /* Отступ до тулбара/списка ниже раньше был margin-bottom на самом
+       .dept-card-title (14px, общий для всех карточек) — пока в шапке был
+       только заголовок, это работало. Как только рядом появились пилюли
+       (.dept-header-stats, без своего margin), тот же margin-bottom на h3
+       стал считаться в кросс-ось flex (align-items: center центрирует по
+       margin-box), из-за чего заголовок визуально съезжал ВЫШЕ пилюль —
+       ровно то, на что жаловались ("сделай на одном уровне с
+       сотрудниками"). Перенесли отступ сюда, на сам ряд, а у h3 внутри
+       ряда обнулили margin (см. ниже) — теперь оба выровнены по одной
+       линии, а расстояние до тулбара не потерялось. */
+    margin-bottom: 14px;
+}
+
+.dept-card-header-row .dept-card-title {
+    margin: 0;
+}
+
+/* Счётчик сотрудников + "N ожидают подтверждения" — раньше отдельная
+   стат-строка над рядом карточек и стат-блок на "Подтверждении навыков"
+   соответственно, оба перенесены сюда по запросу (см. department.html/
+   department_page.py/approvals.html). */
+.dept-header-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.dept-header-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #F6E1FF;
+    color: #7A2A9E;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dept-header-stat-pending {
+    background: #FFF1D6;
+    color: #9A6400;
+}
+
+/* Пилюля "N ожидают подтверждения" теперь ещё и ссылка на /approvals/
+   (см. department.html) — по запросу заменяет убранный из хедера сайта
+   пункт "Подтверждение навыков" (см. base.html), поэтому ей нужны свои
+   стили ссылки/интерактива, которых у обычной (некликабельной) пилюли
+   .dept-header-stat нет. */
+a.dept-header-stat-pending {
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+a.dept-header-stat-pending:hover {
+    background: #FFE6AD;
+}
+
+a.dept-header-stat-pending:active {
+    transform: scale(0.96);
+}
+
+.dept-header-stat-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
 }
 
 /* Общий тулбар для карточек "Сотрудники отдела"/"Проекты отдела" — сейчас

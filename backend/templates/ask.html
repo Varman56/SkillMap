@@ -13,36 +13,38 @@
             <h1 class="ask-title">Кого спросить?</h1>
             <p class="ask-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
 
-            <form method="get" action="" class="ask-search-section">
+            <!-- ФИЛЬТРАЦИЯ ЦЕЛИКОМ НА КЛИЕНТЕ (см. docstring ask_page.py) —
+                 раньше это была <form method="get">, отправлявшая новый GET
+                 при каждом вводе в поиск/выборе отдела, с перезагрузкой
+                 всей страницы. Теперь это просто набор полей без action —
+                 submit никуда не уходит, всё считает JS (см. extra_js). -->
+            <div class="ask-search-section">
                 <div class="ask-filters-row">
                     <div class="ask-search-box">
                         <input
                             type="text"
                             id="skill"
-                            name="skill"
-                            value="{{ search }}"
                             placeholder="Введите навык, например, Docker"
                             class="ask-search-input"
                             autocomplete="off"
                         >
-                        <button type="submit" style="background: none; border: none; padding: 0; cursor: pointer;">
-                            <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="ask-search-icon">
-                        </button>
+                        <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="ask-search-icon">
                     </div>
 
                     <!-- Отдел: только у HR — редактируемый список (может искать
-                         по всей компании или выбрать конкретный отдел). У
-                         остальных ролей — залоченное поле с их собственным
-                         отделом (тот же приём, что и в reserve.html). -->
+                         по всей компании или выбрать конкретный отдел),
+                         переключается без перезагрузки. У остальных ролей —
+                         залоченное поле с их собственным отделом (тот же
+                         приём, что и в reserve.html) — сервер и так уже
+                         отдал JS только сотрудников их отдела (см.
+                         department_scope в ask_page.py), выбирать нечего. -->
                     <div class="ask-dept-filter">
                         <label for="department" class="ask-dept-label">Отдел</label>
                         {% if department_editable %}
-                            <select id="department" name="department" class="ask-dept-select" onchange="this.form.submit()">
-                                <option value="" {% if not department_filter %}selected{% endif %}>Все отделы</option>
+                            <select id="department" class="ask-dept-select">
+                                <option value="">Все отделы</option>
                                 {% for d in departments %}
-                                    <option value="{{ d.name }}" {% if d.name == department_filter %}selected{% endif %}>
-                                        {{ d.name }}
-                                    </option>
+                                    <option value="{{ d.name }}">{{ d.name }}</option>
                                 {% endfor %}
                             </select>
                         {% else %}
@@ -53,89 +55,178 @@
                         {% endif %}
                     </div>
                 </div>
-            </form>
-
-       <div class="ask-results">
-                {% if search_too_short %}
-                    <!-- Запрос короче MIN_SEARCH_LENGTH (см. ask_page.py) — поиск
-                         матчит ещё и по названию подкатегории/категории навыка, а
-                         не только по самому навыку, и на 1 символе это находило
-                         кучу формально "совпавших" людей с навыками, которые сам
-                         запрос даже не содержит (например "т" — почти любая
-                         русскоязычная категория). Просим ввести чуть больше. -->
-                    <div class="ask-empty">
-                        <p>Введите минимум {{ min_search_length }} символа для поиска.</p>
-                    </div>
-                {% elif has_search %}
-                    <div class="ask-results-header">
-                        Результаты по запросу: <span class="ask-query">{{ search }}</span> (найдено: {{ total_count }})
-                    </div>
-
-                    {% if groups %}
-                        {% for group in groups %}
-                            <div class="ask-category">
-                                <div class="ask-category-header">
-                                    <!-- Определение цвета индикатора уровня -->
-                                    <span class="ask-category-dot
-                                        {% if group.level == 4 or group.level == 'expert' %}expert-dot
-                                        {% elif group.level == 3 or group.level == 'advanced' %}advanced-dot
-                                        {% elif group.level == 2 or group.level == 'experienced' %}experienced-dot
-                                        {% else %}novice-dot{% endif %}">
-                                    </span>
-                                    <h2 class="ask-category-title">{{ group.label }} (уровень {{ group.level }})</h2>
-                                </div>
-
-                                <div class="ask-category-cards">
-                                    {% for user in group.users %}
-                                        <div class="ask-card">
-                                            <div class="ask-card-avatar">
-                                                {% if user.photo %}
-                                                    <img src="{{ user.photo }}" alt="Аватар">
-                                                {% endif %}
-                                            </div>
-                                            <div class="ask-card-info">
-                                                <div class="ask-card-name">{{ user.full_name }}</div>
-                                                <div class="ask-card-role">
-                                                    {{ user.position|default:"—" }} • {{ user.department|default:"—" }}
-                                                </div>
-                                                {% if user.matching_skills %}
-                                                    <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                                                        Совпавшие навыки: {{ user.matching_skills|join:", " }}
-                                                    </div>
-                                                {% endif %}
-                                            </div>
-                                            <a href="{% url 'profile-page' user.id %}" class="ask-card-btn" style="text-decoration: none; display: flex; align-items: center; justify-content: center;">
-                                                Посмотреть профиль
-                                            </a>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <!-- Отображение, если ничего не найдено -->
-                        <div class="ask-empty">
-                            <img class="lamp" src="{% static 'assets/lamp.svg' %}" alt="Ничего не найдено">
-                            <div class="ask-empty-content">
-                                <h3 class="ask-empty-title">Ничего не найдено</h3>
-                                <p class="ask-empty-text">
-                                    По запросу «{{ search }}» никого не найдено. Похоже, у нас пока нет сотрудников с этим навыком.
-                                </p>
-                            </div>
-                        </div>
-                    {% endif %}
-                {% else %}
-                    <!-- Начальное состояние до ввода запроса -->
-                    <div class="ask-empty">
-                        <p>Введите навык в поле поиска.</p>
-                    </div>
-                {% endif %}
             </div>
 
+            <!-- Заполняется JS (см. extra_js ниже) — начальное состояние
+                 "Введите навык в поле поиска." ставится тем же render(),
+                 чтобы не дублировать разметку пустых состояний в двух
+                 местах (шаблон при первой загрузке + JS при повторном
+                 рендере). -->
+            <div class="ask-results" id="askResults"></div>
+
+            {{ employees|json_script:"askEmployeesData" }}
         </div>
     </main>
 </div>
 {% endblock %}
 
-{% block extra_scripts %}
+{% block extra_js %}
+<script>
+    (function () {
+        const MIN_SEARCH_LENGTH = {{ min_search_length }};
+        const employees = JSON.parse(document.getElementById('askEmployeesData').textContent);
+
+        // Дублирует PROFILE_LEVEL_LABELS/PROFILE_LEVEL_LABELS_EN из
+        // profile_page.py (источник истины) — та же логика "дублируем
+        // бизнес-правило в JS при переходе на клиентскую фильтрацию", что
+        // уже принята в reserve.html/matrix.html.
+        const LEVEL_GROUP_LABELS = {4: 'Эксперты', 3: 'Продвинутые', 2: 'Опытные', 1: 'Новички'};
+        const LEVEL_CLASS = {4: 'expert', 3: 'advanced', 2: 'experienced', 1: 'novice'};
+
+        // Урл профиля без обращения к серверу на каждую карточку — тот же
+        // приём "зашить фиктивный id в url-тег Django и подменить его
+        // строкой на JS", что нужен, когда сама карточка целиком строится
+        // в JS, а не в Django-шаблоне (обычный вызов url-тега с id внутри
+        // цикла тут не сработает — цикла на стороне Django просто нет).
+        // ВАЖНО: не писать в этом комментарии литеральные фигурные теги
+        // Django ({ % ... % }, без пробелов) — движок парсит их даже
+        // внутри JS-комментария, это уже один раз ломало страницу целиком
+        // (см. тот же приём в profile.html).
+        const PROFILE_URL_TEMPLATE = "{% url 'profile-page' 999999999 %}";
+        function profileUrl(id) {
+            return PROFILE_URL_TEMPLATE.replace('999999999', id);
+        }
+
+        const skillInput = document.getElementById('skill');
+        const departmentSelect = document.getElementById('department');
+        const resultsContainer = document.getElementById('askResults');
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : text;
+            return div.innerHTML;
+        }
+
+        function emptyStateHtml(message) {
+            return '<div class="ask-empty"><p>' + escapeHtml(message) + '</p></div>';
+        }
+
+        function notFoundHtml(query) {
+            return (
+                '<div class="ask-empty">' +
+                '<img class="lamp" src="{% static "assets/lamp.svg" %}" alt="Ничего не найдено">' +
+                '<div class="ask-empty-content">' +
+                '<h3 class="ask-empty-title">Ничего не найдено</h3>' +
+                '<p class="ask-empty-text">По запросу «' + escapeHtml(query) +
+                '» никого не найдено. Похоже, у нас пока нет сотрудников с этим навыком.</p>' +
+                '</div></div>'
+            );
+        }
+
+        function buildCard(user) {
+            const skillsLine = user.matchingSkills.length
+                ? '<div style="font-size: 12px; color: #666; margin-top: 4px;">Совпавшие навыки: ' +
+                  escapeHtml(user.matchingSkills.join(', ')) + '</div>'
+                : '';
+            const avatar = user.photo ? '<img src="' + user.photo + '" alt="Аватар">' : '';
+            return (
+                '<div class="ask-card">' +
+                '<div class="ask-card-avatar">' + avatar + '</div>' +
+                '<div class="ask-card-info">' +
+                '<div class="ask-card-name">' + escapeHtml(user.full_name) + '</div>' +
+                '<div class="ask-card-role">' + escapeHtml(user.position || '—') + ' • ' +
+                escapeHtml(user.department || '—') + '</div>' +
+                skillsLine +
+                '</div>' +
+                '<a href="' + profileUrl(user.id) + '" class="ask-card-btn" ' +
+                'style="text-decoration: none; display: flex; align-items: center; justify-content: center;">' +
+                'Посмотреть профиль</a>' +
+                '</div>'
+            );
+        }
+
+        function buildGroup(level, users) {
+            const dotClass = LEVEL_CLASS[level] + '-dot';
+            return (
+                '<div class="ask-category">' +
+                '<div class="ask-category-header">' +
+                '<span class="ask-category-dot ' + dotClass + '"></span>' +
+                '<h2 class="ask-category-title">' + LEVEL_GROUP_LABELS[level] + ' (уровень ' + level + ')</h2>' +
+                '</div>' +
+                '<div class="ask-category-cards">' + users.map(buildCard).join('') + '</div>' +
+                '</div>'
+            );
+        }
+
+        function render() {
+            const query = skillInput.value.trim();
+            const department = departmentSelect ? departmentSelect.value : '';
+
+            if (!query) {
+                resultsContainer.innerHTML = emptyStateHtml('Введите навык в поле поиска.');
+                return;
+            }
+            if (query.length < MIN_SEARCH_LENGTH) {
+                resultsContainer.innerHTML = emptyStateHtml(
+                    'Введите минимум ' + MIN_SEARCH_LENGTH + ' символа для поиска.'
+                );
+                return;
+            }
+
+            const queryLower = query.toLowerCase();
+            const byLevel = {1: [], 2: [], 3: [], 4: []};
+            let totalCount = 0;
+
+            employees.forEach(function (employee) {
+                if (department && employee.department !== department) return;
+
+                const matches = employee.skills.filter(function (row) {
+                    return row.skill.toLowerCase().indexOf(queryLower) !== -1;
+                });
+                if (!matches.length) return;
+
+                const bestLevel = matches.reduce(function (max, row) {
+                    return row.level > max ? row.level : max;
+                }, matches[0].level);
+                const matchingSkills = Array.from(
+                    new Set(matches.map(function (row) { return row.skill; }))
+                ).sort();
+
+                byLevel[bestLevel].push({
+                    id: employee.id,
+                    full_name: employee.full_name,
+                    position: employee.position,
+                    department: employee.department,
+                    photo: employee.photo,
+                    matchingSkills: matchingSkills,
+                });
+                totalCount++;
+            });
+
+            [4, 3, 2, 1].forEach(function (level) {
+                byLevel[level].sort(function (a, b) {
+                    return a.full_name.localeCompare(b.full_name, 'ru');
+                });
+            });
+
+            let html = '<div class="ask-results-header">Результаты по запросу: <span class="ask-query">' +
+                escapeHtml(query) + '</span> (найдено: ' + totalCount + ')</div>';
+
+            if (totalCount === 0) {
+                html += notFoundHtml(query);
+            } else {
+                [4, 3, 2, 1].forEach(function (level) {
+                    if (byLevel[level].length) html += buildGroup(level, byLevel[level]);
+                });
+            }
+
+            resultsContainer.innerHTML = html;
+        }
+
+        skillInput.addEventListener('input', render);
+        if (departmentSelect) departmentSelect.addEventListener('change', render);
+
+        render();
+    })();
+</script>
 {% endblock %}

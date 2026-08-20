@@ -1,40 +1,62 @@
 """/ask/ — HTML-страница «Кого спросить?», БЕЗ DRF.
 
-GET ?skill=Docker — поиск сотрудников по названию навыка (только по
-самому навыку — раньше матчило ещё и по названию его подкатегории/
-категории, но это путало: в карточке подписано "Совпавшие навыки", а там
-оказывались навыки, которые сам текст запроса не содержал вообще —
-просто потому что их категория содержала запрошенную подстроку).
-Результаты группируются по максимальному уровню владения найденным
-навыком (у одного user может совпасть несколько skills, берём лучший).
+Поиск сотрудников по названию навыка (только по самому навыку — раньше
+матчило ещё и по названию его подкатегории/категории, но это путало: в
+карточке подписано "Совпавшие навыки", а там оказывались навыки, которые
+сам текст запроса не содержал вообще — просто потому что их категория
+содержала запрошенную подстроку). Результаты группируются по
+максимальному уровню владения найденным навыком (у одного user может
+совпасть несколько skills, берём лучший).
 
-GET ?department=... — фильтр отдела. Доступен как выпадающий список
-только HR (может выбрать любой отдел или оставить "Все отделы"); у
-остальных ролей (Manager, Employee) поле залочено на их собственный
-отдел — тот же приём (замок в UI + принудительная подстановка на
-бэкенде), что и в reserve_page.py, см. _resolve_department.
+Учитываются ТОЛЬКО подтверждённые навыки (is_approved=True, см.
+_build_employees) — заявки на рассмотрении сюда не идут вовсе: пока
+навык не подтверждён HR/руководителем, рекомендовать по нему человека
+как знатока преждевременно.
+
+По запросу (тот же приём, что уже сделан в matrix_page.py/matrix.html и
+reserve_page.py/reserve.html) фильтрация ЦЕЛИКОМ ПЕРЕНЕСЕНА НА КЛИЕНТ:
+раньше поиск по навыку и фильтр отдела были GET-параметрами
+(?skill=...&department=...), каждый ввод/выбор — новый запрос и
+перезагрузка страницы. Теперь сервер один раз отдаёт данные (см.
+_build_employees) — навыки каждого сотрудника кладутся в json_script в
+ask.html, — а весь поиск/группировка по уровню считается в JS (см.
+extra_js в ask.html), без единого запроса к серверу.
+
+Отдел — фильтр доступен как выпадающий список только HR (может выбрать
+любой отдел или оставить "Все отделы"); у остальных ролей (Manager,
+Employee) поле залочено на их собственный отдел — тот же приём (замок в
+UI + принудительная подстановка на бэкенде), что и в reserve_page.py, см.
+_resolve_department. ВАЖНО: залоченность — это не только UI-приличие, а
+единственная граница приватности данных здесь: не-HR получает в
+_build_employees СТРОГО сотрудников своего отдела (department_scope),
+никогда весь список — иначе фильтрация целиком на клиенте означала бы,
+что чужие отделы физически лежат в HTML-странице Manager'а/Employee,
+просто визуально скрыты фильтром. У HR отдел выбирается уже на клиенте
+(без перезагрузки), поэтому HR получает данные сразу по всем отделам —
+для него это и так не секрет (видит все отделы и на reserve.html).
 
 Доступ: любой авторизованный.
 """
-from collections import defaultdict
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
-from api.models import Department, UserSkill
-from .profile_page import PROFILE_LEVEL_LABELS_EN, VALID_LEVELS
+from api.models import Department, User
 
-# Заголовки групп — множественное число, т.к. это шапка списка людей
-# (в отличие от PROFILE_LEVEL_LABELS в profile_page.py, где бейдж на
-# один-единственный навык одного человека, там нужно единственное число).
-LEVEL_GROUP_LABELS = {4: "Эксперты", 3: "Продвинутые", 2: "Опытные", 1: "Новички"}
+# Заголовки групп по уровню + CSS-класс индикатора — раньше собирались в
+# Python (LEVEL_GROUP_LABELS/PROFILE_LEVEL_LABELS_EN из profile_page.py) и
+# подставлялись в уже готовый HTML. Теперь группировка происходит в JS (см.
+# extra_js в ask.html), поэтому те же самые значения задублированы там же,
+# в виде литерального JS-объекта — источник истины для уровней 1-4 всё
+# равно profile_page.py (PROFILE_LEVEL_LABELS/PROFILE_LEVEL_LABELS_EN),
+# при изменении шкалы уровней нужно поправить оба места.
 
-# Минимальная длина запроса — на 1 символе даже чистый поиск по названию
-# навыка (без категории/подкатегории, см. _search_users_by_skill) даёт
-# слишком широкий и малополезный результат (подстрока длиной 1 знак
-# входит в кучу разных названий сразу). Та же логика, что в большинстве
-# поисковых полей.
-MIN_SEARCH_LENGTH = 2
+# Минимальная длина запроса — раньше была 2: старый поиск матчил ещё и
+# название категории/подкатегории навыка, и 1 символ там давал слишком
+# широкий результат. Теперь ищем строго по названию самого навыка (см.
+# docstring модуля), эта причина отпала — по запросу вернули 1. Порог
+# проверяется в JS (см. extra_js в ask.html), но константа остаётся
+# здесь и уходит в контекст шаблона — единственный источник этого числа.
+MIN_SEARCH_LENGTH = 1
 
 
 def _resolve_department(request) -> tuple[str, bool]:
@@ -53,112 +75,82 @@ def _resolve_department(request) -> tuple[str, bool]:
     return request.user.primary_department, False
 
 
-def _department_name(user) -> str:
-    """Имя отдела пользователя.
+def _build_employees(department_scope):
+    """Все сотрудники (is_active=True) в рамках department_scope, с их
+    навыками — данные для полностью клиентского поиска в ask.html.
 
-    Раньше здесь был обход .departments.first() с прицелом на кэш
-    prefetch_related (M2M через DepartmentUser). Теперь отдел — обычный
-    FK (User.department), поэтому это просто select_related-дружелюбное
-    обращение к полю, без лишних запросов в БД.
+    department_scope: None — без ограничения (HR, получает вообще всех,
+    выбор отдела дальше происходит на клиенте); "" — не-HR без назначенного
+    отдела, искать буквально некого; непустая строка — только этот отдел
+    (Manager/Employee всегда залочены на свой, см. _resolve_department).
     """
-    return user.department.name if user.department_id else ""
-
-
-def _search_users_by_skill(skill_q: str, department_scope) -> list[dict]:
-    if not skill_q:
-        return []
     if department_scope is not None and not department_scope:
-        # Не-HR без назначенного отдела — искать буквально некого.
         return []
 
-    matches = (
-        UserSkill.objects.select_related("user", "user__department", "skill")
-        .filter(
-            skill__name__icontains=skill_q,
-            skill__is_active=True,
-            user__is_active=True,
-        )
+    # is_active=True — исключает уволенных (см. докстринг User.is_active),
+    # is_intern=False — исключает практикантов (тот же приём, что и в
+    # matrix_page.py). Это единственная функция, строящая employees для
+    # ask.html — фильтр здесь действует на весь payload сразу, поэтому
+    # ни практикант, ни уволенный не попадут ни в поиск, ни в группировку
+    # по уровню, ни в какой-либо другой разрез этой страницы.
+    users_qs = (
+        User.objects.filter(is_active=True, is_intern=False)
+        .select_related("department")
+        .prefetch_related("user_skills__skill")
+        .order_by("full_name")
     )
+    if department_scope:
+        users_qs = users_qs.filter(department__name=department_scope)
 
-    if department_scope is not None:
-        matches = matches.filter(user__department__name=department_scope)
-
-    matches = matches.distinct()
-
-    by_user: dict[int, list] = defaultdict(list)
-    for us in matches:
-        if us.user_id and us.skill_id:
-            by_user[us.user_id].append(us)
-
-    results = []
-    for user_skills in by_user.values():
-        best = max(user_skills, key=lambda us: us.level)
-        user = best.user
-        results.append(
+    employees = []
+    for user in users_qs:
+        # is_approved=True — только ПОДТВЕРЖДЁННЫЕ навыки (заявки на
+        # рассмотрении, is_approved=False, сюда не попадают вовсе). У
+        # одного навыка может быть до 2 строк одновременно — подтверждённая
+        # и заявка (см. docstring UserSkill/profile_page.py) — рекомендовать
+        # человека как знатока навыка, который ещё не подтверждён HR/
+        # руководителем, значит вводить в заблуждение того, кто спрашивает.
+        skills = [
+            {"skill": us.skill.name, "level": us.level}
+            for us in user.user_skills.all()
+            if us.skill.is_active and us.is_approved
+        ]
+        if not skills:
+            # Без единого навыка сотрудник никогда не попадёт ни в один
+            # результат поиска — не тащим его в payload вообще.
+            continue
+        employees.append(
             {
                 "id": user.id,
                 "full_name": user.full_name,
-                "position": user.position,
-                "department": _department_name(user),
+                "position": user.position or "",
+                "department": user.department.name if user.department_id else "",
                 "photo": user.photo,
-                "level": best.level,
-                "matching_skills": sorted({us.skill.name for us in user_skills}),
+                "skills": skills,
+                # id для {% json_script %} в шаблоне — тот же приём, что и в
+                # reserve.html (skills_json_id).
+                "skills_json_id": f"ask-skills-{user.id}",
             }
         )
-
-    return results
-
-
-def _group_by_level(flat_results: list[dict]) -> list[dict]:
-    """Группирует плоский список найденных сотрудников по уровню навыка.
-
-    Сортировка групп — от эксперта к новичку (лучших показываем первыми),
-    поэтому VALID_LEVELS берём в обратном порядке.
-    """
-    by_level: dict[int, list] = defaultdict(list)
-    for row in flat_results:
-        by_level[row["level"]].append(row)
-
-    groups = []
-    for level in sorted(VALID_LEVELS, reverse=True):
-        users = by_level.get(level, [])
-        if not users:
-            continue
-        users.sort(key=lambda u: u["full_name"].lower())
-        groups.append(
-            {
-                "level": level,
-                "label": LEVEL_GROUP_LABELS.get(level, level),
-                "level_class": PROFILE_LEVEL_LABELS_EN.get(level, level),
-                "users": users,
-            }
-        )
-    return groups
+    return employees
 
 
 @login_required(login_url="/login/")
 def ask_page(request):
     department_filter, department_editable = _resolve_department(request)
-    # department_scope для _search_users_by_skill: None — без ограничения
-    # (HR с пустым фильтром = "Все отделы"), "" — искать некого (не-HR без
-    # назначенного отдела), непустая строка — ограничить этим отделом.
-    department_scope = department_filter or None if department_editable else department_filter
-
-    skill_q = (request.GET.get("skill") or "").strip()
-    search_too_short = bool(skill_q) and len(skill_q) < MIN_SEARCH_LENGTH
-
-    flat_results = [] if search_too_short else _search_users_by_skill(skill_q, department_scope)
-    groups = _group_by_level(flat_results)
+    # department_scope для _build_employees: None — без ограничения (HR),
+    # "" — искать некого (не-HR без назначенного отдела), непустая строка —
+    # ограничить этим отделом. У HR фильтр редактируется на клиенте без
+    # перезагрузки, поэтому для HR department_scope всегда None — даже если
+    # он до этого выбрал конкретный отдел (department_filter здесь — только
+    # для того, чтобы select в разметке открылся с уже выбранным значением).
+    department_scope = None if department_editable else department_filter
 
     context = {
-        "search": skill_q,
-        "has_search": bool(skill_q) and not search_too_short,
-        "search_too_short": search_too_short,
         "min_search_length": MIN_SEARCH_LENGTH,
-        "total_count": len(flat_results),
-        "groups": groups,
         "department_filter": department_filter,
         "department_editable": department_editable,
         "departments": Department.objects.order_by("name"),
+        "employees": _build_employees(department_scope),
     }
     return render(request, "ask.html", context)

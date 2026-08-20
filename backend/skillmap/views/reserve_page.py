@@ -1,5 +1,19 @@
 """/reserve/ — HTML-страница «Кадровый резерв», БЕЗ DRF.
 
+ДОБАВЛЕНИЕ СОТРУДНИКА (кнопка "Добавить сотрудника", POST action=
+add_employee, см. _handle_add_employee): пока в проекте нет интеграции с
+Yandex 360/Zulip (см. department_page.py — раньше там была похожая форма,
+убранная именно по этой причине, "решение не принято"), но приложению
+нужен хоть какой-то способ завести нового человека, иначе им просто
+неоткуда взяться. Договорились сделать здесь МИНИМАЛЬНО достаточную форму:
+ФИО/email/отдел/должность/роль/стажёр, пароль генерируется автоматически
+(HR его не придумывает) и показывается ОДИН РАЗ сразу после создания — в
+отдельном диалоге (не в обычной зелёной плашке сообщений, там пароль было
+легко потерять/проскроллить), второй раз его нигде не видно, HR должен
+сам передать его новому сотруднику лично. Учётка сразу is_active=True ("работающий" — см.
+докстринг User.is_active в api/models.py, по умолчанию в модели False,
+здесь это осознанно переопределяется).
+
 Раньше страница была полностью server-side: каждый фильтр слался на
 сервер новым GET-запросом (department/category/subcategory/skill/status/
 level_min/level_max/only_interns/only_terminated/search/sort), из-за
@@ -28,15 +42,82 @@ view-файлах.
 Доступ: только HR (см. _can_view) — остальных отправляем в их профиль,
 тот же приём, что и в approvals_page.py.
 """
+import secrets
+import string
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from api.helpers import build_skills_cascade_data, build_subcategories_cascade_data
-from api.models import Category, Department, User
+from api.models import Category, Department, Role, User, UserRole
 from .profile_page import VALID_LEVELS
 
 MIN_LEVEL = min(VALID_LEVELS)
 MAX_LEVEL = max(VALID_LEVELS)
+
+# Без похожих на вид символов (0/O, 1/l/I) — HR будет читать и передавать
+# этот пароль человеку "на словах"/в переписке, важно не путать символы.
+_PASSWORD_ALPHABET = "".join(
+    c for c in (string.ascii_letters + string.digits) if c not in "0O1lI"
+)
+_PASSWORD_LENGTH = 10
+
+
+def _generate_password() -> str:
+    return "".join(secrets.choice(_PASSWORD_ALPHABET) for _ in range(_PASSWORD_LENGTH))
+
+
+def _handle_add_employee(request):
+    full_name = (request.POST.get("full_name") or "").strip()
+    email = (request.POST.get("email") or "").strip().lower()
+    position = (request.POST.get("position") or "").strip()
+    department_id = request.POST.get("department_id") or None
+    role_id = request.POST.get("role_id") or None
+    is_intern = request.POST.get("is_intern") == "on"
+
+    if not full_name:
+        messages.error(request, "ФИО обязательно")
+        return
+    if not email:
+        messages.error(request, "Email обязателен")
+        return
+    if User.objects.filter(email=email).exists():
+        messages.error(request, f"Пользователь с email {email} уже существует")
+        return
+
+    role = Role.objects.filter(id=role_id).first() if role_id else None
+    if not role:
+        messages.error(request, "Нужно выбрать роль")
+        return
+
+    department = Department.objects.filter(id=department_id).first() if department_id else None
+
+    generated_password = _generate_password()
+    user = User.objects.create_user(
+        email=email,
+        password=generated_password,
+        full_name=full_name,
+        position=position or None,
+        department=department,
+        is_intern=is_intern,
+        # См. докстринг модуля — по умолчанию в модели is_active=False,
+        # здесь осознанно True: только что добавленный человек это
+        # "работающий" сотрудник, а не "уволен".
+        is_active=True,
+    )
+    UserRole.objects.create(user=user, role=role)
+
+    messages.success(request, f"Сотрудник «{full_name}» добавлен.")
+    # Пароль — ОТДЕЛЬНЫМ сообщением с особым extra_tags, а не текстом внутри
+    # обычной зелёной плашки выше. Раньше пароль был просто частью текста
+    # в самом верху страницы — легко потерять/случайно проскроллить мимо,
+    # особенно если карточек много. Теперь reserve.html находит именно это
+    # сообщение по extra_tags (см. message.tags) и вместо плашки открывает
+    # отдельный диалог с крупным моноширинным паролем + кнопкой "Скопировать"
+    # (см. extra_js в reserve.html) — то же самое "показываем один раз",
+    # просто заметнее и сложнее случайно пропустить.
+    messages.success(request, generated_password, extra_tags="resv-password-flash")
 
 
 def _can_view(user) -> bool:
@@ -71,6 +152,15 @@ def _build_employees():
             "id": user.id,
             "full_name": user.full_name,
             "position": user.position or "",
+            # phone/city/about — только чтобы предзаполнить диалог
+            # "Редактировать профиль" (см. reserve.html/extra_js) текущими
+            # значениями, когда HR открывает его с этой карточки. Сама
+            # отправка формы идёт на уже существующий profile_page.py
+            # (action=update_profile) — здесь новой логики сохранения нет,
+            # только показ того, что уже есть.
+            "phone": user.phone or "",
+            "city": user.city or "",
+            "about": user.about or "",
             "photo": user.photo,
             "is_intern": user.is_intern,
             "is_active": user.is_active,
@@ -95,6 +185,13 @@ def reserve_page(request):
     if not _can_view(request.user):
         return redirect("my-profile")
 
+    if request.method == "POST":
+        if request.POST.get("action") == "add_employee":
+            _handle_add_employee(request)
+        else:
+            messages.error(request, "Неизвестное действие")
+        return redirect("reserve-page")
+
     context = {
         "employees": _build_employees(),
         "min_level": MIN_LEVEL,
@@ -107,5 +204,13 @@ def reserve_page(request):
         "categories": Category.objects.order_by("name"),
         "subcategories": build_subcategories_cascade_data(),
         "skills": build_skills_cascade_data(),
+        # Для селекта "Роль" в диалоге "Добавить сотрудника" — см.
+        # _handle_add_employee. Порядок ролей осознанно фиксированный
+        # (Employee первым, как самый частый выбор для нового человека),
+        # а не просто order_by("name") — HR/Manager видно, но реже нужны.
+        "roles": sorted(
+            Role.objects.all(),
+            key=lambda r: {"Employee": 0, "Manager": 1, "HR": 2}.get(r.name, 99),
+        ),
     }
     return render(request, "reserve.html", context)

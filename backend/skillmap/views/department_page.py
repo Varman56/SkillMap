@@ -16,6 +16,15 @@
 одного "своего" отдела (HR видит все), поэтому "Мой отдел" осмысленен
 только для Manager — как и на approvals_page.py, роль HR тут ничего не даёт.
 
+По запросу пункт "Подтверждение навыков" убран из общего хедера сайта
+(см. base.html) — вместо него в шапке карточки "Сотрудники отдела" здесь
+теперь две пилюли: "Сотрудников: N" (раньше была отдельной стат-строкой
+над рядом из 4 карточек) и, если есть кого подтверждать, кликабельная
+"N сотрудников ожидают подтверждения" — ссылка на /approvals/ (раньше
+была отдельным стат-блоком прямо на approvals_page.py). См.
+_waiting_employee_count/_waiting_employees_label ниже и dept-header-stats
+в department.html/department.css.
+
 ИНТЕРПРЕТАЦИЯ МАКЕТА (важно, если что-то будет казаться не тем числом):
 дизайн-макет был нарисован под шкалу уровней 1-5 и абстрактный набор
 навыков ("IaC", "Анализ данных" и т.д.), которых нет в реальном каталоге
@@ -58,6 +67,47 @@ def _department_members_qs(department):
     return User.objects.filter(department=department, is_active=True)
 
 
+def _ru_plural(n, one, few, many):
+    """Выбирает нужную русскую форму слова по числу n (стандартное
+    правило: N%10==1 и N%100!=11 -> one; N%10 в 2..4 и N%100 не в
+    12..14 -> few; иначе -> many). Например _ru_plural(21, "заявка",
+    "заявки", "заявок") -> "заявка"."""
+    n = abs(n)
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not (12 <= n % 100 <= 14):
+        return few
+    return many
+
+
+def _waiting_employee_count(member_ids):
+    """Сколько РАЗНЫХ сотрудников отдела имеют хотя бы одну заявку на
+    подтверждение навыка (UserSkill.is_approved=False) — то же множество
+    строк, что видит сам Manager на /approvals/ (см. approvals_page.py),
+    просто агрегированное по количеству ЛЮДЕЙ, а не заявок: у одного
+    сотрудника заявок может быть несколько, а для подсказки в "Мой отдел"
+    нужно "N сотрудников ждут", а не "N заявок ждут". member_ids уже
+    отфильтрован по is_active=True (см. _department_members_qs), поэтому
+    отдельного фильтра на уволенных здесь не нужно — согласовано с тем,
+    что approvals_page.py тоже не показывает заявки уволенных."""
+    return (
+        UserSkill.objects.filter(user_id__in=member_ids, is_approved=False)
+        .values("user_id")
+        .distinct()
+        .count()
+    )
+
+
+def _waiting_employees_label(count):
+    """Готовая подпись для пилюли-кнопки перехода к подтверждению навыков
+    в "Мой отдел" (например "3 сотрудника ожидают подтверждения") — со
+    склонением, посчитанным в Python (см. _ru_plural), а не в шаблоне:
+    у Django template нет встроенного 3-формного русского pluralize."""
+    noun = _ru_plural(count, "сотрудник", "сотрудника", "сотрудников")
+    verb = "ожидает" if count % 10 == 1 and count % 100 != 11 else "ожидают"
+    return f"{count} {noun} {verb} подтверждения"
+
+
 def _top_and_rare_skills(member_ids):
     """(топ-популярные, топ-редкие) навыки отдела по числу сотрудников с
     ПОДТВЕРЖДЁННЫМ уровнем этого навыка. "Редкие" считаются только среди
@@ -94,7 +144,19 @@ def _top_and_rare_skills(member_ids):
                 "pct": pct,
             }
         )
-    rare_skills = [{"name": name, "count": count} for name, count in rare_rows]
+    # pct считается от МАКСИМУМА СРЕДИ САМИХ rare_rows (а не от max_count
+    # топ-списка) — иначе почти все столбцы редких навыков были бы
+    # микроскопическими (они по определению малочисленны на фоне топ-1) и
+    # список превратился бы в ряд еле заметных полосок. Со своим масштабом
+    # видна относительная разница внутри самой пятёрки редких — тот же
+    # компонент "полоски-бары" (.dept-skill-bars), что и у топ-5, просто со
+    # своей осью — по запросу оба списка теперь в одном визуальном стиле
+    # (см. department.html/department.css).
+    rare_max = rare_rows[-1][1] if rare_rows else 0
+    rare_skills = [
+        {"name": name, "count": count, "pct": round(count / rare_max * 100) if rare_max else 0}
+        for name, count in rare_rows
+    ]
     return top_skills, rare_skills
 
 
@@ -207,6 +269,8 @@ def _empty_context():
         "rare_skills": [],
         "level_distribution": _level_distribution([]),
         "skill_gaps": [],
+        "waiting_employee_count": 0,
+        "waiting_employees_label": "",
     }
 
 
@@ -276,6 +340,8 @@ def department_page(request):
             }
         )
 
+    waiting_employee_count = _waiting_employee_count(member_ids)
+
     context = {
         "department": department,
         "member_count": len(employees),
@@ -285,5 +351,16 @@ def department_page(request):
         "rare_skills": rare_skills,
         "level_distribution": _level_distribution(member_ids),
         "skill_gaps": _skills_with_gap(member_ids),
+        # Раньше "Сотрудников в отделе: N" была отдельной стат-строкой над
+        # рядом из 4 карточек, а "N сотрудников ожидают подтверждения" —
+        # отдельным стат-блоком на /approvals/ (см. approvals_page.py) — по
+        # запросу оба перенесены сюда, в шапку карточки "Сотрудники отдела"
+        # (см. department.html/_waiting_employee_count). Вторая пилюля
+        # теперь ещё и кликабельна — ссылка на /approvals/, т.к. сам пункт
+        # "Подтверждение навыков" убран из хедера сайта (см. base.html).
+        "waiting_employee_count": waiting_employee_count,
+        "waiting_employees_label": (
+            _waiting_employees_label(waiting_employee_count) if waiting_employee_count else ""
+        ),
     }
     return render(request, "department.html", context)

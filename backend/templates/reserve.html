@@ -2,6 +2,11 @@
 {% load static %}
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/reserve.css' %}">
+    <!-- edit_profile.css — только .profile-dialog/.profile-dialog-actions,
+         переиспользуем те же классы для диалогов "Добавить сотрудника" и
+         "Редактировать профиль" на этой странице, чтобы не заводить
+         вторую копию тех же стилей (см. extra_js/разметку диалогов ниже). -->
+    <link rel="stylesheet" href="{% static 'css/edit_profile.css' %}">
 {% endblock %}
 
 {% block title %}SkillMap | Кадровый резерв{% endblock %}
@@ -10,8 +15,35 @@
 <div class="resv-page">
     <main class="resv-main">
         <div class="resv-container">
-            <h1 class="resv-title">Кадровый резерв</h1>
-            <p class="resv-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
+            <!-- Сообщение с сгенерированным паролем нового сотрудника (см.
+                 _handle_add_employee/reserve_page.py) сюда НЕ попадает —
+                 оно с особым extra_tags="resv-password-flash" и вместо
+                 обычной плашки открывает отдельный диалог #newPasswordDialog
+                 ниже (см. data-holder и extra_js) — так пароль сложнее
+                 случайно проскроллить/потерять среди прочих сообщений. -->
+            {% if messages %}
+                <div class="resv-messages">
+                    {% for message in messages %}
+                        {% if "resv-password-flash" not in message.tags %}
+                        <div class="resv-message {% if message.tags %}resv-message-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="resv-header-row">
+                <div>
+                    <h1 class="resv-title">Кадровый резерв</h1>
+                    <p class="resv-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
+                </div>
+                <!-- Интеграции с Yandex 360/Zulip пока нет (см. docstring
+                     reserve_page.py) — это единственный способ завести
+                     нового человека в приложении, поэтому кнопка тут, а не
+                     где-то ещё. -->
+                <button type="button" class="resv-add-btn" id="addEmployeeButton">+ Добавить сотрудника</button>
+            </div>
 
             <!-- ФИЛЬТРАЦИЯ ЦЕЛИКОМ НА КЛИЕНТЕ — тот же принцип, что и в
                  matrix.html: сервер (reserve_page.py) один раз отдаёт ВСЕХ
@@ -110,17 +142,21 @@
                         <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="resv-search-icon">
                     </div>
 
+                    <!-- По запросу — раньше здесь было 2 независимых
+                         переключателя ("Только практиканты"/"Только
+                         уволенные"), оба выключены по умолчанию, а
+                         по умолчанию показывались обычные работающие
+                         сотрудники. Теперь наоборот: по умолчанию (этот
+                         переключатель выключен) показываются практиканты и
+                         уволенные ОДНОВРЕМЕННО, а сам переключатель — это
+                         единственный фильтр, который переключает на
+                         обычных работающих сотрудников (см. applyFilters
+                         в extra_js ниже). -->
                     <div class="resv-toggles">
                         <label class="resv-toggle">
-                            <input type="checkbox" id="onlyInterns">
+                            <input type="checkbox" id="onlyWorking">
                             <span class="resv-toggle-track"><span class="resv-toggle-thumb"></span></span>
-                            <span class="resv-toggle-label">Только практиканты</span>
-                        </label>
-
-                        <label class="resv-toggle">
-                            <input type="checkbox" id="onlyTerminated">
-                            <span class="resv-toggle-track"><span class="resv-toggle-thumb"></span></span>
-                            <span class="resv-toggle-label">Только уволенные</span>
+                            <span class="resv-toggle-label">Только работающие сотрудники</span>
                         </label>
                     </div>
 
@@ -149,11 +185,17 @@
                          data-search="{{ employee.full_name|lower }} {{ employee.position|lower }}"
                          data-skills-id="{{ employee.skills_json_id }}">
                         {{ employee.skills|json_script:employee.skills_json_id }}
-                        <div class="resv-card-avatar">
+                        <!-- Аватарка теперь сама ссылка на просмотр профиля —
+                             раньше это делала только кнопка справа, у
+                             аватарки клика не было вообще. Кнопка ниже
+                             больше НЕ ведёт на страницу профиля — открывает
+                             диалог редактирования (см. extra_js), поэтому
+                             "посмотреть" переехало сюда. -->
+                        <a href="{% url 'profile-page' employee.id %}" class="resv-card-avatar">
                             {% if employee.photo %}
                                 <img src="{{ employee.photo }}" alt="Аватар">
                             {% endif %}
-                        </div>
+                        </a>
                         <div class="resv-card-info">
                             <div class="resv-card-name-row">
                                 <span class="resv-card-name">{{ employee.full_name }}</span>
@@ -166,7 +208,23 @@
                             </div>
                             <div class="resv-card-position">{{ employee.position|default:"—" }}</div>
                         </div>
-                        <a href="{% url 'profile-page' employee.id %}" class="resv-card-btn">Посмотреть профиль</a>
+                        <!-- Открывает общий диалог редактирования (один на
+                             всю страницу, см. #profileEditDialog в конце
+                             шаблона) — data-* тут только чтобы JS знал, ЧЕЙ
+                             профиль редактировать и чем предзаполнить поля.
+                             Что именно тут можно будет редактировать помимо
+                             телефона/города/"о себе" — обсудим отдельно,
+                             сейчас те же поля, что и в обычном диалоге
+                             редактирования профиля (profile/_edit_dialog.html). -->
+                        <button type="button"
+                                class="resv-card-btn resv-card-edit-btn"
+                                data-user-id="{{ employee.id }}"
+                                data-user-name="{{ employee.full_name }}"
+                                data-phone="{{ employee.phone }}"
+                                data-city="{{ employee.city }}"
+                                data-about="{{ employee.about }}">
+                            Редактировать профиль
+                        </button>
                     </div>
                 {% endfor %}
             </div>
@@ -175,10 +233,227 @@
         </div>
     </main>
 </div>
+
+<!-- Диалог "Добавить сотрудника" — см. docstring reserve_page.py
+     (_handle_add_employee) почему такая форма и почему пароль генерируется
+     автоматически, а не вводится тут руками. -->
+<dialog id="addEmployeeDialog" class="profile-dialog">
+    <form method="post" action="{% url 'reserve-page' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_employee">
+
+        <h3>Добавить сотрудника</h3>
+
+        <label for="add-emp-name">ФИО</label>
+        <input id="add-emp-name" type="text" name="full_name" required>
+
+        <label for="add-emp-email">Email</label>
+        <input id="add-emp-email" type="email" name="email" required>
+
+        <label for="add-emp-department">Отдел</label>
+        <select id="add-emp-department" name="department_id">
+            <option value="">Без отдела</option>
+            {% for d in departments %}
+                <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="add-emp-position">Должность</label>
+        <input id="add-emp-position" type="text" name="position">
+
+        <label for="add-emp-role">Роль</label>
+        <select id="add-emp-role" name="role_id" required>
+            <option value="">Выберите роль</option>
+            {% for r in roles %}
+                <option value="{{ r.id }}">{{ r.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label class="resv-checkbox-label">
+            <input type="checkbox" name="is_intern">
+            Стажёр
+        </label>
+
+        <p class="resv-dialog-note">
+            Пароль будет сгенерирован автоматически и показан один раз сразу
+            после добавления — его нужно будет передать сотруднику лично.
+        </p>
+
+        <div class="profile-dialog-actions">
+            <button type="submit">Добавить</button>
+            <button type="button" data-close-dialog>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Общий диалог "Редактировать профиль" — один на всю страницу, а не по
+     одному на карточку (карточек может быть много, у каждой копии была бы
+     своя <dialog>+<form>, включая file-input для фото — раздувало бы DOM
+     без пользы). JS при клике на кнопку конкретной карточки подставляет
+     сюда action и текущие значения полей (см. extra_js). Поля — те же, что
+     и в обычном self-edit диалоге профиля (profile/_edit_dialog.html):
+     что именно тут можно будет редактировать кроме этого — обсудим позже
+     (см. сообщение пользователя/докстринг reserve_page.py). -->
+<dialog id="profileEditDialog" class="profile-dialog">
+    <form method="post" enctype="multipart/form-data" id="profileEditForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_profile">
+        <!-- next="reserve-page" — см. _ALLOWED_NEXT_URL_NAMES в
+             profile_page.py: после сохранения возвращает сюда, на
+             "Кадровый резерв", а не на страницу отредактированного
+             профиля (обычное поведение update_profile без этого поля). -->
+        <input type="hidden" name="next" value="reserve-page">
+
+        <h3 id="profileEditDialogTitle">Редактирование профиля</h3>
+
+        <label for="edit-emp-phone">Телефон</label>
+        <input id="edit-emp-phone" type="tel" name="phone">
+
+        <label for="edit-emp-city">Город</label>
+        <input id="edit-emp-city" type="text" name="city">
+
+        <label for="edit-emp-about">Обо мне</label>
+        <textarea id="edit-emp-about" name="about"></textarea>
+
+        <label for="edit-emp-photo">Фотография</label>
+        <input id="edit-emp-photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+
+        <div class="profile-dialog-actions">
+            <button type="submit">Сохранить</button>
+            <button type="button" data-close-dialog>Отмена</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Хранилище пароля из django messages (см. комментарий у .resv-messages
+     выше) — сам элемент скрыт, JS в extra_js читает data-password и
+     открывает диалог ниже автоматически при загрузке страницы. -->
+{% for message in messages %}
+    {% if "resv-password-flash" in message.tags %}
+    <div id="newEmployeePasswordData" hidden data-password="{{ message }}"></div>
+    {% endif %}
+{% endfor %}
+
+<!-- Диалог с одноразовым паролем нового сотрудника — крупный моноширинный
+     текст + кнопка "Скопировать", вместо обычной зелёной плашки сообщений
+     наверху страницы (см. docstring _handle_add_employee в reserve_page.py
+     почему её решили не использовать для пароля). -->
+<dialog id="newPasswordDialog" class="profile-dialog resv-password-dialog">
+    <h3>Сотрудник добавлен</h3>
+    <p class="resv-dialog-note">
+        Одноразовый пароль — скопируйте и передайте его сотруднику лично.
+        Повторно он нигде не покажется.
+    </p>
+    <div class="resv-password-box">
+        <span id="newPasswordValue"></span>
+        <button type="button" id="copyPasswordBtn" class="resv-copy-btn">Скопировать</button>
+    </div>
+    <!-- Без атрибута hidden — место под эту надпись зарезервировано ВСЕГДА
+         (см. .resv-copy-feedback в reserve.css, visibility вместо display),
+         иначе появление текста добавляло новый блок в поток и раздвигало
+         диалог целиком, из-за чего кнопка "Готово" ниже прыгала вниз. JS
+         переключает только класс is-visible (см. extra_js), а не display. -->
+    <span id="copyPasswordFeedback" class="resv-copy-feedback">Скопировано ✓</span>
+    <div class="profile-dialog-actions">
+        <button type="button" data-close-dialog>Готово</button>
+    </div>
+</dialog>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // ДИАЛОГИ "Добавить сотрудника" / "Редактировать профиль" — отдельный
+    // независимый блок от фильтрации ниже (не трогает #reserveFilters/
+    // #resultsList вообще).
+    (function () {
+        const addDialog = document.getElementById('addEmployeeDialog');
+        const addButton = document.getElementById('addEmployeeButton');
+        if (addButton && addDialog) {
+            addButton.addEventListener('click', function () {
+                addDialog.showModal();
+            });
+        }
+
+        // {% url 'profile-page' 999999999 %} — тот же приём, что и в
+        // ask.html (PROFILE_URL_TEMPLATE): подставляем реальный id вместо
+        // заглушки строкой, а не собираем URL вручную — если когда-нибудь
+        // поменяется префикс пути, JS не разъедется с urls.py молча.
+        const PROFILE_URL_TEMPLATE = "{% url 'profile-page' 999999999 %}";
+        function profileUrl(id) {
+            return PROFILE_URL_TEMPLATE.replace('999999999', id);
+        }
+
+        const editDialog = document.getElementById('profileEditDialog');
+        const editForm = document.getElementById('profileEditForm');
+        const editTitle = document.getElementById('profileEditDialogTitle');
+        const editPhone = document.getElementById('edit-emp-phone');
+        const editCity = document.getElementById('edit-emp-city');
+        const editAbout = document.getElementById('edit-emp-about');
+        const editPhoto = document.getElementById('edit-emp-photo');
+
+        if (editDialog && editForm) {
+            document.querySelectorAll('.resv-card-edit-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    editForm.action = profileUrl(btn.getAttribute('data-user-id'));
+                    editTitle.textContent = 'Редактирование профиля — ' + btn.getAttribute('data-user-name');
+                    editPhone.value = btn.getAttribute('data-phone') || '';
+                    editCity.value = btn.getAttribute('data-city') || '';
+                    editAbout.value = btn.getAttribute('data-about') || '';
+                    editPhoto.value = '';
+                    editDialog.showModal();
+                });
+            });
+        }
+
+        // Диалог с паролем нового сотрудника — открывается САМ, без клика
+        // по кнопке: сервер прислал его через django messages (см.
+        // #newEmployeePasswordData / _handle_add_employee в reserve_page.py),
+        // значит форма "Добавить сотрудника" только что была отправлена.
+        const passwordDialog = document.getElementById('newPasswordDialog');
+        const passwordData = document.getElementById('newEmployeePasswordData');
+        const passwordValue = document.getElementById('newPasswordValue');
+        const copyPasswordBtn = document.getElementById('copyPasswordBtn');
+        const copyPasswordFeedback = document.getElementById('copyPasswordFeedback');
+
+        if (passwordDialog && passwordData && passwordValue) {
+            passwordValue.textContent = passwordData.getAttribute('data-password') || '';
+            passwordDialog.showModal();
+        }
+
+        copyPasswordBtn?.addEventListener('click', function () {
+            const text = passwordValue ? passwordValue.textContent : '';
+            if (!text || !navigator.clipboard) return;
+            navigator.clipboard.writeText(text).then(function () {
+                if (!copyPasswordFeedback) return;
+                // Класс, не display/hidden — место под текст уже
+                // зарезервировано в CSS (visibility), переключение класса
+                // не меняет высоту диалога и не двигает кнопку "Готово".
+                copyPasswordFeedback.classList.add('is-visible');
+                setTimeout(function () {
+                    copyPasswordFeedback.classList.remove('is-visible');
+                }, 2000);
+            });
+        });
+
+        // Закрытие — ТОЛЬКО по кнопке ("Отмена"/"Готово", см. data-close-dialog)
+        // или Escape (нативное поведение <dialog>, открытого через showModal() —
+        // никакого JS для этого не нужно). Раньше здесь был ещё и обработчик
+        // клика по фону (закрытие при клике вне контента), НО клик прямо по
+        // самому <dialog> (например, по его паддингу, а не по форме внутри)
+        // тоже даёт e.target === dialog — из-за этого случайный промах мимо
+        // поля, или выделение текста мышкой с отпусканием за пределами
+        // текстового поля, тоже закрывали диалог. Убрано полностью для всех
+        // 3 диалогов этой страницы — то же самое, что попросили явно для
+        // диалога с паролем, но применили ко всем для единообразия (иначе
+        // тот же баг остался бы, например, в диалоге "Добавить сотрудника").
+        [addDialog, editDialog, passwordDialog].forEach(function (dialog) {
+            if (!dialog) return;
+            dialog.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
+                btn.addEventListener('click', function () { dialog.close(); });
+            });
+        });
+    })();
+
     // ФИЛЬТРАЦИЯ ЦЕЛИКОМ НА КЛИЕНТЕ (тот же принцип, что и в matrix.html —
     // см. applyMatrixFilters() там). Сервер один раз отрисовал ВСЕХ
     // сотрудников со всеми данными, нужными для фильтра (data-* атрибуты
@@ -198,8 +473,7 @@
         const skillSelect = document.getElementById('skill');
         const statusSelect = document.getElementById('status');
         const searchInput = document.getElementById('searchInput');
-        const onlyInterns = document.getElementById('onlyInterns');
-        const onlyTerminated = document.getElementById('onlyTerminated');
+        const onlyWorking = document.getElementById('onlyWorking');
         const sortRecentBtn = document.getElementById('sortRecentBtn');
 
         const minRange = document.getElementById('levelMinRange');
@@ -313,8 +587,7 @@
                 levelMin: Number(minRange.value),
                 levelMax: Number(maxRange.value),
                 search: searchInput.value.toLowerCase().trim(),
-                interns: onlyInterns.checked,
-                terminated: onlyTerminated.checked,
+                workingOnly: onlyWorking.checked,
             };
 
             let visibleCount = 0;
@@ -327,15 +600,17 @@
 
                 let visible = true;
 
-                // Без "Только уволенные" показываем активных, с ним —
-                // только уволенных (взаимоисключающе, как и раньше).
-                if (filters.terminated) {
-                    if (isActive) visible = false;
-                } else if (!isActive) {
+                // По умолчанию (workingOnly выключен) показываем практикантов
+                // и уволенных ОДНОВРЕМЕННО — то есть скрываем только обычных
+                // работающих сотрудников (активных и не практикантов). Когда
+                // включён "Только работающие сотрудники" — наоборот, видно
+                // только их (см. комментарий у переключателя в разметке выше).
+                if (filters.workingOnly) {
+                    if (!isActive || isIntern) visible = false;
+                } else if (isActive && !isIntern) {
                     visible = false;
                 }
 
-                if (visible && filters.interns && !isIntern) visible = false;
                 if (visible && filters.department && department !== filters.department) visible = false;
                 if (visible && filters.search && search.indexOf(filters.search) === -1) visible = false;
                 if (visible && !employeeMatchesSkillFilters(getSkills(card), filters)) visible = false;
@@ -396,8 +671,7 @@
         subcategorySelect.addEventListener('change', applyFilters);
         skillSelect.addEventListener('change', applyFilters);
         statusSelect.addEventListener('change', applyFilters);
-        onlyInterns.addEventListener('change', applyFilters);
-        onlyTerminated.addEventListener('change', applyFilters);
+        onlyWorking.addEventListener('change', applyFilters);
         searchInput.addEventListener('input', applyFilters);
 
         sortRecentBtn.addEventListener('click', function () {

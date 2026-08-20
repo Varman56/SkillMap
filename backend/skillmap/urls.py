@@ -5,7 +5,7 @@ from django.views.static import serve
 from skillmap.views.web_views import login_page, logout_page
 from skillmap.views.ask_page import ask_page
 from skillmap.views.profile_page import profile_page
-from skillmap.views.matrix_page import matrix_page
+from skillmap.views.matrix_page import matrix_export, matrix_page
 from skillmap.views.project_page import project_page
 from skillmap.views.reserve_page import reserve_page
 from skillmap.views.approvals_page import approvals_page
@@ -19,6 +19,7 @@ urlpatterns = [
     path("reserve/", reserve_page, name="reserve-page"),
     path("approvals/", approvals_page, name="approvals-page"),
     path("matrix/", matrix_page, name="matrix-page"),
+    path("matrix/export/", matrix_export, name="matrix-export"),
     path("my-department/", department_page, name="my-department-page"),
 
     # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу /media/.

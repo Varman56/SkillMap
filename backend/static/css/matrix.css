@@ -48,16 +48,25 @@
     flex-wrap: wrap;
 }
 
+/* Раньше .cm-search жил в тулбаре (.cm-filters) — там он мог себе позволить
+   fixed width: 220px и крупный padding. Теперь единственное место, где он
+   встречается — .cm-emp-header-cell в шапке таблицы (см. matrix.html),
+   более тесное пространство, поэтому input растягивается на всю ширину
+   родителя (width: 100%, а не фиксированные 220px), а padding/иконка
+   компактнее. */
 .cm-search {
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .cm-search input {
-    padding: 15px 12px 15px 36px;
+    padding: 8px 10px 8px 30px;
     border: 1px solid #E5E7EB;
     border-radius: 8px;
-    font-size: 14px;
-    width: 220px;
+    font-size: 13px;
+    width: 100%;
+    box-sizing: border-box;
     outline: none;
     color: #374151;
 }
@@ -363,6 +372,26 @@
     min-width: 80px;
 }
 
+/* Обёртка первой ячейки шапки ("Сотрудники (N)" + поиск под ним, см.
+   matrix.html) — вертикальный стек вместо одной строки, потому что
+   поиск по ФИО переехал сюда из тулбара (.cm-filters), чтобы в тулбаре
+   при 100% масштабе браузера все фильтры/кнопки помещались в одну
+   строку. Сама ячейка — rowspan="3" (высотой во всю шапку из 3 строк:
+   категории/подкатегории/навыки), этого места достаточно и под подпись,
+   и под компактное поле поиска без пересчёта sticky-отступов остальных
+   строк шапки (.cm-category-th/.cm-subcategory-th ниже держат жёсткую
+   height: 46px — лишняя высота, если понадобится, уйдёт в третью строку
+   шапки, у неё жёсткой высоты нет). */
+.cm-emp-header-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    box-sizing: border-box;
+    min-width: 220px;
+}
+
 .cm-emp-header {
     display: flex;
     align-items: center;
@@ -370,7 +399,6 @@
     color: #6B21A8;
     font-weight: 600;
     font-size: 14px;
-    padding: 16px;
 }
 
 /* Карточка сотрудника в левой колонке */
@@ -425,13 +453,17 @@
     background-color: #F9FAFB;
 }
 
+/* Уменьшена с 25px — раньше иконка была рассчитана на крупный input
+   тулбара (padding: 15px), теперь input компактнее (см. .cm-search input
+   выше), старый размер иконки/отступа накладывался на текст placeholder. */
 .matrix-search-icon {
-    width: 25px;
-    height: 25px;
-    opacity: 0.6;
+    width: 16px;
+    height: 16px;
+    opacity: 0.5;
     position: absolute;
-    left: 3%;
-    bottom: 25%;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 /* === ПОЛНЫЙ ФИКС МАТРИЦЫ === */

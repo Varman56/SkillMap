@@ -26,20 +26,11 @@
                 Сотрудники добавили новые навыки или изменили уровень владения. Пожалуйста, подтвердите их навыки.
             </p>
 
-            <div class="appr-stat-box">
-                <div class="appr-stat-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                        <circle cx="9" cy="8" r="3.2" fill="#ab4ad5"/>
-                        <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#ab4ad5" stroke-width="1.8" stroke-linecap="round"/>
-                        <circle cx="17" cy="9" r="2.6" fill="#ab4ad5" opacity="0.55"/>
-                        <path d="M14.5 20c0-2.8 1.2-5 3.7-5.6" stroke="#ab4ad5" stroke-width="1.8" stroke-linecap="round" opacity="0.55"/>
-                    </svg>
-                </div>
-                <div class="appr-stat-text">
-                    <strong>{{ waiting_employee_count }}</strong>
-                    <span>Сотрудников<br>ожидают подтверждения</span>
-                </div>
-            </div>
+            <!-- Стат-блок "N Сотрудников ожидают подтверждения" раньше был
+                 здесь — по запросу перенесён в "Мой отдел" (см.
+                 department.html/department_page.py), эта страница уже и так
+                 полностью посвящена очереди на подтверждение, отдельный
+                 счётчик здесь был избыточен. -->
 
             <!-- ФИЛЬТРЫ: поиск по сотруднику + поиск по навыку, отдельными
                  полями, как на остальных страницах (ask.html/reserve.html) -->

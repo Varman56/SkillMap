@@ -261,7 +261,15 @@
                                     </label>
                                 </form>
                                 {% if resume_url %}
-                                <form method="post" class="public-resume-delete-form">
+                                <!-- Раньше это удаление вообще не было ничем защищено (ни
+                                     confirm(), ни диалога) — единственное такое место в
+                                     приложении, поймано и закрыто заодно с общим переходом
+                                     на #confirmDialog (см. base.html). -->
+                                <form
+                                        method="post"
+                                        class="public-resume-delete-form"
+                                        data-confirm-message="Удалить резюме?"
+                                >
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="delete_resume">
                                     <button type="submit" class="public-resume-delete-btn">Удалить</button>
@@ -342,7 +350,11 @@
                                     </form>
                                     {% endif %}
 
-                                    <form method="post" class="skill-inline-form">
+                                    <form
+                                            method="post"
+                                            class="skill-inline-form"
+                                            data-confirm-message="Удалить навык «{{ skill.display_name }}»?"
+                                    >
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="delete_skill">
                                         <input
@@ -432,7 +444,11 @@
                                             >
                                                 <img src="{% static 'assets/edit.svg' %}" alt="Редактировать" class="icon-small">
                                             </button>
-                                            <form method="post" class="public-comment-delete-form">
+                                            <form
+                                                    method="post"
+                                                    class="public-comment-delete-form"
+                                                    data-confirm-message="Удалить комментарий?"
+                                            >
                                                 {% csrf_token %}
                                                 <input type="hidden" name="action" value="delete_comment">
                                                 <input type="hidden" name="comment_id" value="{{ comment.id }}">

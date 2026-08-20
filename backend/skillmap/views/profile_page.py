@@ -353,6 +353,16 @@ ACTION_HANDLERS = {
     "delete_comment": _handle_delete_comment,
 }
 
+# Куда вернуть пользователя после POST вместо страницы профиля по
+# умолчанию — например, reserve.html открывает этот же update_profile
+# из "Кадрового резерва" в общем диалоге (см. docstring reserve_page.py),
+# и после сохранения логичнее остаться на "Кадровом резерве", а не
+# улетать на страницу отредактированного профиля. Передаётся скрытым
+# полем формы name="next" со значением ИМЕНИ url'а (не самим URL) —
+# сверяем с этим белым списком и вызываем redirect(next_name) только если
+# имя в нём есть, чтобы нельзя было передать произвольный редирект.
+_ALLOWED_NEXT_URL_NAMES = {"reserve-page"}
+
 
 def _can_edit(request_user, profile_user) -> bool:
     """Редактировать профиль может сам пользователь, HR — любого, Manager —
@@ -385,6 +395,10 @@ def profile_page(request, user_id=None):
             handler(request, user)
         else:
             messages.error(request, "Неизвестное действие")
+
+        next_url_name = request.POST.get("next")
+        if next_url_name in _ALLOWED_NEXT_URL_NAMES:
+            return redirect(next_url_name)
 
         if user_id is None:
             return redirect("my-profile")

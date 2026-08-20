@@ -61,46 +61,8 @@
     border: 1px solid #F8B4B4;
 }
 
-/* СТАТ-БЛОК */
-.appr-stat-box {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    background: #F6E1FF;
-    border-radius: 16px;
-    padding: 16px 24px;
-    margin-bottom: 24px;
-    width: fit-content;
-}
-
-.appr-stat-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.appr-stat-text {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.appr-stat-text strong {
-    font-size: 26px;
-    color: #1E1E1E;
-    line-height: 1;
-}
-
-.appr-stat-text span {
-    font-size: 13px;
-    color: #535353;
-    line-height: 1.3;
-}
+/* СТАТ-БЛОК "N Сотрудников ожидают подтверждения" перенесён в "Мой отдел"
+   (department.css: .dept-header-stat-pending) — здесь больше не нужен. */
 
 /* ФИЛЬТРЫ */
 .appr-filters-row {

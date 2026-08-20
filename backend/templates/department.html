@@ -53,11 +53,23 @@
             <div class="dept-card dept-rare-skills-card">
                 <h3 class="dept-card-title">Топ-5 редких навыков:</h3>
                 {% if rare_skills %}
-                    <ol class="dept-rare-list">
+                    <!-- Тот же компонент "полоски-бары", что и у топ-5
+                         навыков выше (.dept-skill-bars) — раньше тут был
+                         простой нумерованный <ol> без сброса list-style,
+                         из-за чего браузер рисовал СВОЙ номер поверх
+                         ручного (визуально "1. 1. Agile"), да и выглядело
+                         это не в одном стиле с соседней карточкой. pct у
+                         редких навыков считается от максимума СРЕДИ САМИХ
+                         редких (см. _top_and_rare_skills в
+                         department_page.py) — иначе все полоски были бы
+                         почти невидимыми на фоне топ-1 навыка отдела. -->
+                    <ol class="dept-skill-bars">
                         {% for skill in rare_skills %}
                             <li>
-                                <span class="dept-rare-num">{{ forloop.counter }}.</span>
-                                <span>{{ skill.name }}</span>
+                                <span class="dept-skill-bar-label">{{ forloop.counter }}. {{ skill.name }}</span>
+                                <div class="dept-skill-bar-track">
+                                    <div class="dept-skill-bar-fill" data-pct="{{ skill.pct }}"></div>
+                                </div>
                             </li>
                         {% endfor %}
                     </ol>
@@ -121,10 +133,11 @@
                                     <span aria-hidden="true">⚠️</span>
                                     {{ gap.name }}
                                 </div>
+                                <!-- Было 3 строки через <br> (Новичков / Экспертов / Дефицит)
+                                     — по запросу сжато в одну строку через "·", чтобы вся
+                                     карточка стала ниже (см. .dept-gap-stats в department.css). -->
                                 <div class="dept-gap-stats">
-                                    Новичков: {{ gap.novices }}<br>
-                                    Экспертов: {{ gap.experts }}<br>
-                                    Дефицит:
+                                    Новичков: {{ gap.novices }} · Экспертов: {{ gap.experts }} · Дефицит:
                                     <span class="dept-gap-severity dept-gap-severity-{{ gap.severity }}">{{ gap.severity }}</span>
                                 </div>
                             </li>
@@ -136,17 +149,36 @@
             </div>
         </div>
 
-        <!-- СТАТ-СТРОКА -->
-        <div class="dept-stat-box">
-            <span class="dept-stat-icon" aria-hidden="true">👤</span>
-            <span>Сотрудников в отделе: <strong>{{ member_count }}</strong></span>
-        </div>
+        <!-- Раньше тут была отдельная стат-строка "Сотрудников в отделе: N"
+             над рядом из 4 карточек — по запросу перенесена в шапку самой
+             карточки "Сотрудники отдела" ниже (dept-header-stats), рядом с
+             ней теперь и "N ожидают подтверждения" (см.
+             dept-header-stat-pending и docstring department_page.py). -->
 
         <!-- СОТРУДНИКИ / ПРОЕКТЫ ОТДЕЛА -->
         <div class="dept-bottom-row">
             <div class="dept-card dept-employees-card">
                 <div class="dept-card-header-row">
                     <h3 class="dept-card-title">Сотрудники отдела</h3>
+
+                    <!-- Пункт "Подтверждение навыков" убран из хедера сайта
+                         (см. base.html) — вместо текстовой ссылки там теперь
+                         вот эта кликабельная пилюля здесь, рядом со счётчиком
+                         сотрудников отдела. Показываем её только если реально
+                         есть кого подтверждать — пустая ссылка на страницу
+                         с пустым списком не нужна. -->
+                    <div class="dept-header-stats">
+                        <span class="dept-header-stat">
+                            Сотрудников: <strong>{{ member_count }}</strong>
+                        </span>
+                        {% if waiting_employee_count %}
+                            <a href="{% url 'approvals-page' %}" class="dept-header-stat dept-header-stat-pending">
+                                <img src="{% static 'assets/pending-clock.svg' %}" alt=""
+                                     class="dept-header-stat-icon">
+                                {{ waiting_employees_label }}
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <div class="dept-toolbar">

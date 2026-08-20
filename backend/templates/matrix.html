@@ -16,11 +16,12 @@
         <h1 class="cm-title">Матрица компетенций</h1>
         
         <div class="cm-filters">
-            <!-- 1. Поиск по ФИО/должности -->
-            <div class="cm-search">
-                <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="matrix-search-icon">
-                <input type="text" id="searchInput" placeholder="Поиск по ФИО...">
-            </div>
+            <!-- Поиск по ФИО/должности — раньше жил здесь, в тулбаре, и
+                 занимал ~250px по ширине, из-за чего при 100% масштабе
+                 браузера "Сбросить"/"Экспорт" не помещались в одну строку
+                 с остальными фильтрами. По запросу перенесён в саму
+                 таблицу — под надпись "Сотрудники (N)" в первой ячейке
+                 шапки (см. #matrixThead ниже, .cm-emp-header-cell). -->
 
             <div class="cm-select-group">
                 <!-- 2. Фильтр Отдела (данные из бэкенда). У HR — обычный
@@ -123,13 +124,15 @@
                 </div>
             </div>
 
+            <!-- По запросу — "Сбросить" и "Экспорт" поменяны местами
+                 (раньше был Экспорт, потом Сбросить). -->
+            <button class="cm-reset-btn" id="resetFilters">
+                Сбросить
+            </button>
+
             <button class="cm-export-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                 Экспорт
-            </button>
-
-            <button class="cm-reset-btn" id="resetFilters">
-                Сбросить
             </button>
         </div>
     </div>
@@ -141,9 +144,28 @@
                 <!-- 1. Строка с категориями -->
                 <tr>
                     <th rowspan="3" style="padding: 0;"> <!-- rowspan теперь 3 -->
-                        <div class="cm-emp-header">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                            Сотрудники (<span id="empCount">{{ employees|length }}</span>)
+                        <div class="cm-emp-header-cell">
+                            <div class="cm-emp-header">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                <!-- Раньше "Сотрудники (", <span id="empCount">
+                                     и ")" были ТРЕМЯ отдельными узлами прямо
+                                     внутри flex-контейнера .cm-emp-header —
+                                     gap: 8px у флекса встаёт МЕЖДУ каждым
+                                     дочерним узлом (включая анонимные текстовые
+                                     узлы), поэтому между "(" и числом, и между
+                                     числом и ")" появлялись лишние 8px — "(  10  )".
+                                     Обёрнуто в один <span>, чтобы для flex это
+                                     был один элемент, без внутренних зазоров. -->
+                                <span>Сотрудники (<span id="empCount">{{ employees|length }}</span>)</span>
+                            </div>
+                            <!-- Поиск по ФИО/должности — перенесён сюда из
+                                 тулбара (см. комментарий там же), #searchInput
+                                 не переименован, JS-фильтр (extra_js ниже)
+                                 продолжает работать без изменений. -->
+                            <div class="cm-search">
+                                <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="matrix-search-icon">
+                                <input type="text" id="searchInput" placeholder="Поиск по ФИО...">
+                            </div>
                         </div>
                     </th>
                     {% for cat in columns %}
@@ -330,6 +352,42 @@ document.addEventListener('DOMContentLoaded', function() {
         // 3. Вызываем функцию применения фильтров для обновления UI
         applyMatrixFilters();
     });
+
+    // Кнопка "Экспорт" — фильтрация матрицы полностью клиентская (см.
+    // applyMatrixFilters() ниже), сервер о текущем выборе фильтров сам по
+    // себе не знает. Поэтому перед переходом на /matrix/export/ собираем
+    // те же значения, что читает applyMatrixFilters(), в query-string —
+    // сервер (matrix_export() в matrix_page.py) применяет ту же логику
+    // видимости и отдаёт .xlsx, соответствующий тому, что сейчас на экране.
+    const exportBtn = document.querySelector('.cm-export-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function () {
+            const params = new URLSearchParams();
+
+            if (searchInput.value.trim()) {
+                params.set('search', searchInput.value.trim());
+            }
+            {% if user.primary_role == "HR" %}
+            if (deptFilter.value) {
+                params.set('department', deptFilter.value);
+            }
+            {% endif %}
+            if (categoryFilter.value) params.set('category', categoryFilter.value);
+            if (subcategoryFilter.value) params.set('subcategory', subcategoryFilter.value);
+            if (skillFilter.value) params.set('skill', skillFilter.value);
+            if (statusFilter.value && statusFilter.value !== 'all') {
+                params.set('status', statusFilter.value);
+            }
+
+            const selectedLevels = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            if (selectedLevels.length !== checkboxes.length) {
+                params.set('levels', selectedLevels.join(','));
+            }
+
+            const query = params.toString();
+            window.location.href = '{% url "matrix-export" %}' + (query ? ('?' + query) : '');
+        });
+    }
 
     function applyMatrixFilters() {
         // Сначала пересчитываем, какие варианты подкатегории/навыка вообще

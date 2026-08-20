@@ -506,6 +506,80 @@ body {
     to { transform: translateY(0); opacity: 1; }
 }
 
+/* ДИАЛОГ ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ (см. #confirmDialog в base.html) — один
+   на всё приложение, поэтому и стили общие, здесь, а не в CSS конкретной
+   страницы. Визуальный язык — тот же, что у .proj-dialog в project.css
+   (скруглённые углы, тень, тот же шрифт) — только кнопка подтверждения
+   красная, а не фиолетовая: это единственный диалог в приложении про
+   необратимое разрушительное действие, стоит визуально отличать его от
+   обычных "Сохранить"/"Добавить". */
+.confirm-dialog {
+    border: none;
+    border-radius: 20px;
+    padding: 24px;
+    width: 380px;
+    max-width: 90vw;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    font-family: 'Cabin', sans-serif;
+    color: #333;
+    box-sizing: border-box;
+}
+
+.confirm-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.confirm-dialog h3 {
+    margin: 0 0 10px;
+    font-size: 18px;
+    color: #1E1E1E;
+}
+
+.confirm-dialog p {
+    margin: 0;
+    font-size: 14px;
+    color: #535353;
+    line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.confirm-dialog-cancel {
+    background: #F2F2F2;
+    color: #555;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.confirm-dialog-cancel:hover {
+    background: #E5E5E5;
+}
+
+.confirm-dialog-submit {
+    background: #EF4444;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+}
+
+.confirm-dialog-submit:hover {
+    background: #C62F2F;
+}
+
 @media (max-width: 768px) {
     .public-header {
         flex-direction: column;

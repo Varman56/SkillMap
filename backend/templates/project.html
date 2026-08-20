@@ -148,7 +148,12 @@
                                     <span class="proj-member-position">{{ member.position|default:"—" }}</span>
                                 </div>
                                 {% if can_edit and not member.is_owner %}
-                                    <form method="post" action="" class="proj-member-remove-form">
+                                    <form
+                                            method="post"
+                                            action=""
+                                            class="proj-member-remove-form"
+                                            data-confirm-message="Удалить {{ member.full_name }} из проекта?"
+                                    >
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="remove_member">
                                         <input type="hidden" name="user_id" value="{{ member.id }}">
@@ -209,18 +214,34 @@
         </dialog>
 
         <!-- Диалог добавления участника — открывается по "+" рядом с
-             "Участники" (memberAddButton). -->
+             "Участники" (memberAddButton). По запросу — добавлен фильтр по
+             отделу и должность прямо в списке кандидатов (см. docstring
+             project_page.py про available_users): руководителю нужно уметь
+             добавить человека из ЧУЖОГО отдела ("знаю, что он из DevOps, но
+             нужна конкретная должность"), а раньше список показывал только
+             ФИО. Фильтр по отделу — целиком на клиенте, без запроса к
+             серверу (select без name="", в POST не уходит вообще). -->
         <dialog class="proj-dialog" id="memberAddDialog">
             <form method="post" action="">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="add_member">
                 <h3>Добавить участника</h3>
 
+                <label class="proj-field-label" for="proj-member-dept-filter">Отдел</label>
+                <select id="proj-member-dept-filter" class="proj-select">
+                    <option value="">Все отделы</option>
+                    {% for d in departments %}
+                        <option value="{{ d.name }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+
                 <label class="proj-field-label" for="proj-member-select">Сотрудник</label>
                 <select id="proj-member-select" name="user_id" class="proj-select" required>
                     <option value="">Выберите сотрудника</option>
                     {% for u in available_users %}
-                        <option value="{{ u.id }}">{{ u.full_name }}</option>
+                        <option value="{{ u.id }}" data-department="{{ u.department }}">
+                            {{ u.full_name }}{% if u.position %} — {{ u.position }}{% endif %}
+                        </option>
                     {% endfor %}
                 </select>
 
@@ -266,6 +287,31 @@
 
         wireDialog("projectEditButton", "projectEditDialog");
         wireDialog("memberAddButton", "memberAddDialog");
+
+        // Фильтр "Отдел" в диалоге "Добавить участника" — прячет несовпадающие
+        // варианты в select'е сотрудников (тот же приём hidden-опций, что и
+        // в каскадах reserve.html/ask.html), без единого запроса к серверу.
+        // Если ранее выбранный сотрудник стал скрыт — сбрасываем выбор, а не
+        // оставляем невидимую опцию выбранной молча.
+        (function setupMemberDeptFilter() {
+            var deptFilter = document.getElementById("proj-member-dept-filter");
+            var memberSelect = document.getElementById("proj-member-select");
+            if (!deptFilter || !memberSelect) return;
+
+            deptFilter.addEventListener("change", function () {
+                var selectedDept = deptFilter.value;
+                var selectedStillValid = !selectedDept;
+
+                Array.from(memberSelect.options).forEach(function (opt) {
+                    if (!opt.value) return;
+                    var visible = !selectedDept || opt.dataset.department === selectedDept;
+                    opt.hidden = !visible;
+                    if (visible && opt.value === memberSelect.value) selectedStillValid = true;
+                });
+
+                if (!selectedStillValid) memberSelect.value = "";
+            });
+        })();
 
         // Сведения — inline-редактирование прямо в карточке (не диалог):
         // по кнопке "Редактировать" прячем текст и показываем textarea,

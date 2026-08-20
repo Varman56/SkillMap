@@ -13,6 +13,14 @@
   update_project / add_member / remove_member
 
 GET ?search=... — фильтр списка участников по ФИО (подстрока, без учёта регистра).
+
+Диалог "Добавить участника" — по запросу у каждого кандидата в выпадающем
+списке теперь видна должность (и есть клиентский фильтр по отделу рядом,
+без похода на сервер) — раньше список показывал только ФИО, что было
+неудобно, если руководитель хочет добавить конкретного специалиста из
+ЧУЖОГО отдела (например "нужен кто-то из DevOps, но с определённой
+должностью") и не помнит его по имени. См. available_users в контексте и
+extra_js в project.html.
 """
 from datetime import datetime, time
 
@@ -23,7 +31,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 
-from api.models import Project, User, UserProject
+from api.models import Department, Project, User, UserProject
 
 # Статус хранится в БД как обычная строка (Project.status — CharField, не
 # choices на уровне модели), но в UI должен быть закрытым списком с
@@ -183,9 +191,14 @@ def project_page(request, project_id):
     if search:
         member_links = member_links.filter(user__full_name__icontains=search)
 
+    # select_related("department") — раньше не было, добавлен вместе с
+    # фильтром по отделу в диалоге "Добавить участника" (см. docstring
+    # ниже у available_users): без него department.name на каждого
+    # доступного пользователя бил бы отдельным запросом в цикле.
     available_users_qs = (
         User.objects.filter(is_active=True)
         .exclude(id__in=UserProject.objects.filter(project_id=project.id).values_list("user_id", flat=True))
+        .select_related("department")
         .order_by("full_name")
     )
 
@@ -217,7 +230,24 @@ def project_page(request, project_id):
             for link in member_links
         ],
         "member_count": member_count,
-        "available_users": available_users_qs,
+        # Раньше в шаблон уходил голый queryset и в "Добавить участника"
+        # показывалось только ФИО — по запросу добавлена возможность найти
+        # человека из ДРУГОГО отдела по должности (например "знаю, что он
+        # из DevOps, но нужна конкретная должность"), поэтому теперь у
+        # каждого кандидата в разметке видна и должность, и отдел (для
+        # клиентского фильтра "Отдел" рядом, см. project.html/extra_js).
+        # Никакого нового поля не заводим — это уже существующие
+        # User.position/User.department, просто показаны в этом диалоге.
+        "available_users": [
+            {
+                "id": u.id,
+                "full_name": u.full_name,
+                "position": u.position or "",
+                "department": u.department.name if u.department_id else "",
+            }
+            for u in available_users_qs
+        ],
+        "departments": Department.objects.order_by("name"),
         "search": search,
     }
     return render(request, "project.html", context)

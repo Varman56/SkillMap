@@ -26,7 +26,29 @@
                  (public-nav-active) раньше стояла только на "Мой отдел" —
                  остальные пункты никогда не подсвечивались фиолетовым на
                  своей же странице. Теперь у каждого пункта та же проверка
-                 request.resolver_match.url_name, каждый под свой url_name. -->
+                 request.resolver_match.url_name, каждый под свой url_name.
+
+                 "Кого спросить?" раньше был общим для всех ролей пунктом
+                 ПЕРЕД этим if/elif, поэтому у Manager всегда шёл вторым
+                 (после него). По запросу у Manager "Мой отдел" теперь
+                 первый пункт меню — пришлось продублировать ссылку на
+                 "Кого спросить?" в обеих ветках (у HR и "остальных" —
+                 порядок как был, без изменений). -->
+            {% if user.primary_role == 'Manager' %}
+            <a href="{% url 'my-department-page' %}"
+               class="{% if request.resolver_match.url_name == 'my-department-page' %}public-nav-active{% endif %}">Мой отдел</a>
+            <a href="{% url 'ask-page' %}"
+               class="{% if request.resolver_match.url_name == 'ask-page' %}public-nav-active{% endif %}">Кого спросить?</a>
+            <a href="{% url 'matrix-page' %}"
+               class="{% if request.resolver_match.url_name == 'matrix-page' %}public-nav-active{% endif %}">Матрица компетенций</a>
+            <!-- "Подтверждение навыков" убран из хедера по запросу — вместо
+                 пункта меню теперь кликабельная пилюля "N сотрудников
+                 ожидают подтверждения" в шапке карточки "Сотрудники отдела"
+                 на "Мой отдел" (см. department.html/department_page.py).
+                 Сам url ('approvals-page') никуда не делся, просто вести к
+                 нему стало принято оттуда, а не из общего меню. -->
+
+            {% else %}
             <a href="{% url 'ask-page' %}"
                class="{% if request.resolver_match.url_name == 'ask-page' %}public-nav-active{% endif %}">Кого спросить?</a>
 
@@ -35,14 +57,7 @@
                class="{% if request.resolver_match.url_name == 'matrix-page' %}public-nav-active{% endif %}">Матрица компетенций</a>
             <a href="{% url 'reserve-page' %}"
                class="{% if request.resolver_match.url_name == 'reserve-page' %}public-nav-active{% endif %}">Кадровый резерв</a>
-
-            {% elif user.primary_role == 'Manager' %}
-            <a href="{% url 'my-department-page' %}"
-               class="{% if request.resolver_match.url_name == 'my-department-page' %}public-nav-active{% endif %}">Мой отдел</a>
-            <a href="{% url 'matrix-page' %}"
-               class="{% if request.resolver_match.url_name == 'matrix-page' %}public-nav-active{% endif %}">Матрица компетенций</a>
-            <a href="{% url 'approvals-page' %}"
-               class="{% if request.resolver_match.url_name == 'approvals-page' %}public-nav-active{% endif %}">Подтверждение навыков</a>
+            {% endif %}
             {% endif %}
         </nav>
     </div>
@@ -158,6 +173,94 @@
     {% endblock %}
 </main>
 
+
+<!-- ДИАЛОГ ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ — один на всё приложение, а не свой на
+     каждой странице. Раньше на разных страницах удаление (навык/
+     комментарий сотрудника/участник проекта) подтверждалось через голый
+     браузерный confirm() — по запросу заменено на диалоговое окно в
+     общем визуальном языке приложения (тот же паттерн showModal()/close(),
+     что и .proj-dialog/.profile-dialog), а резюме (единственное место,
+     где удаление вообще не было ничем защищено) получило защиту заодно.
+
+     Работает полностью декларативно — сама эта форма/JS ничего не знает
+     про то, ЧТО удаляется: любая <form method="post"> с атрибутом
+     data-confirm-message="..." на СТРАНИЦЕ (на любой, не только этой)
+     автоматически перехватывается этим диалогом при submit. Чтобы
+     добавить подтверждение к новому удалению где угодно в проекте —
+     просто добавить этот один атрибут на форму, ничего больше не нужно
+     писать (ни новый <dialog>, ни новый JS-обработчик). -->
+<dialog id="confirmDialog" class="confirm-dialog">
+    <h3 id="confirmDialogTitle">Подтвердите удаление</h3>
+    <p id="confirmDialogMessage"></p>
+    <div class="confirm-dialog-actions">
+        <button type="button" class="confirm-dialog-cancel" data-close-dialog>Отмена</button>
+        <button type="button" class="confirm-dialog-submit" id="confirmDialogSubmit">Удалить</button>
+    </div>
+</dialog>
+<script>
+    (function () {
+        var dialog = document.getElementById("confirmDialog");
+        if (!dialog) return;
+
+        var titleEl = document.getElementById("confirmDialogTitle");
+        var messageEl = document.getElementById("confirmDialogMessage");
+        var submitBtn = document.getElementById("confirmDialogSubmit");
+        var pendingForm = null;
+
+        // capture: true — перехватываем submit ДО того, как он дойдёт до
+        // возможных других обработчиков конкретной страницы (например,
+        // автосабмита фильтров), и раньше, чем браузер начнёт отправку.
+        document.addEventListener("submit", function (e) {
+            var form = e.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (!form.hasAttribute("data-confirm-message")) return;
+
+            if (form.dataset.confirmed === "1") {
+                // Это повторный submit — уже подтверждённый программным
+                // requestSubmit() ниже (см. submitBtn click). Не перехватываем
+                // второй раз, снимаем флаг и даём форме отправиться как обычно.
+                delete form.dataset.confirmed;
+                return;
+            }
+
+            e.preventDefault();
+            pendingForm = form;
+            titleEl.textContent = form.dataset.confirmTitle || "Подтвердите удаление";
+            messageEl.textContent = form.dataset.confirmMessage;
+            submitBtn.textContent = form.dataset.confirmSubmitLabel || "Удалить";
+            dialog.showModal();
+        }, true);
+
+        submitBtn.addEventListener("click", function () {
+            dialog.close();
+            if (pendingForm) {
+                pendingForm.dataset.confirmed = "1";
+                if (pendingForm.requestSubmit) {
+                    pendingForm.requestSubmit();
+                } else {
+                    pendingForm.submit();
+                }
+                pendingForm = null;
+            }
+        });
+
+        dialog.querySelectorAll("[data-close-dialog]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                pendingForm = null;
+                dialog.close();
+            });
+        });
+
+        // Закрытие по клику на затемнённый фон (::backdrop) — тот же приём,
+        // что и в остальных диалогах проекта (project.html/profile.html).
+        dialog.addEventListener("click", function (e) {
+            if (e.target === dialog) {
+                pendingForm = null;
+                dialog.close();
+            }
+        });
+    })();
+</script>
 
 <!-- Блок для скриптов из дочерних страниц -->
 {% block extra_js %}{% endblock %}

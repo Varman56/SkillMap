@@ -3,7 +3,12 @@
     color: #535353;
     background: #F2F5FF;
     font-family: 'Cabin', sans-serif;
-    min-height: 90vh;
+    /* Была min-height: 90vh — та же причина/тот же фикс, что и на
+       ask.css/department.css: у сайт-хедера position: fixed, место под
+       него компенсируется padding-top на body (см. base.html), и 90vh +
+       этот отступ почти всегда чуть-чуть больше 100vh — браузер рисовал
+       скроллбар, даже когда реальный контент помещался. Фон страницы не
+       теряется — у body в main.css тот же цвет фона. */
 }
 
 /* Верхний паддинг уменьшен до 5px (было 30px) — тот же зазор от хедера
@@ -33,6 +38,88 @@
     font-size: 16px;
     color: #535353;
     margin: 0 0 20px 0;
+}
+
+/* Заголовок + кнопка "Добавить сотрудника" в одну строку — та же схема,
+   что и .dept-card-header-row в department.css. */
+.resv-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.resv-header-row .resv-title,
+.resv-header-row .resv-subtitle {
+    margin: 0;
+}
+
+.resv-header-row .resv-subtitle {
+    margin-top: 8px;
+    margin-bottom: 20px;
+}
+
+.resv-add-btn {
+    flex-shrink: 0;
+    background: #C02BFF;
+    color: white;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Cabin', sans-serif;
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+.resv-add-btn:hover {
+    background: #982EC4;
+}
+
+/* Сообщения (django messages) — тот же паттерн/цвета, что и
+   .dept-message* в department.css. */
+.resv-messages {
+    margin-bottom: 16px;
+}
+
+.resv-message {
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.resv-message-success {
+    background: #E6F9EE;
+    color: #1B7A43;
+    border: 1px solid #B7EACB;
+}
+
+.resv-message-error {
+    background: #FDE8E8;
+    color: #9b1c1c;
+    border: 1px solid #F8B4B4;
+}
+
+/* Чекбокс "Стажёр" в диалоге "Добавить сотрудника" — обычный чекбокс, не
+   тумблер (.resv-toggle выше — отдельный, более тяжёлый компонент для
+   фильтра, тут просто галочка в форме). */
+.resv-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #535353;
+    cursor: pointer;
+}
+
+.resv-dialog-note {
+    font-size: 12px;
+    color: #6B7280;
+    margin: -4px 0 0;
 }
 
 /* СТРОКА 1 — фильтры (тот же компактный вид, что и .cm-filter-item в matrix.css).
@@ -345,6 +432,10 @@
 }
 
 .resv-card-avatar {
+    /* Теперь это <a> (ссылка на просмотр профиля), а не <div> — у ссылок
+       display по умолчанию inline, на нём width/height/border-radius
+       ниже просто не сработали бы без явного display: block. */
+    display: block;
     width: 50px;
     height: 50px;
     border-radius: 50%;
@@ -352,6 +443,15 @@
     background-size: cover;
     flex-shrink: 0;
     overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+/* Подсветка при наведении — тот же приём (тонкое кольцо фирменным
+   фиолетовым), что и у аватарок-ссылок на "Мой отдел"/"Подтверждение
+   навыков"/страницах проекта (.dept-employee-avatar/.appr-avatar/
+   .proj-owner-avatar). Раньше на этой странице подсветки не было вовсе. */
+.resv-card-avatar:hover {
+    box-shadow: 0 0 0 2px #C02BFF;
 }
 
 .resv-card-avatar img {
@@ -412,6 +512,12 @@
     border-radius: 10px;
     cursor: pointer;
     font-size: 14px;
+    /* Раньше это была только <a> (обычный текстовый браузерный шрифт
+       через inherit по умолчанию для ссылок), теперь ещё и <button>
+       (см. .resv-card-edit-btn в reserve.html) — у <button> в части
+       браузеров свой дефолтный шрифт вместо унаследованного, задаём явно,
+       как и на остальных кнопках этой страницы (.resv-sort-btn и т.д.). */
+    font-family: 'Cabin', sans-serif;
     text-decoration: none;
     white-space: nowrap;
     transition: 0.2s;
@@ -428,4 +534,100 @@
     border-radius: 10px;
     color: #535353;
     text-align: center;
+}
+
+/* Диалог с одноразовым паролем нового сотрудника (см. #newPasswordDialog
+   в reserve.html) — крупный моноширинный пароль в отдельной рамке вместо
+   обычной зелёной плашки .resv-message-success наверху страницы, чтобы
+   его сложнее было проскроллить/потерять среди других сообщений.
+
+   ВАЖНО: у этого диалога нет <form> внутри (просто закрыть/скопировать,
+   отправлять на сервер нечего) — а раскладку "заголовок / текст / поле /
+   кнопки" с отступами между ними даёт правило .profile-dialog form
+   { display: grid; gap: 12px; } в edit_profile.css, которое применяется
+   только ВНУТРИ <form>. Без него все прямые потомки <dialog> шли просто
+   друг за другом почти без отступов (только collapsed margins заголовка/
+   абзаца) — из-за этого блок с паролем и кнопка "Готово" стояли почти
+   впритык/наезжали друг на друга. Задаём тот же display:grid;gap
+   напрямую на диалог, плюс увеличенная ширина (было 500px общих для всех
+   .profile-dialog, тут отдельно шире и попросторнее).
+
+   КРИТИЧНО: display: grid — ТОЛЬКО с селектором [open]. У закрытого
+   <dialog> браузер по умолчанию сам ставит display: none (правило
+   dialog:not([open]) { display: none } в UA-стилях) — но это правило из
+   UA-стилей, а любое авторское CSS-правило для этого же элемента (даже
+   без [open] в селекторе) побеждает UA-стили независимо от специфичности
+   (тот же самый механизм, что уже один раз сломал .resv-copy-feedback
+   через hidden-атрибут, см. комментарий ниже). Без [open] здесь диалог с
+   паролем был бы виден ВСЕГДА, прямо в потоке страницы, не по центру,
+   без затемнения фона — независимо от того, вызывался ли showModal() —
+   ровно то, что и увидел пользователь на скриншоте (пустой блок пароля
+   торчит внизу страницы при обычном заходе на "Кадровый резерв", а
+   "Готово" визуально ничего не менял, хотя dialog.close() исправно
+   убирал атрибут open — просто CSS этот атрибут никак не учитывал). */
+.resv-password-dialog[open] {
+    display: grid;
+    gap: 16px;
+    width: min(560px, calc(100% - 40px));
+}
+
+.resv-password-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: #F6E1FF;
+    border: 1px solid #E4B8FA;
+    border-radius: 10px;
+    padding: 18px 20px;
+}
+
+#newPasswordValue {
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #7C2DAA;
+    overflow-wrap: anywhere;
+}
+
+.resv-copy-btn {
+    flex-shrink: 0;
+    background: white;
+    border: 1px solid #C02BFF;
+    color: #C02BFF;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Cabin', sans-serif;
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+.resv-copy-btn:hover {
+    background: #C02BFF;
+    color: white;
+}
+
+/* visibility, а не display:none/hidden-атрибут — место под строку
+   зарезервировано ВСЕГДА, даже когда её не видно. Раньше элемент был
+   display:none, пока не скопируют пароль, и весь диалог "выдвигался"/
+   рос на высоту этой строки в момент копирования, из-за чего кнопка
+   "Готово" ниже прыгала — теперь высота диалога не меняется вообще,
+   просто появляется/исчезает текст. (Раньше ещё был отдельный баг: явный
+   display:block в этом же правиле перебивал атрибут hidden — из-за
+   каскада author-стили vs UA-стили [hidden]{display:none} побеждали
+   всегда авторские, — из-за чего "Скопировано" было видно сразу при
+   открытии диалога. visibility этого класса багов не имеет вовсе.) */
+.resv-copy-feedback {
+    display: block;
+    visibility: hidden;
+    font-size: 13px;
+    color: #1B7A43;
+}
+
+.resv-copy-feedback.is-visible {
+    visibility: visible;
 }
