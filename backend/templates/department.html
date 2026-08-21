@@ -222,6 +222,16 @@
             <div class="dept-card dept-projects-card">
                 <div class="dept-card-header-row">
                     <h3 class="dept-card-title">Проекты отдела</h3>
+                    <!-- "+" — создать проект прямо с "Мой отдел", по запросу.
+                         Отдельной страницы создания нет — открывает диалог
+                         (projectCreateDialog ниже), тот же showModal()/close()
+                         паттерн, что и диалоги на project.html. Владелец
+                         проекта — всегда текущий Manager (request.user), отдел
+                         проекту отдельно не назначается: он получается через
+                         created_by.department автоматически (см. docstring
+                         _handle_create_project в department_page.py). -->
+                    <button type="button" class="dept-add-project-btn" id="deptProjectCreateButton"
+                            aria-label="Создать проект">+</button>
                 </div>
 
                 <div class="dept-toolbar">
@@ -231,17 +241,36 @@
                                autocomplete="off">
                         <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="dept-search-icon">
                     </div>
+
+                    <!-- Статус — ФИЛЬТР (показать только проекты
+                         отдела с выбранным статусом), тот же принцип, что
+                         и на странице "Проекты" (см. projects.html) — по
+                         запросу заменили сортировку "по названию"/"по
+                         статусу" на этот фильтр, "по названию" убрали как
+                         лишнее (список и так стабильно идёт по
+                         .order_by("name") с сервера, см.
+                         department_page.py). -->
+                    <div class="dept-status-filter-box">
+                        <select id="deptProjectStatus" class="dept-status-filter-select">
+                            <option value="">Все статусы</option>
+                            {% for s in status_choices %}
+                                <option value="{{ s.value }}">{{ s.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
                 <div class="dept-projects-list" id="deptProjectsList">
                     {% for project in projects %}
                         <div class="dept-project-row"
-                             data-search="{{ project.name|lower }} {{ project.description|lower }}">
+                             data-search="{{ project.name|lower }} {{ project.description|lower }}"
+                             data-status="{{ project.status }}">
                             <div class="dept-project-icon" aria-hidden="true">📚</div>
                             <div class="dept-project-info">
                                 <span class="dept-project-name">{{ project.name }}</span>
                                 <span class="dept-project-desc">{{ project.description|default:"" }}</span>
                             </div>
+                            <span class="dept-status-pill {{ project.status_css_class }}">{{ project.status_label }}</span>
                             <div class="dept-project-avatars">
                                 {% for avatar in project.avatars %}
                                     {% if avatar %}
@@ -268,6 +297,55 @@
                         <span aria-hidden="true">›</span>
                     </button>
                 {% endif %}
+
+                <!-- Диалог "Создать проект" — открывается кнопкой "+" в шапке
+                     этой же карточки (deptProjectCreateButton выше). Отдела в
+                     форме намеренно НЕТ — у Project нет своего поля "отдел"
+                     (см. docstring projects_page.py), он получается через
+                     created_by.department, то есть автоматически совпадает с
+                     отделом текущего Manager (см. _handle_create_project в
+                     department_page.py). Список участников — ЛЮБОЙ активный
+                     сотрудник компании (candidates в контексте), не только
+                     этого отдела — проекты обычно набирают вперемешку из
+                     разных отделов (тот же довод, что и у "Добавить
+                     участника" на project.html). Сам создающий Manager в
+                     списке НЕ показан — он становится участником
+                     автоматически, без галочки. -->
+                <dialog class="dept-dialog" id="projectCreateDialog">
+                    <form method="post" action="{% url 'my-department-page' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="create_project">
+                        <h3>Новый проект</h3>
+
+                        <label class="dept-field-label" for="dept-new-project-name">Название</label>
+                        <input type="text" id="dept-new-project-name" name="name" class="dept-dialog-input" required>
+
+                        <label class="dept-field-label" for="dept-candidate-search">Участники</label>
+                        <input type="text" id="dept-candidate-search" class="dept-dialog-input"
+                               placeholder="Поиск по ФИО, должности или отделу" autocomplete="off">
+
+                        <div class="dept-candidate-list" id="deptCandidateList">
+                            {% for c in candidates %}
+                                <label class="dept-candidate-row"
+                                       data-search="{{ c.full_name|lower }} {{ c.position|lower }} {{ c.department|lower }}">
+                                    <input type="checkbox" name="member_ids" value="{{ c.id }}">
+                                    <span class="dept-candidate-name">{{ c.full_name }}</span>
+                                    <span class="dept-candidate-meta">
+                                        {{ c.position|default:"—" }}{% if c.department %} · {{ c.department }}{% endif %}
+                                    </span>
+                                </label>
+                            {% empty %}
+                                <p class="dept-card-empty">Нет доступных кандидатов.</p>
+                            {% endfor %}
+                            <p class="dept-card-empty" id="deptCandidateEmptyState" style="display: none;">Никого не найдено.</p>
+                        </div>
+
+                        <div class="dept-dialog-actions">
+                            <button type="button" data-close-dialog class="dept-dialog-cancel">Отмена</button>
+                            <button type="submit" class="dept-dialog-submit">Создать проект</button>
+                        </div>
+                    </form>
+                </dialog>
             </div>
         </div>
 
@@ -371,6 +449,7 @@
         (function setupProjectsList() {
             var list = document.getElementById("deptProjectsList");
             var searchInput = document.getElementById("deptProjectSearch");
+            var statusSelect = document.getElementById("deptProjectStatus");
             var expandButton = document.getElementById("deptProjectsExpandButton");
             var emptyState = document.getElementById("deptProjectsEmptyState");
             if (!list) return;
@@ -381,10 +460,19 @@
 
             function render() {
                 var query = (searchInput && searchInput.value || "").trim().toLowerCase();
+                var status = statusSelect ? statusSelect.value : "";
                 var visibleSoFar = 0;
                 var matchCount = 0;
 
                 rows.forEach(function (row) {
+                    // Статус — фильтр "показать только выбранный статус"
+                    // (data-status, см. project.status в контексте
+                    // department_page.py), тот же принцип, что и на
+                    // странице "Проекты" (см. render() в projects.html).
+                    if (status && row.dataset.status !== status) {
+                        row.style.display = "none";
+                        return;
+                    }
                     var matches = !query || row.dataset.search.indexOf(query) !== -1;
                     if (!matches) {
                         row.style.display = "none";
@@ -406,12 +494,67 @@
             }
 
             searchInput && searchInput.addEventListener("input", render);
+            statusSelect && statusSelect.addEventListener("change", render);
             expandButton && expandButton.addEventListener("click", function () {
                 expanded = !expanded;
                 render();
             });
 
             render();
+        })();
+
+        // Диалог "Создать проект" — тот же showModal()/close() паттерн, что
+        // и проектные диалоги на project.html (projectEditDialog/
+        // memberAddDialog), включая намеренное отсутствие закрытия по клику
+        // мимо (аудит, п. 2.8) — только явная кнопка "Отмена" или Escape
+        // (последнее — встроенное поведение <dialog>, отдельно ничего не
+        // навешиваем).
+        (function setupProjectCreateDialog() {
+            var button = document.getElementById("deptProjectCreateButton");
+            var dialog = document.getElementById("projectCreateDialog");
+            if (!button || !dialog) return;
+
+            button.addEventListener("click", function () {
+                dialog.showModal();
+            });
+
+            dialog.querySelectorAll("[data-close-dialog]").forEach(function (closeBtn) {
+                closeBtn.addEventListener("click", function () {
+                    dialog.close();
+                });
+            });
+
+            // Поиск по списку кандидатов внутри диалога — тот же приём
+            // data-search + .style.display, что и у списков сотрудников/
+            // проектов выше на этой же странице, просто без сворачивания до
+            // 5 строк (список внутри диалога и так со своим скроллом, см.
+            // .dept-candidate-list в department.css).
+            var searchInput = dialog.querySelector("#dept-candidate-search");
+            var rows = Array.from(dialog.querySelectorAll(".dept-candidate-row"));
+            var emptyState = dialog.querySelector("#deptCandidateEmptyState");
+
+            function renderCandidates() {
+                var query = (searchInput && searchInput.value || "").trim().toLowerCase();
+                var matchCount = 0;
+
+                rows.forEach(function (row) {
+                    var matches = !query || row.dataset.search.indexOf(query) !== -1;
+                    row.style.display = matches ? "" : "none";
+                    if (matches) matchCount++;
+                });
+
+                if (emptyState) {
+                    emptyState.style.display = matchCount === 0 ? "" : "none";
+                }
+            }
+
+            searchInput && searchInput.addEventListener("input", renderCandidates);
+
+            // Форма отправляется обычным POST (перезагрузка страницы) —
+            // после успешного создания сервер редиректит на страницу нового
+            // проекта (см. _handle_create_project в department_page.py), так
+            // что сбрасывать поля вручную после submit не нужно: страница
+            // всё равно уходит со страницы "Мой отдел" целиком.
         })();
     })();
 </script>

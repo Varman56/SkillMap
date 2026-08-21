@@ -36,7 +36,7 @@
                      .cm-select-group оставался без открывающего. -->
                 <div class="cm-filter-item">
                     <label>Отдел</label>
-                    {% if user.primary_role == "HR" %}
+                    {% if is_hr %}
                         <select id="deptFilter">
                             <option value="">Все отделы</option>
                             {% for dept in departments %}
@@ -254,7 +254,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Весь ваш JS для фильтрации остается неизменным
     const searchInput = document.getElementById('searchInput');
-    {% if user.primary_role == "HR" %}
+    {% if is_hr %}
     const deptFilter = document.getElementById('deptFilter');
     {% endif %}
     const categoryFilter = document.getElementById('categoryFilter');
@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
     resetBtn.addEventListener('click', function() {
         // 1. Сбрасываем текстовые и селект поля
         searchInput.value = '';
-        {% if user.primary_role == "HR" %}
+        {% if is_hr %}
         // У Manager deptFilter вообще не объявлен (см. выше) — поле
         // залочено на его собственный отдел, сбрасывать нечего. Раньше
         // эта строка ничем не была защищена и падала с ReferenceError у
@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (searchInput.value.trim()) {
                 params.set('search', searchInput.value.trim());
             }
-            {% if user.primary_role == "HR" %}
+            {% if is_hr %}
             if (deptFilter.value) {
                 params.set('department', deptFilter.value);
             }
@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cascadeSkillOptions();
 
         const searchText = searchInput.value.toLowerCase().trim();
-        {% if user.primary_role == "HR" %}
+        {% if is_hr %}
         const selectedDept = deptFilter.value;
         {% endif %}
         const selectedCategory = categoryFilter.value;
@@ -498,7 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (searchText && !empName.includes(searchText) && !empposition.includes(searchText)) {
                 isRowVisible = false;
             }
-            {% if user.primary_role == "HR" %}
+            {% if is_hr %}
             if (selectedDept && empDept !== selectedDept) {
                 isRowVisible = false;
             }
@@ -543,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    {% if user.primary_role == "HR" %}
+    {% if is_hr %}
     deptFilter.addEventListener('change', applyMatrixFilters);
     {% endif %}
 

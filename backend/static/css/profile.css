@@ -234,6 +234,73 @@ html, body {
     border-radius: 10px;
 }
 
+/* Обёртка для поиска + кнопки "+" (добавить навык) + карандаша
+   (переключатель режима редактирования) в шапке блока. */
+.skills-edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Круглая фиолетовая "+" — тот же визуальный язык, что и
+   .resv-dept-add-btn/.dept-add-project-btn/.skill-row-save-btn (круглые
+   фиолетовые кнопки-действия по всему проекту). Отдельная от карандаша
+   #skillEditButton — добавление нового навыка не редактирование уже
+   существующих, поэтому видна всегда, вне зависимости от .is-editing
+   (см. комментарий в profile.html над .skills-edit-actions). */
+.skills-add-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #C02BFF;
+    color: white;
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background-color 0.15s;
+}
+
+.skills-add-btn:hover {
+    background: #982EC4;
+}
+
+/* Карандаш-переключатель режима редактирования (#skillEditButton) — та
+   же круглая рамка, что и .skills-icon-small везде на странице, но с
+   явным подсвеченным состоянием, когда режим включён (иначе непонятно,
+   что там вообще есть какое-то "состояние" — просто иконка). */
+#skillEditButton.is-active .skills-icon-small {
+    border-color: #C02BFF;
+    background: #F6E1FF;
+    opacity: 1;
+}
+
+/* Шире и с обычным (не center) выравниванием текста в отличие от
+   .public-projects-search — там это скорее заглушка-иконка на 50px
+   (см. комментарий у filterProjects), тут — полноценный поисковый ввод. */
+.skills-search-input {
+    background: #FFFFFF;
+    border: 1px #A1A1A1 solid;
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333333;
+    outline: none;
+    width: 160px;
+    transition: border-color 0.2s;
+}
+
+.skills-search-input:focus {
+    border-color: #C02BFF;
+}
+
 .skill-row {
     display: flex;
     align-items: center;
@@ -241,6 +308,112 @@ html, body {
     gap: 12px;
     margin-bottom: 10px;
     font-size: 14px;
+}
+
+.skill-row-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Скрыты по умолчанию у ВСЕХ строк сразу — при простом просмотре
+   профиля (в том числе своего) элементов редактирования не видно вообще
+   (по отзыву пользователя). Показываются только пока на
+   .public-skills-section есть класс .is-editing — включается/выключается
+   ОДНИМ кликом по общему карандашу #skillEditButton (см. profile.html),
+   а не отдельным переключателем в каждой строке, как было раньше. */
+.skill-row-actions {
+    display: none;
+    align-items: center;
+    gap: 8px;
+}
+
+.public-skills-section.is-editing .skill-row-actions {
+    display: flex;
+}
+
+/* <form> по умолчанию — блочный элемент, без этого правила select и
+   кнопка-галочка внутри него переносились на вторую строку, если не
+   хватало места по ширине (сама форма сжималась как flex-item в
+   .skill-row-actions, а её собственное внутреннее содержимое оставалось
+   обычным строчным потоком) — из-за чего галочка "падала" под селект, а
+   мусорка visуально повисала где-то между ними. */
+.skill-inline-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.skill-row-actions select {
+    font-size: 13px;
+    padding: 4px 6px;
+    border-radius: 8px;
+    border: 1px solid #D3D3D3;
+    outline: none;
+    background: #FFFFFF;
+}
+
+/* Круглая фиолетовая кнопка "Сохранить"/"Запросить повышение" — тот же
+   визуальный язык, что и .resv-dept-add-btn/.dept-add-project-btn
+   (круглая фиолетовая "плюс"-кнопка), только с галочкой вместо "+" —
+   готовой иконки-галочки в assets/ нет, поэтому inline SVG прямо в
+   разметке (см. profile.html), а не <img>. */
+.skill-row-save-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #C02BFF;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background-color 0.15s;
+}
+
+.skill-row-save-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.skill-row-save-btn:hover {
+    background: #982EC4;
+}
+
+/* Красная круглая кнопка-мусорка — тот же компонент, что и
+   .resv-dept-delete-btn в reserve.css (та же логика "маленькая красная
+   мусорка везде, где нужно подтверждаемое удаление"), просто под своё
+   пространство имён классов, т.к. profile.css не переиспользует классы
+   reserve.css напрямую (страницы не связаны). Раньше тут была обычная
+   текстовая кнопка "Удалить" — заменена по прямому запросу пользователя
+   ("заменить удалить на значок мусорки красный, уже был где-то в
+   проекте"). */
+.skill-row-delete-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #FDE8E8;
+    border: 1px solid #F8B4B4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background-color 0.15s;
+}
+
+.skill-row-delete-btn img {
+    width: 13px;
+    height: 13px;
+    opacity: 0.75;
+}
+
+.skill-row-delete-btn:hover {
+    background: #FBD5D5;
 }
 
 /* Группа: одно название навыка, под ним — до 2 строк (подтверждённый

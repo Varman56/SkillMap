@@ -116,21 +116,29 @@
                         {% endif %}
                     </div>
 
-                    <form method="get" action="" class="proj-member-search">
+                    <!-- Поиск по участникам — целиком на клиенте (см.
+                         extra_js ниже), без похода на сервер: раньше это
+                         был <form method="get"> с перезагрузкой всей
+                         страницы на каждый Enter/клик по лупе — теперь тот
+                         же приём, что и в ask.html/reserve.html/
+                         projects.html, фильтрация по data-search на
+                         каждой .proj-member-row при вводе. Сервер (см.
+                         project_page.py) всегда отдаёт ПОЛНЫЙ список
+                         участников. -->
+                    <div class="proj-member-search">
                         <input
                             type="text"
-                            name="search"
-                            value="{{ search }}"
+                            id="memberSearchInput"
                             placeholder="Поиск участника по ФИО"
                             class="proj-search-input"
                             autocomplete="off"
                         >
                         <img src="{% static 'assets/search.svg' %}" alt="">
-                    </form>
+                    </div>
 
                     <div class="proj-members-list">
                         {% for member in members %}
-                            <div class="proj-member-row">
+                            <div class="proj-member-row" data-search="{{ member.full_name|lower }}">
                                 <a href="{% url 'profile-page' user_id=member.id %}" class="proj-member-avatar">
                                     {% if member.photo %}
                                         <img src="{{ member.photo }}" alt="Аватар">
@@ -164,10 +172,20 @@
                                 {% endif %}
                             </div>
                         {% empty %}
-                            <p class="proj-members-empty">
-                                {% if search %}Никого не найдено.{% else %}Участников пока нет.{% endif %}
-                            </p>
+                            <p class="proj-members-empty">Участников пока нет.</p>
                         {% endfor %}
+                        <!-- "Никого не найдено" по поиску — отдельно от
+                             пустого блока цикла выше: тот текст относится
+                             только к СЕРВЕРНОМУ случаю "участников вообще
+                             нет" и рендерится один раз при загрузке
+                             страницы, а не пересчитывается заново от
+                             JS-фильтрации. Спрятано по умолчанию, JS
+                             показывает/прячет по числу видимых строк —
+                             тот же приём, что и #noResultsMessage в
+                             reserve.html. -->
+                        <p class="proj-members-empty" id="memberSearchEmpty" style="display: none;">
+                            Никого не найдено.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -275,14 +293,13 @@
                 });
             });
 
-            // Закрытие по клику на затемнённый фон (::backdrop) — клик
-            // регистрируется на самом <dialog>, но не на его содержимом,
-            // поэтому проверяем, что клик пришёлся именно на сам элемент.
-            dialog.addEventListener("click", function (e) {
-                if (e.target === dialog) {
-                    dialog.close();
-                }
-            });
+            // Закрытие по клику мимо — намеренно убрано (аудит, п. 2.8;
+            // тот же фикс уже делали на reserve.html в этом же приложении):
+            // клик на <dialog> регистрировался и для настоящего ::backdrop,
+            // и для клика на паддинг/пустое место ВНУТРИ самой рамки —
+            // промах мимо текста описания проекта или мимо имени в списке
+            // сотрудников закрывал диалог и терял введённое. Теперь —
+            // только явная кнопка "Отмена" или Escape.
         }
 
         wireDialog("projectEditButton", "projectEditDialog");
@@ -310,6 +327,40 @@
                 });
 
                 if (!selectedStillValid) memberSelect.value = "";
+            });
+        })();
+
+        // Поиск участников — целиком на клиенте (тот же приём, что и
+        // #noResultsMessage/data-search в reserve.html): сервер всегда
+        // рендерит полный список (см. project_page.py), JS только
+        // показывает/прячет уже готовые .proj-member-row по подстроке в
+        // ФИО, без единого запроса к серверу и без перезагрузки страницы.
+        (function setupMemberSearch() {
+            var searchInput = document.getElementById("memberSearchInput");
+            var membersList = document.querySelector(".proj-members-list");
+            var emptyMessage = document.getElementById("memberSearchEmpty");
+            if (!searchInput || !membersList) return;
+
+            var rows = Array.from(membersList.querySelectorAll(".proj-member-row"));
+            // Если участников вообще нет, строк нет — прятать/показывать
+            // memberSearchEmpty по числу совпадений тогда не нужно, для
+            // этого случая уже есть свой текст "Участников пока нет.",
+            // который рендерится сервером отдельно (см. разметку выше).
+            if (!rows.length) return;
+
+            searchInput.addEventListener("input", function () {
+                var query = searchInput.value.toLowerCase().trim();
+                var visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    var matches = !query || row.dataset.search.indexOf(query) !== -1;
+                    row.style.display = matches ? "" : "none";
+                    if (matches) visibleCount++;
+                });
+
+                if (emptyMessage) {
+                    emptyMessage.style.display = visibleCount === 0 ? "" : "none";
+                }
             });
         })();
 

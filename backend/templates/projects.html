@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/projects.css' %}">
+{% endblock %}
+
+{% block title %}SkillMap | Проекты{% endblock %}
+
+{% block content %}
+<div class="projs-page">
+    <main class="projs-main">
+        <div class="projs-container">
+            <h1 class="projs-title">Проекты</h1>
+            <p class="projs-subtitle">Все проекты компании — найдите нужный по названию или отделу</p>
+
+            <!-- Фильтрация ЦЕЛИКОМ на клиенте (тот же приём, что и в
+                 ask.html/reserve.html) — сервер один раз отдаёт JS вообще
+                 все проекты (см. projectsData ниже), поиск/фильтр по
+                 отделу считаются в extra_js без единого запроса к
+                 серверу. В отличие от "Кого спросить?", список виден
+                 СРАЗУ — пустой поиск не прячет карточки, просто их не
+                 сужает (см. render() в extra_js). -->
+            <div class="projs-search-section">
+                <div class="projs-filters-row">
+                    <div class="projs-search-box">
+                        <input
+                            type="text"
+                            id="projectSearch"
+                            placeholder="Введите название или описание проекта"
+                            class="projs-search-input"
+                            autocomplete="off"
+                        >
+                        <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="projs-search-icon">
+                    </div>
+
+                    <!-- Отдел — здесь ВСЕГДА редактируемый select, в отличие
+                         от ask.html: страница целиком только для HR (см.
+                         _can_view в projects_page.py), залоченного варианта
+                         под другие роли просто не существует. Фильтрует по
+                         отделу ВЛАДЕЛЬЦА проекта (см. docstring
+                         projects_page.py — у самого Project нет поля
+                         "отдел", участники могут быть из разных отделов). -->
+                    <div class="projs-dept-filter">
+                        <label for="projectDepartment" class="projs-dept-label">Отдел (по владельцу проекта)</label>
+                        <select id="projectDepartment" class="projs-dept-select">
+                            <option value="">Все отделы</option>
+                            {% for d in departments %}
+                                <option value="{{ d.name }}">{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Статус — ФИЛЬТР (показать только проекты с
+                         выбранным статусом), а не сортировка списка: по
+                         запросу сортировку "по названию" убрали совсем
+                         (список и так стабильно идёт по .order_by("name")
+                         из _build_projects()), а "по статусу" на деле
+                         означало именно "показать только В работе" /
+                         "только Завершённые" и т.п. Тот же компонент, что
+                         и .projs-dept-filter выше — свой select, тот же вид. -->
+                    <div class="projs-status-filter">
+                        <label for="projectStatus" class="projs-status-filter-label">Статус</label>
+                        <select id="projectStatus" class="projs-status-filter-select">
+                            <option value="">Все статусы</option>
+                            {% for s in status_choices %}
+                                <option value="{{ s.value }}">{{ s.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="projs-results-header" id="projsResultsHeader"></div>
+            <div class="projs-results" id="projsResults"></div>
+
+            {{ projects|json_script:"projectsData" }}
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        const projects = JSON.parse(document.getElementById('projectsData').textContent);
+
+        // Тот же приём "зашить фиктивный id в url-тег Django и подменить
+        // строкой на JS", что и PROFILE_URL_TEMPLATE в ask.html/reserve.html —
+        // карточки строятся в JS, а не в цикле Django-шаблона.
+        const PROJECT_URL_TEMPLATE = "{% url 'project-page' 999999999 %}";
+        function projectUrl(id) {
+            return PROJECT_URL_TEMPLATE.replace('999999999', id);
+        }
+
+        // static — django-тег, а не функция, посчитать его на лету в JS
+        // нельзя. Карточки строятся в JS (см. buildCard ниже), поэтому
+        // префикс static-пути берём ОДИН раз здесь и просто приклеиваем
+        // к project.icon (тот же приём, что и с PROJECT_URL_TEMPLATE
+        // выше) — эквивалент связки static+add-фильтр из profile.html,
+        // но без Django-цикла по проектам на сервере. ВАЖНО: не писать в
+        // комментариях литеральные фигурные django-теги — движок парсит
+        // их даже внутри JS-комментария, это уже ломало другие страницы.
+        const STATIC_ASSETS_URL = "{% static 'assets/' %}";
+
+        const searchInput = document.getElementById('projectSearch');
+        const departmentSelect = document.getElementById('projectDepartment');
+        const statusSelect = document.getElementById('projectStatus');
+        const resultsContainer = document.getElementById('projsResults');
+        const resultsHeader = document.getElementById('projsResultsHeader');
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : text;
+            return div.innerHTML;
+        }
+
+        function notFoundHtml(query) {
+            return (
+                '<div class="projs-empty">' +
+                '<img class="lamp" src="{% static "assets/lamp.svg" %}" alt="Ничего не найдено">' +
+                '<div class="projs-empty-content">' +
+                '<h3 class="projs-empty-title">Ничего не найдено</h3>' +
+                '<p class="projs-empty-text">По запросу «' + escapeHtml(query) +
+                '» проектов не найдено — попробуйте другое название или отдел.</p>' +
+                '</div></div>'
+            );
+        }
+
+        function buildCard(project) {
+            const descriptionHtml = project.description
+                ? '<p class="projs-card-desc">' + escapeHtml(project.description) + '</p>'
+                : '<p class="projs-card-desc projs-card-desc-empty">Без описания.</p>';
+            const memberWord = pluralizeMembers(project.member_count);
+
+            return (
+                '<a class="projs-card" href="' + projectUrl(project.id) + '">' +
+                '<img class="projs-card-icon" src="' + STATIC_ASSETS_URL + project.icon + '" alt="">' +
+                '<div class="projs-card-body">' +
+                '<div class="projs-card-top">' +
+                '<h3 class="projs-card-name">' + escapeHtml(project.name) + '</h3>' +
+                '<span class="projs-status-pill ' + escapeHtml(project.status_css_class) + '">' +
+                escapeHtml(project.status_label) + '</span>' +
+                '</div>' +
+                descriptionHtml +
+                '<div class="projs-card-meta">' +
+                '<span>' + escapeHtml(project.department || 'Отдел не указан') + '</span>' +
+                '<span class="projs-card-meta-dot">•</span>' +
+                '<span>' + (project.owner_name ? escapeHtml(project.owner_name) : 'Без владельца') + '</span>' +
+                '<span class="projs-card-meta-dot">•</span>' +
+                '<span>' + project.member_count + ' ' + memberWord + '</span>' +
+                '</div>' +
+                '</div>' +
+                '</a>'
+            );
+        }
+
+        // Простое склонение "участник/участника/участников" — то же самое
+        // число может относиться и к 1, и к 11, и к 21 сотруднику сразу
+        // (HR листает много проектов подряд), неправильное склонение
+        // резало бы глаз на каждой карточке.
+        function pluralizeMembers(count) {
+            const mod10 = count % 10;
+            const mod100 = count % 100;
+            if (mod10 === 1 && mod100 !== 11) return 'участник';
+            if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'участника';
+            return 'участников';
+        }
+
+        function render() {
+            const query = searchInput.value.trim().toLowerCase();
+            const department = departmentSelect.value;
+            const status = statusSelect.value;
+
+            const filtered = projects.filter(function (project) {
+                if (department && project.department !== department) return false;
+                if (status && project.status !== status) return false;
+                if (!query) return true;
+                const haystack = (project.name + ' ' + project.description).toLowerCase();
+                return haystack.indexOf(query) !== -1;
+            });
+
+            resultsHeader.textContent = 'Найдено проектов: ' + filtered.length;
+
+            if (!filtered.length) {
+                resultsContainer.innerHTML = notFoundHtml(query || department || statusSelect.options[statusSelect.selectedIndex].text);
+                return;
+            }
+
+            resultsContainer.innerHTML = filtered.map(buildCard).join('');
+        }
+
+        searchInput.addEventListener('input', render);
+        departmentSelect.addEventListener('change', render);
+        statusSelect.addEventListener('change', render);
+
+        render();
+    })();
+</script>
+{% endblock %}

@@ -1,10 +1,61 @@
 {% if can_edit %}
 <dialog id="profileEditDialog" class="profile-dialog">
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" {% if not hr_editing_other %}enctype="multipart/form-data"{% endif %}>
         {% csrf_token %}
         <input type="hidden" name="action" value="update_profile">
 
-        <h3>Редактирование профиля</h3>
+        <!-- hr_editing_other — HR смотрит ЧУЖОЙ профиль (см. docstring
+             profile_page.py, раздел "РЕДАКТИРОВАНИЕ ЧУЖОГО ПРОФИЛЯ
+             ЦЕЛИКОМ"): показываем расширенный набор полей (ФИО/email/
+             должность/отдел) и явно НЕ показываем фотографию — по прямому
+             запросу пользователя "любую информацию, кроме фото". Для
+             своего профиля (в том числе у самого HR) разметка не менялась
+             вообще — тот же набор полей, что и раньше. -->
+        <h3>
+            {% if hr_editing_other %}
+                Редактирование профиля — {{ profile_user.full_name }}
+            {% else %}
+                Редактирование профиля
+            {% endif %}
+        </h3>
+
+        {% if hr_editing_other %}
+            <label for="profile-full-name">ФИО</label>
+            <input
+                id="profile-full-name"
+                type="text"
+                name="full_name"
+                value="{{ profile_user.full_name }}"
+                required
+            >
+
+            <label for="profile-email">Email</label>
+            <input
+                id="profile-email"
+                type="email"
+                name="email"
+                value="{{ profile_user.email }}"
+                required
+            >
+
+            <label for="profile-position">Должность</label>
+            <input
+                id="profile-position"
+                type="text"
+                name="position"
+                value="{{ profile_user.position|default:'' }}"
+            >
+
+            <label for="profile-department">Отдел</label>
+            <select id="profile-department" name="department_id">
+                <option value="">Без отдела</option>
+                {% for d in departments %}
+                    <option value="{{ d.id }}" {% if profile_user.department_id == d.id %}selected{% endif %}>
+                        {{ d.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        {% endif %}
 
         <label for="profile-phone">Телефон</label>
         <input
@@ -25,13 +76,15 @@
         <label for="profile-about">Обо мне</label>
         <textarea id="profile-about" name="about">{{ profile_user.about|default:'' }}</textarea>
 
-        <label for="profile-photo">Фотография</label>
-        <input
-            id="profile-photo"
-            type="file"
-            name="photo"
-            accept="image/jpeg,image/png,image/webp"
-        >
+        {% if not hr_editing_other %}
+            <label for="profile-photo">Фотография</label>
+            <input
+                id="profile-photo"
+                type="file"
+                name="photo"
+                accept="image/jpeg,image/png,image/webp"
+            >
+        {% endif %}
 
         <!-- Резюме сюда больше не входит — грузить и видеть его может
              только HR, это отдельный блок/форма на странице профиля

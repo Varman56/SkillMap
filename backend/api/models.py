@@ -89,9 +89,21 @@ class User(AbstractBaseUser):
  
     @property
     def primary_role(self) -> str:
-        """Имя первой роли — для мест, где старому коду нужна одна строка."""
-        role = self.roles.first()
-        return role.name if role else ""
+        """Имя первой роли — для мест, где старому коду нужна одна строка.
+
+        Раньше — self.roles.first(). У Role нет Meta.ordering, поэтому
+        .first() на непустой, но неотсортированной связи молча добавляет
+        свой order_by('pk') — это НОВЫЙ queryset (с другими аргументами
+        сортировки, чем обычный .all()), а значит Django не может отдать
+        его из кеша prefetch_related("roles") (см. matrix_page.py,
+        emp.primary_role используется в цикле по всем сотрудникам) — и
+        вместо переиспользования уже загруженных данных прилетает
+        отдельный SQL-запрос НА КАЖДОГО пользователя (аудит, п. 3.4).
+        list(self.roles.all()) — тот же .all(), что и без .first() —
+        корректно берёт закешированный prefetch, если он есть, и делает
+        один обычный запрос, если его нет."""
+        roles = list(self.roles.all())
+        return roles[0].name if roles else ""
  
     @property
     def primary_department(self) -> str:

@@ -38,11 +38,29 @@
                     <h1 class="resv-title">Кадровый резерв</h1>
                     <p class="resv-subtitle">Найдите сотрудников, которые лучше всего владеют нужным вам навыком</p>
                 </div>
-                <!-- Интеграции с Yandex 360/Zulip пока нет (см. docstring
-                     reserve_page.py) — это единственный способ завести
-                     нового человека в приложении, поэтому кнопка тут, а не
-                     где-то ещё. -->
-                <button type="button" class="resv-add-btn" id="addEmployeeButton">+ Добавить сотрудника</button>
+                <div class="resv-header-actions">
+                    <!-- Из 3 макетов-вариантов, показанных пользователю,
+                         выбран этот: отдельная кнопка + диалог со списком
+                         отделов, а не иконки прямо в select'е фильтра
+                         "Отдел" — так "выбрать отдел для фильтрации" и
+                         "выбрать отдел для удаления" физически разные
+                         контролы, случайно перепутать нельзя (см. docstring
+                         reserve_page.py). -->
+                    <!-- Без иконки — намеренно: среди готовых assets/*.svg
+                         нет ничего однозначно про "отдел" (hr-plus.svg,
+                         например, скорее про добавление человека), а
+                         рисковать неверно считываемой иконкой хуже, чем её
+                         не быть вообще. Тот же приём (просто текст, без
+                         иконки), что и у соседней .resv-sort-btn ниже. -->
+                    <button type="button" class="resv-manage-dept-btn" id="manageDepartmentsButton">
+                        Управление отделами
+                    </button>
+                    <!-- Интеграции с Yandex 360/Zulip пока нет (см. docstring
+                         reserve_page.py) — это единственный способ завести
+                         нового человека в приложении, поэтому кнопка тут, а не
+                         где-то ещё. -->
+                    <button type="button" class="resv-add-btn" id="addEmployeeButton">+ Добавить сотрудника</button>
+                </div>
             </div>
 
             <!-- ФИЛЬТРАЦИЯ ЦЕЛИКОМ НА КЛИЕНТЕ — тот же принцип, что и в
@@ -216,15 +234,37 @@
                              телефона/города/"о себе" — обсудим отдельно,
                              сейчас те же поля, что и в обычном диалоге
                              редактирования профиля (profile/_edit_dialog.html). -->
-                        <button type="button"
-                                class="resv-card-btn resv-card-edit-btn"
-                                data-user-id="{{ employee.id }}"
-                                data-user-name="{{ employee.full_name }}"
-                                data-phone="{{ employee.phone }}"
-                                data-city="{{ employee.city }}"
-                                data-about="{{ employee.about }}">
-                            Редактировать профиль
-                        </button>
+                        <div class="resv-card-actions">
+                            <button type="button"
+                                    class="resv-card-btn resv-card-edit-btn"
+                                    data-user-id="{{ employee.id }}"
+                                    data-user-name="{{ employee.full_name }}"
+                                    data-phone="{{ employee.phone }}"
+                                    data-city="{{ employee.city }}"
+                                    data-about="{{ employee.about }}"
+                                    data-email="{{ employee.email }}"
+                                    data-position="{{ employee.position }}"
+                                    data-department-id="{{ employee.department_id|default:'' }}">
+                                Редактировать профиль
+                            </button>
+                            <!-- Кнопки на своей же карточке нет вообще — сервер
+                                 (_handle_delete_employee) всё равно отклонил бы
+                                 запрос "удалить самого себя", но незачем
+                                 показывать HR кнопку, которая гарантированно
+                                 приведёт только к ошибке. -->
+                            {% if employee.id != request.user.id %}
+                                <form method="post" action="{% url 'reserve-page' %}"
+                                      class="resv-card-delete-form"
+                                      data-confirm-message="Удалить сотрудника «{{ employee.full_name }}»? Это действие необратимо.">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_employee">
+                                    <input type="hidden" name="user_id" value="{{ employee.id }}">
+                                    <button type="submit" class="resv-card-delete-btn" aria-label="Удалить сотрудника">
+                                        <img src="{% static 'assets/trash.svg' %}" alt="">
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
                     </div>
                 {% endfor %}
             </div>
@@ -286,14 +326,72 @@
     </form>
 </dialog>
 
+<!-- Диалог "Управление отделами" — см. docstring reserve_page.py
+     (_handle_create_department/_handle_delete_department) почему выбран
+     именно этот вариант (отдельный диалог, а не иконки внутри select'а
+     фильтра "Отдел"). Форма добавления и КАЖДАЯ строка со своей формой
+     удаления — независимые <form>, не вложенные друг в друга (вложенные
+     <form> внутри <form> в HTML не работают вообще, браузер молча ломает
+     разметку) — тот же приём, что и .proj-member-remove-form в project.html. -->
+<dialog id="manageDepartmentsDialog" class="profile-dialog resv-dept-dialog">
+    <h3>Управление отделами</h3>
+
+    <form method="post" action="{% url 'reserve-page' %}" class="resv-dept-add-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_department">
+        <input type="text" name="name" placeholder="Название нового отдела" required
+               maxlength="255" class="resv-dept-add-input">
+        <button type="submit" class="resv-dept-add-btn" aria-label="Добавить отдел">+</button>
+    </form>
+
+    <div class="resv-dept-list" id="departmentsList">
+        {% for d in departments %}
+            <div class="resv-dept-row">
+                <span class="resv-dept-row-name">{{ d.name }}</span>
+                <form method="post" action="{% url 'reserve-page' %}"
+                      data-confirm-message="Удалить отдел «{{ d.name }}»? Сотрудники этого отдела останутся без отдела, сами они не удаляются.">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_department">
+                    <input type="hidden" name="department_id" value="{{ d.id }}">
+                    <button type="submit" class="resv-dept-delete-btn" aria-label="Удалить отдел «{{ d.name }}»">
+                        <img src="{% static 'assets/trash.svg' %}" alt="">
+                    </button>
+                </form>
+            </div>
+        {% empty %}
+            <p class="resv-dept-empty">Отделов пока нет.</p>
+        {% endfor %}
+    </div>
+
+    <div class="profile-dialog-actions">
+        <button type="button" data-close-dialog>Готово</button>
+    </div>
+</dialog>
+
 <!-- Общий диалог "Редактировать профиль" — один на всю страницу, а не по
      одному на карточку (карточек может быть много, у каждой копии была бы
      своя <dialog>+<form>, включая file-input для фото — раздувало бы DOM
      без пользы). JS при клике на кнопку конкретной карточки подставляет
-     сюда action и текущие значения полей (см. extra_js). Поля — те же, что
-     и в обычном self-edit диалоге профиля (profile/_edit_dialog.html):
-     что именно тут можно будет редактировать кроме этого — обсудим позже
-     (см. сообщение пользователя/докстринг reserve_page.py). -->
+     сюда action и текущие значения полей (см. extra_js).
+
+     Поля ФИО/email/должность/отдел (.resv-edit-extended) — перенесены
+     сюда из profile/_edit_dialog.html вместе с расширенным HR-
+     редактированием (см. docstring reserve_page.py, раздел
+     "РЕДАКТИРОВАНИЕ ПРОФИЛЯ"): показываются, только когда открыта
+     карточка ДРУГОГО сотрудника (JS сравнивает data-user-id с
+     CURRENT_USER_ID, см. extra_js) — если HR открывает СВОЮ же карточку,
+     эти поля скрываются, а фото (.resv-edit-photo-only) наоборот
+     появляется — ровно то же разделение self/hr_editing_other, что и на
+     странице профиля, просто здесь один диалог обслуживает оба случая
+     через JS, а не через два разных серверных условных блока (шаблон тут
+     один на всех сотрудников сразу, серверу заранее не известно, чью
+     карточку откроют). required у ФИО/email переключается в JS отдельно
+     от видимости (см. extra_js) — скрытие через hidden на родительском
+     <div> НЕ освобождает вложенные required-поля от валидации формы
+     (проверено на практике: display:none у предка не считается "barred
+     from constraint validation" для потомка), так что просто спрятать
+     блок было недостаточно — форма продолжала бы молча блокировать
+     сохранение на своей же карточке из-за пустых ФИО/email. -->
 <dialog id="profileEditDialog" class="profile-dialog">
     <form method="post" enctype="multipart/form-data" id="profileEditForm">
         {% csrf_token %}
@@ -306,6 +404,25 @@
 
         <h3 id="profileEditDialogTitle">Редактирование профиля</h3>
 
+        <div class="resv-edit-extended" id="resvEditExtended" hidden>
+            <label for="edit-emp-full-name">ФИО</label>
+            <input id="edit-emp-full-name" type="text" name="full_name" required>
+
+            <label for="edit-emp-email">Email</label>
+            <input id="edit-emp-email" type="email" name="email" required>
+
+            <label for="edit-emp-position">Должность</label>
+            <input id="edit-emp-position" type="text" name="position">
+
+            <label for="edit-emp-department">Отдел</label>
+            <select id="edit-emp-department" name="department_id">
+                <option value="">Без отдела</option>
+                {% for d in departments %}
+                    <option value="{{ d.id }}">{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         <label for="edit-emp-phone">Телефон</label>
         <input id="edit-emp-phone" type="tel" name="phone">
 
@@ -315,8 +432,10 @@
         <label for="edit-emp-about">Обо мне</label>
         <textarea id="edit-emp-about" name="about"></textarea>
 
-        <label for="edit-emp-photo">Фотография</label>
-        <input id="edit-emp-photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+        <div class="resv-edit-photo-only" id="resvEditPhotoOnly">
+            <label for="edit-emp-photo">Фотография</label>
+            <input id="edit-emp-photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+        </div>
 
         <div class="profile-dialog-actions">
             <button type="submit">Сохранить</button>
@@ -374,6 +493,14 @@
             });
         }
 
+        const manageDeptDialog = document.getElementById('manageDepartmentsDialog');
+        const manageDeptButton = document.getElementById('manageDepartmentsButton');
+        if (manageDeptButton && manageDeptDialog) {
+            manageDeptButton.addEventListener('click', function () {
+                manageDeptDialog.showModal();
+            });
+        }
+
         // {% url 'profile-page' 999999999 %} — тот же приём, что и в
         // ask.html (PROFILE_URL_TEMPLATE): подставляем реальный id вместо
         // заглушки строкой, а не собираем URL вручную — если когда-нибудь
@@ -390,16 +517,56 @@
         const editCity = document.getElementById('edit-emp-city');
         const editAbout = document.getElementById('edit-emp-about');
         const editPhoto = document.getElementById('edit-emp-photo');
+        const editFullName = document.getElementById('edit-emp-full-name');
+        const editEmail = document.getElementById('edit-emp-email');
+        const editPosition = document.getElementById('edit-emp-position');
+        const editDepartment = document.getElementById('edit-emp-department');
+        const editExtended = document.getElementById('resvEditExtended');
+        const editPhotoOnly = document.getElementById('resvEditPhotoOnly');
+
+        // Кто сейчас залогинен — сравниваем с data-user-id открываемой
+        // карточки, чтобы отличить "HR редактирует чужой профиль"
+        // (расширенные поля) от "HR открыл свою же карточку" (как раньше,
+        // только phone/city/about/photo) — см. комментарий у
+        // #profileEditDialog и docstring reserve_page.py.
+        const CURRENT_USER_ID = "{{ request.user.id }}";
 
         if (editDialog && editForm) {
             document.querySelectorAll('.resv-card-edit-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    editForm.action = profileUrl(btn.getAttribute('data-user-id'));
+                    const userId = btn.getAttribute('data-user-id');
+                    const isOther = userId !== CURRENT_USER_ID;
+
+                    editForm.action = profileUrl(userId);
                     editTitle.textContent = 'Редактирование профиля — ' + btn.getAttribute('data-user-name');
                     editPhone.value = btn.getAttribute('data-phone') || '';
                     editCity.value = btn.getAttribute('data-city') || '';
                     editAbout.value = btn.getAttribute('data-about') || '';
                     editPhoto.value = '';
+
+                    editExtended.hidden = !isOther;
+                    editPhotoOnly.hidden = isOther;
+                    // ВАЖНО: `hidden` на РОДИТЕЛЬСКОМ <div> убирает поля из
+                    // рендера (display:none), но НЕ освобождает вложенные
+                    // required-поля от валидации формы — по спецификации
+                    // "barred from constraint validation" смотрит на сам
+                    // элемент, а не на скрытость через display:none у
+                    // предка (проверено: checkValidity() всё равно считал
+                    // #edit-emp-full-name невалидным, пока он пустой, хотя
+                    // визуально был не виден и submit молча ничего не
+                    // делал — сперва решили, что "у скрытых полей и так не
+                    // должно требоваться заполнение", это оказалось не так
+                    // в реальном поведении Chromium). Поэтому required
+                    // переключаем явно, отдельно от видимости.
+                    editFullName.required = isOther;
+                    editEmail.required = isOther;
+                    if (isOther) {
+                        editFullName.value = btn.getAttribute('data-user-name') || '';
+                        editEmail.value = btn.getAttribute('data-email') || '';
+                        editPosition.value = btn.getAttribute('data-position') || '';
+                        editDepartment.value = btn.getAttribute('data-department-id') || '';
+                    }
+
                     editDialog.showModal();
                 });
             });
@@ -443,10 +610,11 @@
         // тоже даёт e.target === dialog — из-за этого случайный промах мимо
         // поля, или выделение текста мышкой с отпусканием за пределами
         // текстового поля, тоже закрывали диалог. Убрано полностью для всех
-        // 3 диалогов этой страницы — то же самое, что попросили явно для
+        // диалогов этой страницы (включая manageDeptDialog, добавленный
+        // позже, — та же логика) — то же самое, что попросили явно для
         // диалога с паролем, но применили ко всем для единообразия (иначе
         // тот же баг остался бы, например, в диалоге "Добавить сотрудника").
-        [addDialog, editDialog, passwordDialog].forEach(function (dialog) {
+        [addDialog, manageDeptDialog, editDialog, passwordDialog].forEach(function (dialog) {
             if (!dialog) return;
             dialog.querySelectorAll('[data-close-dialog]').forEach(function (btn) {
                 btn.addEventListener('click', function () { dialog.close(); });

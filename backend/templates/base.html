@@ -57,6 +57,12 @@
                class="{% if request.resolver_match.url_name == 'matrix-page' %}public-nav-active{% endif %}">Матрица компетенций</a>
             <a href="{% url 'reserve-page' %}"
                class="{% if request.resolver_match.url_name == 'reserve-page' %}public-nav-active{% endif %}">Кадровый резерв</a>
+            <!-- "Проекты" (список всех проектов с поиском/фильтром по
+                 отделу владельца) — только для HR, см. docstring
+                 projects_page.py: страница целиком заточена под HR-нужду
+                 "найти проект", остальным ролям в хедере не нужна. -->
+            <a href="{% url 'projects-page' %}"
+               class="{% if request.resolver_match.url_name == 'projects-page' %}public-nav-active{% endif %}">Проекты</a>
             {% endif %}
             {% endif %}
         </nav>
@@ -251,14 +257,16 @@
             });
         });
 
-        // Закрытие по клику на затемнённый фон (::backdrop) — тот же приём,
-        // что и в остальных диалогах проекта (project.html/profile.html).
-        dialog.addEventListener("click", function (e) {
-            if (e.target === dialog) {
-                pendingForm = null;
-                dialog.close();
-            }
-        });
+        // Закрытие по клику мимо (на затемнённый фон) — намеренно убрано
+        // (аудит, п. 2.8; тот же фикс уже делали на reserve.html): клик
+        // регистрируется на самом <dialog>, но не только на настоящем
+        // ::backdrop — так же попадает и клик на паддинг/пустое место
+        // ВНУТРИ рамки диалога (например, промах мимо текста сообщения),
+        // так что случайный клик закрывал диалог без какого-либо
+        // подтверждения — как раз то, для чего этот диалог вообще нужен.
+        // Теперь закрыть можно только явно — кнопкой "Отмена" или Escape
+        // (последний обрабатывает сам браузер через нативное поведение
+        // <dialog>, отдельного кода для него не требуется).
     })();
 </script>
 

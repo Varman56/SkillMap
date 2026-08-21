@@ -320,6 +320,12 @@
     padding: 0 1px;
 }
 
+.appr-actions-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .appr-approve-btn {
     background: #C02BFF;
     color: white;
@@ -336,6 +342,30 @@
 
 .appr-approve-btn:hover {
     background: #982EC4;
+}
+
+/* "Отклонить" — намеренно вторична по весу рядом с "Подтвердить"
+   (обычная кнопка-подтверждение — самое частое действие на этой
+   странице, отклонение — редкое и необратимое): контур вместо
+   заливки, тот же красный оттенок, что уже используется в проекте для
+   деструктивных, но некрупных действий (см. .public-resume-delete-btn
+   в profile.css — #9b1c1c). */
+.appr-reject-btn {
+    background: #FFFFFF;
+    color: #9b1c1c;
+    border: 1px solid #F3B4B4;
+    padding: 8px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+.appr-reject-btn:hover {
+    background: #FEF2F2;
+    border-color: #9b1c1c;
 }
 
 /* ПАГИНАЦИЯ */

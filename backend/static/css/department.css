@@ -352,6 +352,12 @@
        середина между "совсем тесно" (420px) и "не влезает" (500px); см.
        max-height у списка ниже — она тоже уменьшена в ту же сторону. */
     height: 440px;
+    /* padding-top — по запросу урезан вдвое (было 20px, как у остальных
+       сторон, унаследовано от .dept-card выше) ИМЕННО расстояние от
+       верхнего края блока до заголовка ("Сотрудники отдела"/"Проекты
+       отдела"), а не весь внутренний отступ карточки — слева/справа/снизу
+       остаются те же 20px из .dept-card, трогать их не просили. */
+    padding-top: 10px;
 }
 
 .dept-card-header-row {
@@ -371,6 +377,22 @@
        ряда обнулили margin (см. ниже) — теперь оба выровнены по одной
        линии, а расстояние до тулбара не потерялось. */
     margin-bottom: 14px;
+    /* Раньше здесь стоял min-height: 49px, чтобы шапка "Проекты отдела"
+       (без пилюль) резервировала то же место, что и шапка "Сотрудники
+       отдела" (с пилюлями, переносящимися под заголовок при обычной
+       ширине карточки) — тулбары под обеими выравнивались по высоте. Но
+       именно из-за этого min-height "Проекты отдела" съезжали ВНИЗ на
+       пустой зарезервированный запас (align-items: center распределял его
+       вокруг единственной строки контента) — визуально гораздо больше
+       расстояние от верха карточки до заголовка, чем просилось убрать по
+       запросу ("отступ от верха блока до надписи"). Убрано обратно —
+       после этого отступ до заголовка у обеих карточек снова определяется
+       просто padding-top самой карточки (см. .dept-employees-card/
+       .dept-projects-card ниже), а не искусственно раздутой высотой
+       шапки. Побочный эффект: тулбары (поиск и что рядом) у двух карточек
+       могут снова начинаться на чуть разной высоте, когда пилюли
+       переносятся под заголовок — это сознательный компромисс в пользу
+       текущего запроса, а не забытый повторный баг. */
 }
 
 .dept-card-header-row .dept-card-title {
@@ -399,6 +421,22 @@
     font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
+}
+
+/* Число сотрудников в первой пилюле обёрнуто в <strong> (department.html) —
+   а у <strong> есть собственный дефолтный стиль браузера: font-weight:
+   bolder (не конкретное число, а КЛЮЧЕВОЕ СЛОВО "на ступень жирнее
+   родителя"). У родителя (.dept-header-stat выше) font-weight: 600, а
+   bolder от 600 по таблице пересчёта CSS прыгает сразу на 900 — отсюда
+   цифра "9" рисовалась заметно жирнее и другим начертанием, чем весь
+   остальной текст пилюли (и чем такая же "9" во второй, оранжевой пилюле,
+   где никакого <strong> нет вообще). Из-за более жирного начертания
+   строка визуально "разбухала" и по высоте, хотя сама пилюля никогда не
+   меняла size — просто более жирный шрифт занимал больше места сверху/
+   снизу. Обнуляем здесь до того же 600, что и у остального текста — тогда
+   и шрифт, и высота у обеих пилюль совпадают один в один. */
+.dept-header-stat strong {
+    font-weight: 600;
 }
 
 .dept-header-stat-pending {
@@ -470,6 +508,27 @@ a.dept-header-stat-pending:active {
     height: 16px;
     opacity: 0.5;
     pointer-events: none;
+}
+
+/* Фильтр "Статус" проектов отдела — сидит в том же .dept-toolbar рядом с
+   поиском (flex, flex-wrap: wrap, см. .dept-toolbar выше), но со своей
+   фиксированной шириной вместо flex: 1 у .dept-search-box, чтобы не
+   растягиваться на всю ширину тулбара. Показывает только проекты с
+   выбранным статусом (см. render() в extra_js) — тот же принцип, что и
+   .projs-status-filter-select на странице "Проекты" (projects.css). */
+.dept-status-filter-box {
+    flex-shrink: 0;
+}
+
+.dept-status-filter-select {
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #E5E5E5;
+    font-size: 13px;
+    font-family: inherit;
+    color: #535353;
+    background: white;
+    cursor: pointer;
 }
 
 .dept-employees-list,
@@ -600,6 +659,44 @@ a.dept-header-stat-pending:active {
     word-break: break-word;
 }
 
+/* Статус проекта — те же цвета/подписи, что и .projs-status-pill в
+   projects.css (единый источник истины STATUS_META в project_page.py, см.
+   department_page.py) — один и тот же статус должен выглядеть одинаково
+   что на "Проекты", что здесь. Раньше статус на "Мой отдел" вообще не
+   показывался — добавлен вместе с фильтром "Статус" (см.
+   .dept-status-filter-select выше), чтобы было видно, по чему
+   фильтруем. */
+.dept-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.dept-status-pill.active {
+    background: #C0E6BC;
+    color: #1a7a34;
+}
+
+.dept-status-pill.on-hold {
+    background: #F4E3B5;
+    color: #8a6d00;
+}
+
+.dept-status-pill.completed {
+    background: #E5E5E5;
+    color: #555555;
+}
+
+.dept-status-pill.unknown {
+    background: #E5E5E5;
+    color: #555555;
+}
+
 .dept-project-avatars {
     display: flex;
     align-items: center;
@@ -656,4 +753,179 @@ a.dept-header-stat-pending:active {
 
 .dept-expand-btn:hover {
     text-decoration: underline;
+}
+
+/* Кнопка "+" в шапке "Проекты отдела" — открывает диалог создания проекта
+   (см. .dept-dialog ниже). Тот же фиолетовый акцент #C02BFF, что и у
+   .dept-view-btn/.dept-expand-btn выше — единый цвет действия по всей
+   странице. */
+.dept-add-project-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: #C02BFF;
+    color: white;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.dept-add-project-btn:hover {
+    background: #982EC4;
+}
+
+.dept-add-project-btn:active {
+    transform: scale(0.94);
+}
+
+/* Диалог "Создать проект" — та же анатомия, что и .proj-dialog в
+   project.css (диалоги "Редактировать проект"/"Добавить участника"): один
+   и тот же компонент "модалка со своей формой", просто под своё
+   пространство имён классов (dept-*), т.к. department.html/department.css
+   не переиспользуют классы project.css напрямую (страницы не связаны,
+   см. шапку project.css). Цвета/радиусы намеренно идентичны — один и тот
+   же визуальный язык диалогов по всему приложению. */
+.dept-dialog {
+    border: none;
+    border-radius: 20px;
+    padding: 0;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    font-family: 'Cabin', sans-serif;
+    color: #333;
+}
+
+.dept-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.dept-dialog form {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-sizing: border-box;
+}
+
+.dept-dialog h3 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    color: #1E1E1E;
+}
+
+.dept-field-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #444;
+    margin-bottom: -8px;
+}
+
+.dept-dialog-input {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #E0E0E0;
+    font-size: 14px;
+    font-family: inherit;
+    color: #333;
+    outline: none;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.dept-dialog-input:focus {
+    border-color: #C02BFF;
+}
+
+/* Список кандидатов внутри диалога — свой скролл (max-height), а не
+   сворачивание до 5 строк, как у основных списков "Мой отдел" (см.
+   .dept-employees-list/.dept-projects-list выше): диалог и так модальный,
+   прокрутка внутри него ожидаема и привычна. */
+.dept-candidate-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #E0E0E0;
+    border-radius: 10px;
+    padding: 6px;
+}
+
+.dept-candidate-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.dept-candidate-row:hover {
+    background: #FBFAFF;
+}
+
+.dept-candidate-row input[type="checkbox"] {
+    flex-shrink: 0;
+    accent-color: #C02BFF;
+    cursor: pointer;
+}
+
+.dept-candidate-name {
+    font-weight: 500;
+    color: #1E1E1E;
+    flex-shrink: 0;
+}
+
+.dept-candidate-meta {
+    color: #888;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dept-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.dept-dialog-cancel {
+    background: #F2F2F2;
+    color: #555;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.dept-dialog-cancel:hover {
+    background: #E5E5E5;
+}
+
+.dept-dialog-submit {
+    background: #C02BFF;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+}
+
+.dept-dialog-submit:hover {
+    background: #982EC4;
 }

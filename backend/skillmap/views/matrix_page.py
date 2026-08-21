@@ -40,20 +40,20 @@ def _build_category_columns():
     categories = Category.objects.prefetch_related("subcategories__skills").order_by("name")
     for category in categories:
         subcategories_data = []
-        for subcategory in category.subcategories.all():
+        for subcategory in sorted(category.subcategories.all(), key=lambda s: s.name):
             skills_data = []
-            for skill in subcategory.skills.all():
-                if skill.is_active:
-                    skills_data.append({"id": skill.id, "name": skill.name})
-            
+            for skill in sorted(subcategory.skills.all(), key=lambda s: s.name):
+                if not skill.is_active:
+                    continue
+                skills_data.append({"id": skill.id, "name": skill.name})
+
             if skills_data:
-                skills_data = sorted(skills_data, key=lambda x: x["name"])
                 subcategories_data.append({
                     "name": subcategory.name,
                     "skills": skills_data,
                     "skill_count": len(skills_data) # Количество колонок для colspan подкатегории
                 })
-        
+
         if subcategories_data:
             subcategories_data = sorted(subcategories_data, key=lambda x: x["name"])
             total_category_skills = sum(sub["skill_count"] for sub in subcategories_data)
@@ -193,6 +193,19 @@ def matrix_page(request):
     categories_list = list(Category.objects.values_list("name", flat=True).order_by("name"))
 
     data = {
+        # is_hr — раньше matrix.html решал, показывать ли выпадающий список
+        # отделов или залоченное поле, через user.primary_role == "HR" (имя
+        # первой по порядку создания роли) — а сам этот view чуть выше решает
+        # реальную видимость данных через has_role("HR")/has_role("Manager")
+        # (полноценная проверка через M2M, без привязки к порядку). Для
+        # пользователя с ОБЕИМИ ролями HR и Manager, у которого Manager
+        # технически назначена первой, — бэкенд отдавал данные по всей
+        # компании (это HR), а фронт показывал урезанный Manager-интерфейс
+        # без выбора отдела: права есть, интерфейса для них нет (аудит,
+        # п. 3.2). Передаём готовый is_hr вместо primary_role, вычисленный
+        # той же логикой has_role, что и сама фильтрация users_qs выше —
+        # шаблон и бэкенд больше не могут разъехаться.
+        "is_hr": user.has_role("HR"),
         "departments": departments_list,
         "categories": categories_list,
         # Подкатегории/навыки — списки словарей с data-categories/
@@ -286,8 +299,18 @@ def matrix_export(request):
     if status_filter not in ("all", "confirmed", "unconfirmed"):
         status_filter = "all"
 
+    # levels_param может быть пустой строкой "" — это значит "снят каждый
+    # чекбокс уровня" (см. matrix.html: params.set('levels', ...join(','))
+    # шлётся, если выбрано не все 5), и в таком случае экспорт должен
+    # совпасть с картинкой на экране (ничего не подсвечено) — то есть
+    # selected_levels должен остаться ПУСТЫМ множеством, а не "все уровни".
+    # Старая проверка `if levels_param:` считала "" ложным значением и
+    # ошибочно трактовала явно пустой выбор так же, как отсутствие
+    # параметра вообще (когда на экран открыли без единого фильтра) —
+    # аудит, п. 2.2. None (параметра нет в query string совсем) — это
+    # единственный случай, где действительно нужны все уровни по умолчанию.
     levels_param = request.GET.get("levels")
-    if levels_param:
+    if levels_param is not None:
         selected_levels = {int(v) for v in levels_param.split(",") if v.strip().isdigit()}
     else:
         selected_levels = {0, 1, 2, 3, 4}
@@ -384,6 +407,19 @@ def _build_matrix_workbook(users, skill_columns, visible_skill_ids, status_filte
         w = _min_span_width(label, span)
         for k in range(span):
             col_widths[start + k] = max(col_widths[start + k], w)
+    # Ширина колонки раньше считалась ТОЛЬКО по названию категории/
+    # подкатегории (merge-заголовки строк 1-2) — само название навыка
+    # (строка 3, повёрнутое на 90°) в расчёт не входило вообще. Для
+    # категории/подкатегории с широким merge (много навыков в span) это
+    # было не видно, но у навыка с длинным «безпробельным» названием
+    # (например "Контейнеризация") при узком span'е колонка всё равно
+    # оставалась минимальной ширины и текст обрезался тем же образом,
+    # что чинили выше для категорий (аудит, п. 4.4). span=1, потому что
+    # колонка навыка никогда не объединяется с соседними (в отличие от
+    # категории/подкатегии) — та же _min_span_width, что и для них.
+    for offset, (_, _, skill) in enumerate(skill_columns):
+        w = _min_span_width(skill["name"], 1)
+        col_widths[offset] = max(col_widths[offset], w)
 
     def _merge_header_row(row_idx, key_fn):
         idx = first_skill_col

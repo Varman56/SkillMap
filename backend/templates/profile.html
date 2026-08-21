@@ -68,7 +68,11 @@
 <script>
     const skillDialog = document.getElementById("skillDialog");
 
-    document.getElementById("skillEditButton")
+    // "+" — отдельное действие "добавить новый навык", не связанное с
+    // режимом редактирования уже существующих (см. #skillEditButton ниже
+    // и комментарий в profile.html над .skills-edit-actions) — поэтому
+    // видно всегда и просто открывает диалог, как раньше.
+    document.getElementById("skillAddButton")
         ?.addEventListener("click", () => {
             skillDialog?.showModal();
         });
@@ -78,42 +82,107 @@
             skillDialog.close();
         });
 
-    // Список уровней в диалоге "Добавить навык" зависит от выбранного
-    // навыка — если по нему уже есть подтверждённый уровень, оставляем в
-    // списке только уровни строго выше него (заявка на такой же или более
-    // низкий уровень сервер всё равно отклонит, см. _handle_add_skill в
-    // profile_page.py — это только чтобы не дать выбрать заведомо
-    // отклоняемое значение).
-    const skillIdSelect = document.getElementById("skill-id");
-    const skillLevelSelect = document.getElementById("skill-level");
-    const allLevelOptions = skillLevelSelect
-        ? Array.from(skillLevelSelect.options).map((opt) => opt.value)
-        : [];
+    // Раньше здесь был JS-каскад, обрезающий уровни в диалоге "Добавить
+    // навык" под выбранный навык (если по нему уже есть подтверждённый
+    // уровень) — теперь этот диалог показывает только навыки, которых у
+    // вас вообще нет (см. available_skills в profile_page.py), обрезать
+    // нечего, все 4 уровня всегда валидны. Запрос повышения — отдельная
+    // инлайн-форма прямо в строке навыка (см. .skill-row-actions ниже).
 
-    function refreshSkillLevelOptions() {
-        if (!skillIdSelect || !skillLevelSelect) return;
-        const chosen = skillIdSelect.options[skillIdSelect.selectedIndex];
-        const approvedLevel = chosen ? chosen.dataset.approvedLevel : "";
-        const previousValue = skillLevelSelect.value;
+    // Единственный переключатель режима редактирования навыков (по отзыву
+    // пользователя — раньше было два разных "карандаша" с разным
+    // смыслом, плюс кнопки редактирования были видны сразу при просмотре
+    // профиля, это читалось как "непонятный интерфейс"). До клика
+    // .skill-row-actions скрыты у ВСЕХ строк сразу (см. .is-editing в
+    // profile.css) — просмотр профиля не показывает вообще никаких
+    // элементов редактирования. Клик по карандашу включает режим для
+    // всего списка навыков разом — не нужно ещё раз кликать в каждой
+    // строке отдельно.
+    const skillEditButton = document.getElementById("skillEditButton");
+    const skillsSectionForEdit = document.querySelector(".public-skills-section");
 
-        const allowed = approvedLevel
-            ? allLevelOptions.filter((level) => Number(level) > Number(approvedLevel))
-            : allLevelOptions;
+    // Сохранение/удаление/запрос повышения — обычный POST + redirect (как
+    // и везде в проекте, без fetch/AJAX), т.е. каждое такое действие
+    // полностью перезагружает страницу — а JS-состояние (класс .is-editing)
+    // по умолчанию при этом теряется. Раньше это означало, что после
+    // КАЖДОГО сохранения режим редактирования незаметно выключался, и
+    // приходилось листать страницу вверх, снова нажимать карандаш и
+    // листать обратно вниз к нужному навыку — по прямому запросу
+    // пользователя режим должен выключаться ТОЛЬКО явным повторным кликом
+    // по карандашу, а не как побочный эффект сохранения. Поэтому состояние
+    // хранится в localStorage (переживает перезагрузку страницы и переход
+    // между вкладками/сессиями браузера, сбрасывается только явным
+    // повторным кликом) — ключ привязан к id профиля на всякий случай (сам
+    // раздел навыков — только self-only, но так корректно даже если это
+    // когда-нибудь изменится).
+    const SKILLS_EDIT_MODE_KEY = "skillsEditMode:{{ profile_user.id }}";
 
-        skillLevelSelect.innerHTML = "";
-        allowed.forEach((level) => {
-            const option = document.createElement("option");
-            option.value = level;
-            option.textContent = level;
-            skillLevelSelect.appendChild(option);
-        });
-
-        if (allowed.includes(previousValue)) {
-            skillLevelSelect.value = previousValue;
-        }
+    function setSkillsEditMode(active) {
+        skillsSectionForEdit?.classList.toggle("is-editing", active);
+        skillEditButton?.classList.toggle("is-active", active);
     }
 
-    skillIdSelect?.addEventListener("change", refreshSkillLevelOptions);
+    try {
+        if (localStorage.getItem(SKILLS_EDIT_MODE_KEY) === "1") {
+            setSkillsEditMode(true);
+        }
+    } catch (e) {
+        // localStorage недоступен (приватный режим и т.п.) — просто не
+        // восстанавливаем состояние, обычный клик по карандашу всё равно
+        // работает в рамках одной загрузки страницы.
+    }
+
+    skillEditButton?.addEventListener("click", () => {
+        const nextActive = !skillsSectionForEdit?.classList.contains("is-editing");
+        setSkillsEditMode(nextActive);
+        try {
+            if (nextActive) {
+                localStorage.setItem(SKILLS_EDIT_MODE_KEY, "1");
+            } else {
+                localStorage.removeItem(SKILLS_EDIT_MODE_KEY);
+            }
+        } catch (e) {
+            // см. комментарий выше
+        }
+    });
+
+    // Поиск по навыкам — тот же приём, что и filterProjects() в соседнем
+    // <script> этого же файла: список навыков уже отрендерен целиком,
+    // фильтруем на клиенте по названию группы (.skill-group-name), без
+    // перезагрузки страницы. Отдельное пустое состояние "Ничего не
+    // найдено" — не то же самое, что серверное "Навыки пока не
+    // добавлены." чуть ниже (тот вариант — когда навыков нет вообще, этот
+    // — когда есть, но ни один не подошёл под запрос).
+    const skillSearchInput = document.getElementById("skillSearchInput");
+    const skillsSection = document.querySelector(".public-skills-section");
+    const skillGroups = skillsSection
+        ? Array.from(skillsSection.querySelectorAll(".skill-group"))
+        : [];
+    let skillsEmptyState = document.getElementById("skillsEmptyState");
+
+    function filterSkills() {
+        if (!skillGroups.length) return;
+        const query = (skillSearchInput.value || "").trim().toLowerCase();
+        let visibleCount = 0;
+
+        skillGroups.forEach((group) => {
+            const name = group.querySelector(".skill-group-name")?.textContent.toLowerCase() || "";
+            const matches = !query || name.includes(query);
+            group.style.display = matches ? "" : "none";
+            if (matches) visibleCount++;
+        });
+
+        if (!skillsEmptyState) {
+            skillsEmptyState = document.createElement("div");
+            skillsEmptyState.id = "skillsEmptyState";
+            skillsEmptyState.className = "skill-row";
+            skillsEmptyState.innerHTML = "<span>Ничего не найдено.</span>";
+            skillsSection.appendChild(skillsEmptyState);
+        }
+        skillsEmptyState.style.display = visibleCount === 0 ? "" : "none";
+    }
+
+    skillSearchInput?.addEventListener("input", filterSkills);
 </script>
 <script>
     // Диалог "Добавить/редактировать комментарий" — одна и та же <dialog>
@@ -201,7 +270,18 @@
                     <div class="public-user-info">
                         <div class="public-name-container">
                             <h2 class="public-name" id="userName">{{ profile_user.full_name }}</h2>
-                            {% if request.user == profile_user %}
+                            <!-- Раньше кнопка была видна ТОЛЬКО на своём же профиле
+                                 (request.user == profile_user) — сам update_profile
+                                 в profile_page.py уже разрешал HR/Manager редактировать
+                                 чужой профиль (см. can_edit), просто в UI этой страницы
+                                 зайти в диалог для чужого профиля было неоткуда (кроме
+                                 отдельного диалога на "Кадровом резерве", см. docstring
+                                 reserve_page.py). Теперь ещё и hr_editing_other — HR,
+                                 смотрящий чужой профиль, получает эту же кнопку, но
+                                 открывает РАСШИРЕННЫЙ диалог (см. profile/_edit_dialog.html).
+                                 Manager, редактирующий сотрудника своего отдела, кнопку
+                                 по-прежнему не видит — это не менялось, отдельно не просили. -->
+                            {% if request.user == profile_user or hr_editing_other %}
                             <button
                                     type="button"
                                     class="public-name-edit"
@@ -293,78 +373,173 @@
                         <div class="public-skills-section">
                             <div class="skills-edit">
                                 <h3 class="skills-text">Навыки</h3>
-                                {% if request.user == profile_user %}
-                                <button
-                                        type="button"
-                                        class="public-name-edit"
-                                        id="skillEditButton"
-                                        {% if not can_edit %}hidden{% endif %}
-                                >
-                                    <img
-                                            src="{% static 'assets/edit.svg' %}"
-                                            alt="Добавить навык"
-                                            class="skills-icon-small"
+                                <div class="skills-edit-actions">
+                                    <!-- Поиск — по названию навыка (skill-group-name), тот же
+                                         клиентский приём, что и filterProjects() чуть выше на
+                                         этой же странице: список уже отрендерен целиком, гонять
+                                         страницу туда-сюда ради фильтрации незачем. Показываем
+                                         только если вообще есть, что фильтровать. -->
+                                    {% if skills %}
+                                    <input
+                                            type="text"
+                                            id="skillSearchInput"
+                                            class="skills-search-input"
+                                            placeholder="Поиск по навыкам"
                                     >
-                                </button>
-                                {% endif %}
+                                    {% endif %}
+                                    {% if request.user == profile_user or hr_editing_other %}
+                                    <!-- "Навыки" — единственный раздел на странице с ДВУМЯ
+                                         разными редактирующими действиями (добавить новый навык
+                                         / изменить-удалить уже существующий), поэтому раньше тут
+                                         было два разных "карандаша" (один в шапке — открывал
+                                         диалог добавления, второй — свой у каждой строки, для
+                                         раскрытия сохранить/удалить) — по отзыву пользователя
+                                         это выглядело непонятно ("непонятный интерфейс"), плюс
+                                         сами кнопки редактирования были видны сразу при простом
+                                         просмотре профиля.
+
+                                         Теперь ОДИН явный переключатель режима редактирования
+                                         (#skillEditButton) — до клика по нему у строк навыков
+                                         вообще не видно никаких элементов управления (см.
+                                         .skill-row-actions в profile.css), только просмотр.
+                                         Клик добавляет .is-editing на .public-skills-section —
+                                         все строки сразу показывают свои кнопки (см. ниже),
+                                         второй клик по каждой строке больше не нужен. Кнопка
+                                         "+" (#skillAddButton, открывает диалог "Добавить
+                                         навык") — отдельное, самостоятельное действие (не
+                                         редактирование уже существующего), поэтому видна
+                                         всегда, независимо от режима редактирования.
+
+                                         hr_editing_other — HR смотрит ЧУЖОЙ профиль (см.
+                                         docstring profile_page.py): получает ту же самую
+                                         разметку/кнопки, что и сам сотрудник у себя — по прямому
+                                         запросу пользователя действия HR за другого сотрудника
+                                         работают ТОЧНО так же (заявка на рассмотрение уходит на
+                                         подтверждение Manager'у отдела, как и от самого
+                                         сотрудника, HR никого не подтверждает напрямую в обход
+                                         "Подтверждения навыков" — см. _can_edit_skills в
+                                         profile_page.py). Manager, редактирующий сотрудника
+                                         своего отдела, эту кнопку по-прежнему не видит — это
+                                         не менялось, отдельно не просили (симметрично кнопке
+                                         #profileEditButton выше). -->
+                                    <button
+                                            type="button"
+                                            class="skills-add-btn"
+                                            id="skillAddButton"
+                                            aria-label="Добавить навык"
+                                    >+</button>
+                                    <button
+                                            type="button"
+                                            class="public-name-edit"
+                                            id="skillEditButton"
+                                            aria-label="Редактировать навыки"
+                                    >
+                                        <img
+                                                src="{% static 'assets/edit.svg' %}"
+                                                alt=""
+                                                class="skills-icon-small"
+                                        >
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </div>
 
                             <!-- Цикл вывода навыков. У одного навыка может быть до 2 записей
                                  сразу — подтверждённая и заявка на рассмотрении (см.
-                                 profile_page.py) — показываем обе под одним названием. -->
+                                 profile_page.py) — показываем обе под одним названием.
+
+                                 .skill-row-actions (сохранить/удалить/запрос повышения)
+                                 присутствует в разметке всегда, но скрыт по CSS, пока на
+                                 .public-skills-section нет класса .is-editing — см. клик по
+                                 #skillEditButton выше и комментарий там же. -->
                             {% for skill in skills %}
                             <div class="skill-group">
                                 <div class="skill-group-name">{{ skill.display_name }}</div>
                                 {% for entry in skill.entries %}
                                 <div class="skill-row">
-                                    <span class="badge {{ entry.level_class|default:'' }}">{{ entry.level_label|default:entry.level }}</span>
-                                    {% if entry.is_approved %}
-                                    <small class="skill-status skill-status-approved">подтверждён</small>
-                                    {% else %}
-                                    <small class="skill-status skill-status-pending">на рассмотрении</small>
-                                    {% endif %}
-                                    {% if request.user == profile_user %}
-                                    {% if can_edit %}
-                                    {% if not entry.is_approved %}
-                                    <form method="post" class="skill-inline-form">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="update_skill">
-                                        <input
-                                                type="hidden"
-                                                name="user_skill_id"
-                                                value="{{ entry.user_skill_id }}"
-                                        >
+                                    <div class="skill-row-main">
+                                        <span class="badge {{ entry.level_class|default:'' }}">{{ entry.level_label|default:entry.level }}</span>
+                                        {% if entry.is_approved %}
+                                        <small class="skill-status skill-status-approved">подтверждён</small>
+                                        {% else %}
+                                        <small class="skill-status skill-status-pending">на рассмотрении</small>
+                                        {% endif %}
+                                    </div>
+                                    {% if request.user == profile_user or hr_editing_other %}
+                                        <div class="skill-row-actions">
+                                            {% if not entry.is_approved %}
+                                            <!-- Заявка на рассмотрении — меняем её уровень
+                                                 (update_skill), как и раньше. -->
+                                            <form method="post" class="skill-inline-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="update_skill">
+                                                <input
+                                                        type="hidden"
+                                                        name="user_skill_id"
+                                                        value="{{ entry.user_skill_id }}"
+                                                >
 
-                                        <select name="level">
-                                            {% for level in entry.allowed_levels %}
-                                            <option
-                                                    value="{{ level }}"
-                                                    {% if level == entry.level %}selected{% endif %}
+                                                <select name="level">
+                                                    {% for level in entry.allowed_levels %}
+                                                    <option
+                                                            value="{{ level }}"
+                                                            {% if level == entry.level %}selected{% endif %}
+                                                    >
+                                                        {{ level }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+
+                                                <button type="submit" class="skill-row-save-btn" aria-label="Сохранить">
+                                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                        <path d="M5 13L9.5 17.5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                            {% elif entry.upgrade_levels %}
+                                            <!-- Подтверждённый навык без заявки — вместо
+                                                 диалога "Добавить навык" с тем же навыком в
+                                                 общем списке (нелогично и легко перепутать с
+                                                 добавлением нового), запрос повышения прямо
+                                                 отсюда — тот же action=add_skill, что и раньше,
+                                                 просто своя форма (см. upgrade_levels в
+                                                 profile_page.py). -->
+                                            <form method="post" class="skill-inline-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="add_skill">
+                                                <input type="hidden" name="skill_id" value="{{ skill.skill_id }}">
+
+                                                <select name="level">
+                                                    {% for level in entry.upgrade_levels %}
+                                                    <option value="{{ level }}">{{ level }}</option>
+                                                    {% endfor %}
+                                                </select>
+
+                                                <button type="submit" class="skill-row-save-btn" aria-label="Запросить повышение">
+                                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                        <path d="M5 13L9.5 17.5L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+
+                                            <form
+                                                    method="post"
+                                                    class="skill-inline-form"
+                                                    data-confirm-message="Удалить навык «{{ skill.display_name }}»?"
                                             >
-                                                {{ level }}
-                                            </option>
-                                            {% endfor %}
-                                        </select>
-
-                                        <button type="submit">Сохранить</button>
-                                    </form>
-                                    {% endif %}
-
-                                    <form
-                                            method="post"
-                                            class="skill-inline-form"
-                                            data-confirm-message="Удалить навык «{{ skill.display_name }}»?"
-                                    >
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="delete_skill">
-                                        <input
-                                                type="hidden"
-                                                name="user_skill_id"
-                                                value="{{ entry.user_skill_id }}"
-                                        >
-                                        <button type="submit">Удалить</button>
-                                    </form>
-                                    {% endif %}
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="delete_skill">
+                                                <input
+                                                        type="hidden"
+                                                        name="user_skill_id"
+                                                        value="{{ entry.user_skill_id }}"
+                                                >
+                                                <button type="submit" class="skill-row-delete-btn" aria-label="Удалить">
+                                                    <img src="{% static 'assets/trash.svg' %}" alt="">
+                                                </button>
+                                            </form>
+                                        </div>
                                     {% endif %}
                                 </div>
                                 {% endfor %}
@@ -482,8 +657,16 @@
         </div>
     </main>
 </div>
-{% if request.user == profile_user %}
+{% if request.user == profile_user or hr_editing_other %}
 {% include "profile/_edit_dialog.html" %}
+{% endif %}
+<!-- Диалог навыков — раньше был self-only, теперь по прямому запросу
+     пользователя доступен ещё и HR, редактирующему ЧУЖОЙ профиль (см.
+     hr_editing_other/_can_edit_skills в profile_page.py) — та же самая
+     разметка/логика, что и для самого сотрудника, диалог просто не знает
+     разницы (available_skills в контексте уже честно посчитан для
+     profile_user, а не для request.user). -->
+{% if request.user == profile_user or hr_editing_other %}
 {% include "profile/_skill_dialog.html" %}
 {% endif %}
 {% if can_manage_comments %}

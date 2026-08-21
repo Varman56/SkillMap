@@ -45,11 +45,15 @@ _waiting_employee_count/_waiting_employees_label ниже и dept-header-stats
   та же причина, что и с "Топ-5" выше: чтобы карточка не была выше соседних
   и весь верхний ряд помещался без прокрутки.
 """
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
-from api.models import Project, User, UserSkill
+from api.models import Project, User, UserProject, UserSkill
+from .project_page import DEFAULT_STATUS, STATUS_META
 
 MIN_LEVEL = 1
 MAX_LEVEL = 4
@@ -63,8 +67,97 @@ def _can_view(user) -> bool:
     return user.has_role("Manager")
 
 
+def _handle_create_project(request):
+    """POST-обработчик кнопки "+" в шапке карточки "Проекты отдела" —
+    создаёт новый проект от имени текущего Manager прямо с "Мой отдел",
+    без похода на отдельную страницу создания (её и не существует).
+
+    Отдел проекту НЕ назначается явным полем — у Project такого поля нет
+    вообще (см. docstring projects_page.py: единственный способ определить
+    "чей" проект — created_by.department, то есть отдел ВЛАДЕЛЬЦА). Раз
+    created_by=request.user, а _can_view уже гарантирует, что это Manager,
+    новый проект автоматически окажется "проектом" именно ЭТОГО отдела —
+    ровно то поведение, которое просили ("отдел приписывается как отдел
+    руководителя"), без отдельного select'а с отделами в диалоге.
+
+    Владелец сразу же добавляется в участники — тот же инвариант, что и в
+    seed_demo_data.py/_handle_remove_member (project_page.py): владелец
+    проекта всегда является и его участником, иначе "Нельзя удалить
+    владельца проекта из участников" в _handle_remove_member был бы уже
+    невозможным состоянием с самого создания. Следом — все кандидаты,
+    отмеченные галочками в диалоге (может быть ноль — участников можно
+    добрать и потом со страницы самого проекта).
+    """
+    if not request.user.department_id:
+        # Структурно недостижимо через саму кнопку — карточка "Проекты
+        # отдела" целиком внутри {% if department %} в department.html, у
+        # Manager без отдела эта ветка вообще не рендерится (см.
+        # department_page() ниже). Проверка здесь — страховка на случай
+        # прямого POST в обход интерфейса, а не для обычного сценария.
+        messages.error(request, "У вас не назначен отдел — создать проект нельзя")
+        return redirect("my-department-page")
+
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        messages.error(request, "Название проекта обязательно")
+        return redirect("my-department-page")
+
+    # Та же проверка длины, что и в _handle_update_project (project_page.py,
+    # аудит п. 4.8) — иначе слишком длинное имя дошло бы необработанным до
+    # .create() ниже.
+    max_name_length = Project._meta.get_field("name").max_length
+    if len(name) > max_name_length:
+        messages.error(request, f"Название проекта не должно превышать {max_name_length} символов")
+        return redirect("my-department-page")
+
+    # Тихо игнорируем нечисловые/пустые id вместо падения — тот же принцип,
+    # что и везде в приложении с пользовательским вводом id (см.
+    # _handle_add_member в project_page.py, аудит п. 2.5): чек-боксы в
+    # диалоге шлют только валидные id, но сам POST не должен полагаться на
+    # это и падать необработанным ValueError на мусорном значении в обход
+    # интерфейса.
+    member_ids = []
+    for raw_id in request.POST.getlist("member_ids"):
+        try:
+            member_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    with transaction.atomic():
+        project = Project.objects.create(
+            name=name,
+            status=DEFAULT_STATUS,
+            created_by=request.user,
+        )
+        UserProject.objects.get_or_create(
+            user=request.user, project=project, defaults={"joined_at": timezone.now()}
+        )
+
+        # is_active=True, is_intern=False — та же перепроверка на сервере,
+        # что и в _handle_add_member (project_page.py, аудит п. 4.9): список
+        # кандидатов в диалоге и так уже отфильтрован (см. candidates в
+        # контексте department_page() ниже), но сам POST не должен доверять
+        # присланным id без проверки — иначе можно добавить уволенного или
+        # практиканта прямым POST в обход диалога.
+        valid_members = User.objects.filter(id__in=member_ids, is_active=True, is_intern=False)
+        for member in valid_members:
+            UserProject.objects.get_or_create(
+                user=member, project=project, defaults={"joined_at": timezone.now()}
+            )
+
+    messages.success(request, f"Проект «{project.name}» создан")
+    return redirect("project-page", project_id=project.id)
+
+
 def _department_members_qs(department):
-    return User.objects.filter(department=department, is_active=True)
+    # is_intern=False — согласовано с matrix_page.py/ask_page.py (аудит,
+    # п. 3.1): раньше здесь фильтровались только уволенные, поэтому топ-5
+    # навыков отдела, топ редких, донат распределения уровней и список
+    # сотрудников на "Мой отдел" считались ВКЛЮЧАЯ практикантов, хотя в
+    # матрице и "Кого спросить?" решение было их не учитывать. Теперь
+    # политика одна и та же везде: практиканты нигде не входят в основную
+    # статистику/списки по сотрудникам.
+    return User.objects.filter(department=department, is_active=True, is_intern=False)
 
 
 def _ru_plural(n, one, few, many):
@@ -271,6 +364,15 @@ def _empty_context():
         "skill_gaps": [],
         "waiting_employee_count": 0,
         "waiting_employees_label": "",
+        # Шаблон в ветке "нет отдела" сам фильтр не рендерит (см.
+        # department.html), но контекст держим одинаковым по набору ключей
+        # с непустой веткой ниже — на случай, если разметка когда-нибудь
+        # переедет за пределы {% if department %}.
+        "status_choices": [
+            {"value": value, "label": meta["label"]}
+            for value, meta in STATUS_META.items()
+        ],
+        "candidates": [],
     }
 
 
@@ -282,9 +384,17 @@ def department_page(request):
     department = request.user.department
 
     # Раньше здесь была обработка POST (кнопка "Добавить практиканта") —
-    # убрана вместе с самой формой (см. docstring модуля). Сейчас у
-    # страницы вообще нет собственных действий, только просмотр + поиск на
-    # клиенте (JS в department.html), поэтому POST-ветки не осталось.
+    # убрана вместе с самой формой (см. docstring модуля). Теперь POST
+    # снова есть — по запросу добавлена кнопка "+" (создать проект прямо с
+    # "Мой отдел", см. _handle_create_project) — но это ЕДИНСТВЕННОЕ
+    # действие страницы, так что вместо ACTION_HANDLERS-словаря (как в
+    # project_page.py/approvals_page.py, где действий несколько) здесь
+    # достаточно одной явной проверки action.
+    if request.method == "POST":
+        if request.POST.get("action") == "create_project":
+            return _handle_create_project(request)
+        messages.error(request, "Неизвестное действие")
+        return redirect("my-department-page")
 
     if not department:
         # Тот же приём, что и в approvals_page.py/reserve_page.py — Manager
@@ -313,9 +423,43 @@ def department_page(request):
         for u in members_qs
     ]
 
+    # Кандидаты в диалог "+ Создать проект" (см. create_project ниже) — по
+    # запросу ЛЮБОЙ активный сотрудник компании, а не только этого отдела
+    # (проект часто набирают вперемешку из разных отделов, тот же довод,
+    # что и у available_users в project_page.py). is_active=True,
+    # is_intern=False — согласовано со всем остальным приложением (аудит,
+    # п. 3.1). Сам request.user (создающий проект менеджер) исключён из
+    # списка — он и так становится участником автоматически (см.
+    # _handle_create_project), показывать его же ещё и чек-боксом было бы
+    # избыточно/путало бы.
+    candidates_qs = (
+        User.objects.filter(is_active=True, is_intern=False)
+        .exclude(id=request.user.id)
+        .select_related("department")
+        .order_by("full_name")
+    )
+    candidates = [
+        {
+            "id": u.id,
+            "full_name": u.full_name,
+            "position": u.position or "",
+            "department": u.department.name if u.department_id else "",
+        }
+        for u in candidates_qs
+    ]
+
+    # Раньше проект считался "проектом отдела", если в нём есть хотя бы
+    # ОДИН участник из отдела (project_users__user_id__in=member_ids) — на
+    # практике участники почти всегда набраны вперемешку из разных
+    # отделов (см. seed_demo_data.py), поэтому такой фильтр находил почти
+    # ВСЕ проекты компании в КАЖДОМ отделе, а не только реально "свои".
+    # Теперь — тот же принцип, что и в новой projects_page.py (список
+    # "Проекты" для HR): проект относится к отделу его ВЛАДЕЛЬЦА
+    # (created_by), а не к отделам его участников. distinct() тоже больше
+    # не нужен — created_by это FK (один проект = один владелец), в
+    # отличие от project_users, дублей быть не может в принципе.
     projects_qs = (
-        Project.objects.filter(project_users__user_id__in=member_ids)
-        .distinct()
+        Project.objects.filter(created_by__department_id=department.id)
         .order_by("name")
         .prefetch_related("project_users__user")
     )
@@ -330,6 +474,19 @@ def department_page(request):
         # страницы проекта).
         project_members = [pm for pm in project.project_users.all() if pm.user.is_active]
         visible = project_members[:PROJECT_AVATAR_COUNT]
+        # status/status_label/status_css_class — тот же приём и тот же общий
+        # источник истины (STATUS_META в project_page.py), что и на странице
+        # "Проекты" (projects_page.py): раньше статус проекта здесь вообще
+        # не показывался. По запросу добавлен ФИЛЬТР "Статус" рядом с уже
+        # существующим поиском (см. deptProjectStatus в department.html) —
+        # показать только проекты в конкретном статусе (например только
+        # "В работе"), а не сортировка списка. status — сырое значение из
+        # БД для сравнения с выбранным пунктом <select> на клиенте,
+        # status_label/status_css_class — готовые подпись/класс для пилюли
+        # на карточке (без неё фильтр было бы не на что смотреть).
+        status_meta = STATUS_META.get(
+            project.status, {"label": project.status or "—", "css_class": "unknown"}
+        )
         projects.append(
             {
                 "id": project.id,
@@ -337,6 +494,9 @@ def department_page(request):
                 "description": project.description,
                 "avatars": [pm.user.photo for pm in visible],
                 "extra_count": max(0, len(project_members) - len(visible)),
+                "status": project.status,
+                "status_label": status_meta["label"],
+                "status_css_class": status_meta["css_class"],
             }
         )
 
@@ -347,6 +507,15 @@ def department_page(request):
         "member_count": len(employees),
         "employees": employees,
         "projects": projects,
+        # Пункты фильтра "Статус" в карточке "Проекты отдела" (см.
+        # deptProjectStatus в department.html) — тот же источник истины
+        # STATUS_META, что и на странице "Проекты" (projects_page.py).
+        "status_choices": [
+            {"value": value, "label": meta["label"]}
+            for value, meta in STATUS_META.items()
+        ],
+        # Кандидаты в диалог "+ Создать проект" (см. candidates_qs выше).
+        "candidates": candidates,
         "top_skills": top_skills,
         "rare_skills": rare_skills,
         "level_distribution": _level_distribution(member_ids),

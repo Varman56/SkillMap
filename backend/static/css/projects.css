@@ -1,0 +1,307 @@
+/* "Проекты" — список всех проектов, HR-only (см. docstring projects_page.py).
+   Сделана по образцу ask.css (та же анатомия: заголовок/подзаголовок,
+   строка фильтров, результаты), но карточка своя — под проект, а не под
+   сотрудника. Своё пространство имён классов (projs-*), ничего общего с
+   ask.css/reserve.css не переиспользуется напрямую — страницы не связаны
+   и не должны разъезжаться при правке одной из них. */
+
+.projs-page {
+    margin: 0;
+    color: #535353;
+    background: #F2F5FF;
+    font-family: 'Cabin', sans-serif;
+    /* Без min-height/фиксированной высоты — тот же урок с фантомным
+       скроллбаром, что уже словили на ask.css/department.css/reserve.css
+       (min-height: 90vh + фиксированный хедер почти всегда чуть больше
+       100vh). Страница просто растёт под контент. */
+}
+
+.projs-main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 30px;
+    background: white;
+    border-radius: 21px;
+    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.2);
+    margin-top: 5px;
+}
+
+.projs-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #393838;
+    margin-bottom: 10px;
+    margin-top: 0;
+}
+
+.projs-subtitle {
+    font-size: 16px;
+    color: #535353;
+    margin-bottom: 25px;
+}
+
+/* СТРОКА ФИЛЬТРОВ: поиск по названию/описанию + отдел владельца рядом —
+   визуально тот же компонент, что .ask-filters-row/.ask-search-box/
+   .ask-dept-* в ask.css, просто с своим префиксом классов. */
+.projs-search-section {
+    margin-bottom: 20px;
+}
+
+.projs-filters-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.projs-search-box {
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    padding: 6px 20px;
+    border: 1px solid #A1A1A1;
+    flex: 1;
+}
+
+.projs-search-icon {
+    width: 39px;
+    height: 39px;
+    opacity: 0.6;
+}
+
+.projs-search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 20px;
+    font-family: 'Cabin', sans-serif;
+}
+
+.projs-search-input::placeholder {
+    color: #aaa;
+}
+
+.projs-dept-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 220px;
+}
+
+.projs-dept-label {
+    font-size: 13px;
+    color: #888;
+    padding-left: 4px;
+}
+
+.projs-dept-select {
+    background: white;
+    border-radius: 12px;
+    padding: 6px 20px;
+    border: 1px solid #A1A1A1;
+    font-size: 16px;
+    font-family: 'Cabin', sans-serif;
+    color: #535353;
+    height: 41px;
+    cursor: pointer;
+}
+
+/* Фильтр "Статус" — тот же компонент, что и фильтр по отделу выше
+   (.projs-dept-filter/.projs-dept-label/.projs-dept-select), просто свой
+   набор классов под свой select, чтобы у обоих полей был одинаковый вид
+   в один ряд с поиском (.projs-filters-row, display: flex). Показывает
+   только проекты с выбранным статусом (см. render() в extra_js) — раньше
+   тут была сортировка списка, по запросу заменена на фильтр (сортировка
+   "по названию" оказалась лишней, список и так стабильно идёт по
+   .order_by("name") с сервера). */
+.projs-status-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+}
+
+.projs-status-filter-label {
+    font-size: 13px;
+    color: #888;
+    padding-left: 4px;
+}
+
+.projs-status-filter-select {
+    background: white;
+    border-radius: 12px;
+    padding: 6px 20px;
+    border: 1px solid #A1A1A1;
+    font-size: 16px;
+    font-family: 'Cabin', sans-serif;
+    color: #535353;
+    height: 41px;
+    cursor: pointer;
+}
+
+/* РЕЗУЛЬТАТЫ */
+.projs-results-header {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+/* Список карточек, не сетка — проекты могут быть с очень разной длиной
+   описания, в сетке карточки разной высоты в одном ряду смотрелись бы
+   рвано. Список того же типа, что .ask-category-cards. */
+.projs-results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.projs-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    background: white;
+    border: 1px solid #E5E5E5;
+    border-radius: 16px;
+    padding: 18px 22px;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 1px 1px 6px 0px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+/* Та же лиловая подсветка при наведении, что и на карточках отделов/
+   сотрудников по всему приложению (см. .dept-card:hover и т.п.) — единый
+   язык "эта карточка кликабельна". */
+.projs-card:hover {
+    box-shadow: 0px 0px 16px rgba(192, 43, 255, 0.18);
+    border-color: #C02BFF;
+}
+
+.projs-card-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #F6E1FF;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.projs-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.projs-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.projs-card-name {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1E1E1E;
+    margin: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.projs-card-desc {
+    font-size: 14px;
+    color: #666;
+    margin: 8px 0 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.projs-card-desc-empty {
+    color: #aaa;
+    font-style: italic;
+}
+
+.projs-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #535353;
+    font-weight: 500;
+    flex-wrap: wrap;
+}
+
+.projs-card-meta-dot {
+    color: #C7C7C7;
+}
+
+/* Статус проекта — те же цвета/подписи, что и STATUS_META в
+   project_page.py (переиспользуется через projects_page.py, единый
+   источник истины), но своё правило CSS: .proj-status-pill в project.css
+   рассчитан на более крупный заголовок карточки проекта, здесь пилюля
+   компактнее под строку списка. Цвета оставлены идентичными намеренно —
+   один и тот же статус должен выглядеть одинаково на обеих страницах. */
+.projs-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.projs-status-pill.active {
+    background: #C0E6BC;
+    color: #1a7a34;
+}
+
+.projs-status-pill.on-hold {
+    background: #F4E3B5;
+    color: #8a6d00;
+}
+
+.projs-status-pill.completed {
+    background: #E5E5E5;
+    color: #555555;
+}
+
+.projs-status-pill.unknown {
+    background: #E5E5E5;
+    color: #555555;
+}
+
+/* ПУСТОЙ РЕЗУЛЬТАТ — тот же компонент, что .ask-empty в ask.css. */
+.projs-empty {
+    padding: 30px 20px;
+    background: #FFEADAB2;
+    border-radius: 10px;
+    color: #535353;
+    margin: 20px 0;
+    display: flex;
+}
+
+.projs-empty .lamp {
+    width: 47px;
+    height: 47px;
+    margin-right: 20px;
+    flex-shrink: 0;
+}
+
+.projs-empty-title {
+    margin: 0;
+}
+
+.projs-empty-text {
+    max-width: 450px;
+    font-size: 16px;
+    margin: 8px 0 0;
+}

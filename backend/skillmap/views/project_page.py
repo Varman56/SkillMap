@@ -12,7 +12,12 @@
 Все POST-запросы этой страницы различаются полем action в форме:
   update_project / add_member / remove_member
 
-GET ?search=... — фильтр списка участников по ФИО (подстрока, без учёта регистра).
+Поиск по списку участников — целиком на клиенте (см. extra_js в
+project.html, data-search на каждой .proj-member-row), без похода на
+сервер: сервер всегда рендерит ПОЛНЫЙ список участников, JS только
+показывает/прячет строки по подстроке. Раньше это был GET ?search=...
+с перезагрузкой страницы на каждое нажатие — по тому же принципу, что
+уже applied в ask.html/reserve.html/projects.html, унифицировано.
 
 Диалог "Добавить участника" — по запросу у каждого кандидата в выпадающем
 списке теперь видна должность (и есть клиентский фильтр по отделу рядом,
@@ -47,11 +52,20 @@ DEFAULT_STATUS = "Active"
 
 
 def _can_edit(user, project) -> bool:
-    """Редактировать проект (и управлять участниками) может только его
-    владелец — project.created_by. Раньше это было у любого HR/Manager;
-    теперь право явно сужено до конкретного руководителя, назначенного
-    этому проекту (см. docstring модуля)."""
-    return user.is_authenticated and project.created_by_id == user.id
+    """Редактировать проект (и управлять участниками) может его
+    владелец — project.created_by, — а также HR. Раньше это было у любого
+    HR/Manager; затем право сузили до конкретного руководителя, назначенного
+    этому проекту (см. docstring модуля). Но created_by — ForeignKey с
+    on_delete=SET_NULL (см. api/models.py), и если он когда-нибудь станет
+    NULL (сейчас в приложении нет функции удаления пользователя или
+    переназначения владельца проекта, но модель это допускает), проект без
+    HR-доступа стал бы НАВСЕГДА неуправляемым — ни для кого, включая HR
+    (аудит, п. 2.4). HR — та же роль, что уже имеет отдельный override для
+    похожей ситуации в profile_page.py._can_edit (HR может редактировать
+    любой профиль), поэтому здесь применена та же конвенция."""
+    if not user.is_authenticated:
+        return False
+    return project.created_by_id == user.id or user.has_role("HR")
 
 
 def _parse_date_field(request, field_name):
@@ -73,6 +87,18 @@ def _handle_update_project(request, project):
     name = (request.POST.get("name") or "").strip()
     if not name:
         messages.error(request, "Название проекта обязательно")
+        return
+
+    # Project.name — CharField(max_length=255), но без явной проверки
+    # длины здесь имя длиннее 255 символов доходило бы необработанным до
+    # .save() ниже — на Postgres это падает необработанным DataError
+    # (500), а не аккуратным сообщением, как остальные поля этой формы
+    # (аудит, п. 4.8). max_length берётся с самого поля модели, а не
+    # хардкодится числом — если он когда-нибудь изменится в models.py,
+    # проверка здесь не разъедется с ним сама по себе.
+    max_name_length = Project._meta.get_field("name").max_length
+    if len(name) > max_name_length:
+        messages.error(request, f"Название проекта не должно превышать {max_name_length} символов")
         return
 
     status = (request.POST.get("status") or project.status or DEFAULT_STATUS).strip()
@@ -111,7 +137,32 @@ def _handle_update_description(request, project):
 
 
 def _handle_add_member(request, project):
-    user = User.objects.filter(id=request.POST.get("user_id")).first()
+    # User.id — IntegerField: filter(id=...) с пустой строкой или
+    # нечисловым значением падает необработанным ValueError прямо при
+    # построении SQL (а не при обращении к БД), то есть до всякой
+    # проверки "пользователь не найден" ниже. Ровно так и приходило —
+    # <select> в диалоге стартует с пустого <option value="">, защищённого
+    # только required на HTML-уровне (не защита вообще, если POST ушёл в
+    # обход JS/формы) — аудит, п. 2.5. Тот же приём, что уже применён в
+    # _handle_remove_member для user_id (см. там же, аудит п. 2.3).
+    try:
+        user_id = int(request.POST.get("user_id"))
+    except (TypeError, ValueError):
+        messages.error(request, "Некорректный сотрудник")
+        return
+
+    # is_active=True, is_intern=False — <select> в диалоге собирается из
+    # available_users_qs (см. project_page() ниже), который уже фильтрует
+    # и то, и другое, но сам обработчик POST раньше принимал ЛЮБОЙ
+    # существующий user_id без перепроверки — можно было добавить
+    # уволенного сотрудника прямым POST в обход диалога (аудит, п. 4.9);
+    # такая "мёртвая" строка потом нигде не управляется — не видна в
+    # обычном списке участников (member_links ниже фильтрует
+    # user__is_active=True), не убирается обычной кнопкой удаления.
+    # is_intern=False добавлен той же строкой для симметрии с
+    # available_users_qs — тот же принцип, что уже применён везде по
+    # проекту после аудита п. 3.1 (department_page.py/approvals_page.py).
+    user = User.objects.filter(id=user_id, is_active=True, is_intern=False).first()
 
     if not user:
         messages.error(request, "Пользователь не найден")
@@ -129,11 +180,24 @@ def _handle_add_member(request, project):
 
 
 def _handle_remove_member(request, project):
-    user_id = request.POST.get("user_id")
+    raw_user_id = request.POST.get("user_id")
+    try:
+        user_id = int(raw_user_id)
+    except (TypeError, ValueError):
+        messages.error(request, "Некорректный участник")
+        return
+
     # Владелец проекта обязан оставаться в числе его участников (см.
     # docstring модуля и seed_demo_data.py) — иначе получится нелогичная
-    # ситуация "владелец есть, а среди участников — нет".
-    if str(project.created_by_id) == str(user_id):
+    # ситуация "владелец есть, а среди участников — нет". Раньше сравнение
+    # шло строками (str(created_by_id) == str(user_id)) — например
+    # created_by_id=7 и присланный user_id="007" не совпадали как строки
+    # ("7" != "007"), хотя filter(user_id="007") в Django прекрасно
+    # приводит "007" к int и находит ту же самую запись — то есть проверку
+    # можно было обойти, прислав ID владельца в чуть другом текстовом виде,
+    # а сам delete всё равно удалял владельца из участников (аудит, п. 2.3).
+    # Сравнение и сам delete теперь используют один и тот же int.
+    if project.created_by_id == user_id:
         messages.error(request, "Нельзя удалить владельца проекта из участников")
         return
 
@@ -187,16 +251,17 @@ def project_page(request, project_id):
     # обрабатывается.
     member_count = member_links.count()
 
-    search = (request.GET.get("search") or "").strip()
-    if search:
-        member_links = member_links.filter(user__full_name__icontains=search)
-
     # select_related("department") — раньше не было, добавлен вместе с
     # фильтром по отделу в диалоге "Добавить участника" (см. docstring
     # ниже у available_users): без него department.name на каждого
     # доступного пользователя бил бы отдельным запросом в цикле.
+    # is_intern=False — согласовано с matrix_page.py/ask_page.py/
+    # department_page.py/approvals_page.py (аудит, п. 3.1): раньше
+    # практиканта можно было добавить в проект через этот же список
+    # кандидатов, хотя точно такой же список в ask_page.py/reserve_page.py
+    # практикантов либо исключает, либо выделяет отдельной категорией.
     available_users_qs = (
-        User.objects.filter(is_active=True)
+        User.objects.filter(is_active=True, is_intern=False)
         .exclude(id__in=UserProject.objects.filter(project_id=project.id).values_list("user_id", flat=True))
         .select_related("department")
         .order_by("full_name")
@@ -248,6 +313,5 @@ def project_page(request, project_id):
             for u in available_users_qs
         ],
         "departments": Department.objects.order_by("name"),
-        "search": search,
     }
     return render(request, "project.html", context)

@@ -141,9 +141,34 @@
                                 </td>
                                 <td>{{ req.submitted_at|date:"d.m.Y" }}</td>
                                 <td>
-                                    <button type="submit" form="approveForm{{ req.id }}" class="appr-approve-btn">
-                                        Подтвердить
-                                    </button>
+                                    <!-- "Отклонить" — отдельная форма/action (reject_skill), не
+                                         привязана к ползунку уровня approveForm выше: удаляет
+                                         заявку целиком, уровень тут ни при чём. Через тот же
+                                         общий диалог подтверждения, что и остальные удаления в
+                                         приложении (см. data-confirm-message в base.html) — это
+                                         необратимое действие, сотруднику придётся подавать
+                                         заявку заново. -->
+                                    <form
+                                            method="post"
+                                            action=""
+                                            class="appr-reject-form"
+                                            id="rejectForm{{ req.id }}"
+                                            data-confirm-title="Отклонить заявку?"
+                                            data-confirm-message="Отклонить заявку «{{ req.skill_name }}» ({{ req.full_name }})? Сотруднику нужно будет подать её заново."
+                                            data-confirm-submit-label="Отклонить"
+                                    >
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="reject_skill">
+                                        <input type="hidden" name="user_skill_id" value="{{ req.id }}">
+                                    </form>
+                                    <div class="appr-actions-cell">
+                                        <button type="submit" form="rejectForm{{ req.id }}" class="appr-reject-btn">
+                                            Отклонить
+                                        </button>
+                                        <button type="submit" form="approveForm{{ req.id }}" class="appr-approve-btn">
+                                            Подтвердить
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         {% empty %}

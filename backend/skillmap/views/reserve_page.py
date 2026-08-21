@@ -41,6 +41,42 @@ view-файлах.
 
 Доступ: только HR (см. _can_view) — остальных отправляем в их профиль,
 тот же приём, что и в approvals_page.py.
+
+УПРАВЛЕНИЕ ОТДЕЛАМИ (кнопка "Управление отделами" в шапке, POST action=
+create_department/delete_department, см. _handle_create_department/
+_handle_delete_department) и УДАЛЕНИЕ СОТРУДНИКА (корзина на карточке,
+action=delete_employee, см. _handle_delete_employee) — из трёх вариантов
+размещения, показанных пользователю макетами, выбран вариант с отдельным
+диалогом управления отделами (не смешивает "выбрать отдел для фильтра" и
+"выбрать отдел для удаления" в одном и том же <select>). Оба удаления идут
+через общий #confirmDialog из base.html (data-confirm-message на форме) —
+подтверждение обязательно, отдельного JS под это здесь нет.
+
+РЕДАКТИРОВАНИЕ ПРОФИЛЯ ("Редактировать профиль" на карточке) — раньше
+диалог здесь редактировал только phone/city/about/photo, хотя на самой
+странице профиля (profile.html) HR уже мог менять ФИО/email/должность/
+отдел у ЧУЖОГО профиля (см. hr_editing_other в profile_page.py — это
+было сделано первым шагом, "Кадровый резерв" явно оставили на потом).
+Теперь тот же расширенный набор полей перенесён и сюда — диалог в
+reserve.html как отправлял, так и отправляет форму напрямую на
+profile_page() (action=update_profile, next=reserve-page), никакой новой
+серверной логики в этом файле для этого не появилось: _build_employees()
+только добавил email/department_id в данные карточки (см. ниже), чтобы
+было чем предзаполнить новые поля диалога — вся валидация/сохранение
+по-прежнему в _handle_update_profile (profile_page.py).
+
+ВАЖНО: HR может открыть этот же диалог и для СВОЕЙ СОБСТВЕННОЙ карточки
+(см. docstring _handle_delete_employee ниже — HR тоже есть в списке).
+В этом случае hr_editing_other на бэкенде будет False (request.user.id
+== user.id), и _handle_update_profile молча проигнорирует ФИО/email/
+должность/отдел, сохранив только phone/city/about — как и раньше. Чтобы
+это не выглядело как "поля есть, а изменения теряются", JS в reserve.html
+(см. extra_js) показывает расширенные поля ТОЛЬКО когда открыта карточка
+ДРУГОГО сотрудника — сравнивает data-user-id кнопки с id текущего
+залогиненного HR (передан в шаблон как CURRENT_USER_ID). На своей же
+карточке диалог выглядит как раньше — только телефон/город/"о себе"
+(фото в этом диалоге не было и не появилось — этого не просили и на
+странице профиля фото HR тоже не может менять чужое).
 """
 import secrets
 import string
@@ -120,6 +156,106 @@ def _handle_add_employee(request):
     messages.success(request, generated_password, extra_tags="resv-password-flash")
 
 
+def _handle_create_department(request):
+    """POST-обработчик формы добавления отдела в диалоге "Управление
+    отделами" (см. #manageDepartmentsDialog в reserve.html).
+
+    У Department.name нет unique=True на уровне БД (см. api/models.py) —
+    проверяем уникальность сами (без учёта регистра), иначе в фильтре
+    "Отдел" на этой же странице появились бы два визуально одинаковых
+    пункта, и было бы не понять, какой из них выбирать.
+
+    Сравниваем через Python str.casefold(), а НЕ через ORM-lookup
+    name__iexact — на SQLite (см. settings_sqlite_test.py, использовался
+    при локальном тестировании) __iexact транслируется в LIKE, а встроенный
+    LIKE в SQLite регистронезависим только для ASCII-символов, кириллицу
+    не сворачивает вообще (без подключения расширения ICU) — "Отдел" и
+    "отдел" там считались бы РАЗНЫМИ строками, дубликат проходил бы молча.
+    В проде (settings.py — PostgreSQL) name__iexact сработал бы верно, но
+    полагаться на разное поведение разных БД для одной и той же проверки
+    не стоит — casefold() в Python корректно сворачивает регистр у любого
+    алфавита независимо от backend'а БД под капотом.
+    """
+    name = (request.POST.get("name") or "").strip()
+    if not name:
+        messages.error(request, "Название отдела обязательно")
+        return
+
+    max_name_length = Department._meta.get_field("name").max_length
+    if len(name) > max_name_length:
+        messages.error(request, f"Название отдела не должно превышать {max_name_length} символов")
+        return
+
+    existing_names_casefolded = {n.casefold() for n in Department.objects.values_list("name", flat=True)}
+    if name.casefold() in existing_names_casefolded:
+        messages.error(request, f"Отдел «{name}» уже существует")
+        return
+
+    Department.objects.create(name=name)
+    messages.success(request, f"Отдел «{name}» добавлен")
+
+
+def _handle_delete_department(request):
+    """POST-обработчик кнопки-корзины у строки отдела в том же диалоге.
+
+    У User.department стоит on_delete=SET_NULL (см. api/models.py) — при
+    удалении отдела сотрудники НЕ удаляются и НЕ блокируют удаление, они
+    просто становятся "без отдела" (то же значение, что и у сотрудника,
+    которому отдел вообще не назначали). Подтверждение перед отправкой —
+    через общий #confirmDialog (data-confirm-message на форме в
+    reserve.html), само удаление тут уже безусловное.
+    """
+    department_id = request.POST.get("department_id")
+    department = Department.objects.filter(id=department_id).first()
+    if not department:
+        messages.error(request, "Отдел не найден")
+        return
+
+    name = department.name
+    employee_count = department.users.count()
+    department.delete()
+
+    if employee_count:
+        messages.success(
+            request,
+            f"Отдел «{name}» удалён. Без отдела остались: {employee_count}.",
+        )
+    else:
+        messages.success(request, f"Отдел «{name}» удалён")
+
+
+def _handle_delete_employee(request):
+    """POST-обработчик кнопки-корзины на карточке сотрудника.
+
+    Список карточек (_build_employees) строится по ВСЕМ User.objects.all()
+    без исключения текущего HR — значит и собственная карточка HR тоже
+    попадает в список с этой же кнопкой. Явно запрещаем удалить самого
+    себя: сервер всё равно отклонит запрос, но кнопка-корзина на своей же
+    карточке скрыта и в самом шаблоне (см. reserve.html, employee.id ==
+    request.user.id) — эта проверка здесь на случай прямого POST в обход
+    разметки, а не единственная линия защиты.
+
+    Каскады при User.delete() (см. api/models.py): UserRole/UserSkill/
+    UserProject.user/UserComment — все CASCADE, удаляются вместе с
+    пользователем. Project.created_by — SET_NULL, созданные им проекты
+    остаются, просто без владельца. RESTRICT нигде на User не завязан,
+    так что удаление не может неожиданно упасть с ошибкой БД.
+    """
+    user_id = request.POST.get("user_id")
+    if str(user_id) == str(request.user.id):
+        messages.error(request, "Нельзя удалить самого себя")
+        return
+
+    employee = User.objects.filter(id=user_id).first()
+    if not employee:
+        messages.error(request, "Сотрудник не найден")
+        return
+
+    name = employee.full_name
+    employee.delete()
+    messages.success(request, f"Сотрудник «{name}» удалён")
+
+
 def _can_view(user) -> bool:
     return user.has_role("HR")
 
@@ -152,15 +288,21 @@ def _build_employees():
             "id": user.id,
             "full_name": user.full_name,
             "position": user.position or "",
-            # phone/city/about — только чтобы предзаполнить диалог
-            # "Редактировать профиль" (см. reserve.html/extra_js) текущими
-            # значениями, когда HR открывает его с этой карточки. Сама
-            # отправка формы идёт на уже существующий profile_page.py
-            # (action=update_profile) — здесь новой логики сохранения нет,
-            # только показ того, что уже есть.
+            # phone/city/about/email/department_id — только чтобы
+            # предзаполнить диалог "Редактировать профиль" (см.
+            # reserve.html/extra_js) текущими значениями, когда HR
+            # открывает его с этой карточки. Сама отправка формы идёт на
+            # уже существующий profile_page.py (action=update_profile) —
+            # здесь новой логики сохранения нет, только показ того, что
+            # уже есть. email/department_id добавлены вместе с переносом
+            # расширенного HR-редактирования сюда же (см. docstring модуля
+            # выше и profile_page.py/_handle_update_profile) — раньше
+            # диалог редактировал только phone/city/about/photo.
             "phone": user.phone or "",
             "city": user.city or "",
             "about": user.about or "",
+            "email": user.email,
+            "department_id": user.department_id,
             "photo": user.photo,
             "is_intern": user.is_intern,
             "is_active": user.is_active,
@@ -186,8 +328,15 @@ def reserve_page(request):
         return redirect("my-profile")
 
     if request.method == "POST":
-        if request.POST.get("action") == "add_employee":
+        action = request.POST.get("action")
+        if action == "add_employee":
             _handle_add_employee(request)
+        elif action == "create_department":
+            _handle_create_department(request)
+        elif action == "delete_department":
+            _handle_delete_department(request)
+        elif action == "delete_employee":
+            _handle_delete_employee(request)
         else:
             messages.error(request, "Неизвестное действие")
         return redirect("reserve-page")
