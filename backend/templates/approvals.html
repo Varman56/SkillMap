@@ -11,15 +11,24 @@
     <main class="appr-main">
         <div class="appr-container">
 
-            {% if messages %}
-                <div class="appr-messages">
-                    {% for message in messages %}
-                        <div class="appr-message {% if message.tags %}appr-message-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
+            <!-- id + всегда в разметке (просто скрыт стилем, когда сообщений нет),
+                 а не условие "messages" вокруг всего блока, как раньше — теперь подтверждение/
+                 отклонение заявки уходит на сервер через fetch() (см. extra_js
+                 ниже), без перезагрузки страницы, поэтому и текст результата
+                 ("Навык подтверждён"/ошибка) JS дорисовывает СЮДА ЖЕ сам, без
+                 повторной отрисовки шаблона — а значит контейнер должен
+                 существовать в DOM с самого начала, даже если сейчас в нём
+                 пусто. Серверный рендер (цикл ниже) остаётся как есть —
+                 отрабатывает для не-JS сценария (JS упал/отключён), тогда
+                 действие всё ещё идёт как обычный POST-редирект с обычными
+                 messages от Django. -->
+            <div class="appr-messages" id="apprMessagesBox"{% if not messages %} style="display:none;"{% endif %}>
+                {% for message in messages %}
+                    <div class="appr-message {% if message.tags %}appr-message-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
 
             <h1 class="appr-title">Подтверждение навыков сотрудников</h1>
             <p class="appr-subtitle">
@@ -32,42 +41,41 @@
                  полностью посвящена очереди на подтверждение, отдельный
                  счётчик здесь был избыточен. -->
 
-            <!-- ФИЛЬТРЫ: поиск по сотруднику + поиск по навыку, отдельными
-                 полями, как на остальных страницах (ask.html/reserve.html) -->
-            <form method="get" action="" class="appr-filters-row">
+            <!-- ФИЛЬТРЫ: поиск по сотруднику + поиск по навыку — раньше это
+                 был <form method="get">, перезагружавший страницу на каждый
+                 поиск/страницу/сортировку через GET-параметры. Теперь это
+                 просто два текстовых поля без формы вокруг — JS (см.
+                 extra_js ниже) фильтрует уже загруженные в DOM строки
+                 таблицы вживую, без обращения к серверу (см. docstring
+                 approvals_page.py, почему весь набор безопасно грузить
+                 сразу целиком: это заявки ОДНОГО отдела, не всей
+                 компании). -->
+            <div class="appr-filters-row">
                 <div class="appr-search-box">
-                    <label for="employee" class="appr-search-label">Поиск по сотруднику (ФИО)</label>
+                    <label for="apprEmployeeSearch" class="appr-search-label">Поиск по сотруднику (ФИО)</label>
                     <div class="appr-search-input-wrap">
                         <input
                                 type="text"
-                                id="employee"
-                                name="employee"
-                                value="{{ employee_search }}"
+                                id="apprEmployeeSearch"
                                 placeholder="Введите ФИО, например, Иванов Иван"
                                 class="appr-search-input"
                                 autocomplete="off"
                         >
-                        <button type="submit" class="appr-search-btn">
-                            <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="appr-search-icon">
-                        </button>
+                        <img src="{% static 'assets/search.svg' %}" alt="" class="appr-search-icon">
                     </div>
                 </div>
 
                 <div class="appr-search-box">
-                    <label for="skill" class="appr-search-label">Поиск по навыку</label>
+                    <label for="apprSkillSearch" class="appr-search-label">Поиск по навыку</label>
                     <div class="appr-search-input-wrap">
                         <input
                                 type="text"
-                                id="skill"
-                                name="skill"
-                                value="{{ skill_search }}"
+                                id="apprSkillSearch"
                                 placeholder="Введите навык, например, Docker"
                                 class="appr-search-input"
                                 autocomplete="off"
                         >
-                        <button type="submit" class="appr-search-btn">
-                            <img src="{% static 'assets/search.svg' %}" alt="Поиск" class="appr-search-icon">
-                        </button>
+                        <img src="{% static 'assets/search.svg' %}" alt="" class="appr-search-icon">
                     </div>
                 </div>
 
@@ -75,7 +83,10 @@
                      сюда попадает только Manager (HR доступа к странице не
                      имеет вообще, см. approvals_page.py), он видит только
                      заявки своего отдела, без исключений — тот же приём
-                     "замочка", что и в ask.html/reserve.html. -->
+                     "замочка", что и в ask.html/reserve.html. Это НЕ
+                     фильтр в смысле остальных двух полей — оно и раньше
+                     ничего не отправляло на сервер, только показывало
+                     текущий отдел, поэтому осталось как есть. -->
                 <div class="appr-search-box appr-dept-box">
                     <span class="appr-search-label">Отдел</span>
                     <div class="appr-dept-locked" title="Доступно только вашему отделу">
@@ -83,7 +94,7 @@
                         <span class="appr-dept-lock-icon" aria-hidden="true">🔒</span>
                     </div>
                 </div>
-            </form>
+            </div>
 
             <div class="appr-table-wrap">
                 <table class="appr-table">
@@ -94,26 +105,70 @@
                             <th>Навык</th>
                             <th>Уровень</th>
                             <th>
-                                <a href="?{{ qs_for_sort_toggle }}" class="appr-sort-link">
-                                    Дата отправки {% if sort_dir == "desc" %}↓{% else %}↑{% endif %}
-                                </a>
+                                <!-- Раньше ссылка вела на ?sort=asc|desc с перезагрузкой
+                                     страницы — теперь JS (id="apprSortToggle") просто
+                                     разворачивает уже отрисованные строки задом наперёд,
+                                     без единого запроса к серверу (см. docstring
+                                     approvals_page.py и extra_js ниже). button, а не <a>
+                                     без href — это действие, а не переход. -->
+                                <button type="button" class="appr-sort-link" id="apprSortToggle" data-sort="desc">
+                                    Дата отправки <span id="apprSortArrow">↓</span>
+                                </button>
                             </th>
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="apprTableBody">
                         {% for req in requests %}
-                            <tr>
-                                <td class="appr-employee-cell">
-                                    <a href="{% url 'profile-page' req.user_id %}" class="appr-avatar">
-                                        {% if req.photo %}
-                                            <img src="{{ req.photo }}" alt="Аватар">
-                                        {% endif %}
-                                    </a>
-                                    <span>{{ req.full_name }}</span>
+                            <!-- data-row-id — по нему JS находит и убирает ИМЕННО эту строку
+                                 после успешного подтверждения/отклонения (см. extra_js ниже),
+                                 не перерисовывая всю таблицу и не трогая остальные строки. -->
+                            <tr class="appr-data-row" data-row-id="{{ req.id }}" data-employee="{{ req.full_name|lower }}" data-skill="{{ req.skill_name|lower }}">
+                                <td>
+                                    <!-- display:flex теперь на ВНУТРЕННЕМ div, не на самой <td> — если
+                                         поставить display:flex прямо на <td>, Chrome перестаёт понимать
+                                         эту ячейку как обычную ячейку таблицы при table-layout: fixed
+                                         (она "выходит" из алгоритма фиксированных колонок) и сжимается по
+                                         контенту, игнорируя заданный процент ширины — ровно так у нас
+                                         однажды пропало и имя сотрудника, и название навыка целиком (сама
+                                         ячейка схлопывалась до ширины кружка/аватара). Обёртка внутри
+                                         <td> решает это: сама <td> остаётся обычной ячейкой и честно
+                                         получает свою долю ширины (см. approvals.css), а flex работает
+                                         только внутри неё. -->
+                                    <div class="appr-employee-cell">
+                                        <a href="{% url 'profile-page' req.user_id %}" class="appr-avatar">
+                                            {% if req.photo %}
+                                                <img src="{{ req.photo }}" alt="Аватар">
+                                            {% endif %}
+                                        </a>
+                                        <span>{{ req.full_name }}</span>
+                                    </div>
                                 </td>
                                 <td>{{ req.position|default:"—" }}</td>
-                                <td>{{ req.skill_name }}</td>
+                                <td>
+                                    <div class="appr-skill-cell">
+                                        <span class="appr-skill-name" title="{{ req.skill_name }}">{{ req.skill_name }}</span>
+                                        <!-- Уже подтверждённый уровень этого навыка (если есть) — тот же
+                                             кружок с цифрой, что и раньше, теперь возвращён обратно:
+                                             колонка "Навык" зафиксирована по ширине (table-layout: fixed,
+                                             см. approvals.css), так что кружок больше не может распереть
+                                             таблицу за пределы карточки — максимум, чему он вредит, это
+                                             самому себе (обрежет длинное название навыка многоточием
+                                             внутри СВОЕЙ же ячейки), а не соседним колонкам. Расшифровка —
+                                             в title. -->
+                                        {% if req.approved_level %}
+                                            <span class="appr-current-level-badge"
+                                                  title="Уже подтверждён на уровне «{{ req.approved_level_label }}» — эта заявка на повышение">
+                                                {{ req.approved_level }}
+                                            </span>
+                                        {% else %}
+                                            <span class="appr-current-level-badge appr-current-level-badge-new"
+                                                  title="У сотрудника ещё нет подтверждённого уровня по этому навыку — заявка на новый навык">
+                                                &ndash;
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
                                 <td>
                                     <form method="post" action="" class="appr-approve-form" id="approveForm{{ req.id }}">
                                         {% csrf_token %}
@@ -171,47 +226,54 @@
                                     </div>
                                 </td>
                             </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="6" class="appr-empty-row">Заявок на подтверждение нет.</td>
-                            </tr>
                         {% endfor %}
+                        <!-- Два разных "пусто" — раньше "заявок нет вообще"
+                             (apprEmptyAll) рисовал только сервер (условием
+                             "not requests" в шаблоне), а "ничего не найдено
+                             по фильтрам"
+                             (apprEmptyFiltered) был чисто клиентским. Теперь
+                             ОБА всегда есть в разметке (переключаются просто
+                             style.display) — потому что "заявок нет вообще"
+                             может наступить и на клиенте: если подтвердить/
+                             отклонить последнюю оставшуюся заявку через fetch()
+                             (см. extra_js ниже), страница не перезагружается,
+                             и без этого строку показать было бы нечем. -->
+                        <tr id="apprEmptyAll"{% if requests %} style="display:none;"{% endif %}>
+                            <td colspan="6" class="appr-empty-row">Заявок на подтверждение нет.</td>
+                        </tr>
+                        <tr id="apprEmptyFiltered" style="display:none;">
+                            <td colspan="6" class="appr-empty-row">Ничего не найдено по текущим фильтрам.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            {% if page_obj.paginator.num_pages > 1 %}
-                <div class="appr-pagination">
-                    {% if page_obj.has_previous %}
-                        <a href="?{{ qs_without_page }}&page={{ page_obj.previous_page_number }}" class="appr-page-arrow">&lt;</a>
-                    {% else %}
-                        <span class="appr-page-arrow appr-page-arrow-disabled">&lt;</span>
-                    {% endif %}
+            <!-- Пагинация теперь строится JS-ом (см. extra_js ниже) поверх
+                 уже загруженного и отфильтрованного на клиенте списка —
+                 раньше ссылки вели на ?page=N с перезагрузкой страницы.
+                 Пустой контейнер, скрыт по умолчанию: JS сам показывает его
+                 и наполняет кнопками, только если страниц реально больше
+                 одной (см. renderPagination в extra_js). -->
+            <div class="appr-pagination" id="apprPagination" data-page-size="{{ page_size }}" style="display:none;"></div>
 
-                    {% for num in page_obj.paginator.page_range %}
-                        <a href="?{{ qs_without_page }}&page={{ num }}"
-                           class="appr-page-num {% if num == page_obj.number %}appr-page-num-active{% endif %}">{{ num }}</a>
-                    {% endfor %}
-
-                    {% if page_obj.has_next %}
-                        <a href="?{{ qs_without_page }}&page={{ page_obj.next_page_number }}" class="appr-page-arrow">&gt;</a>
-                    {% else %}
-                        <span class="appr-page-arrow appr-page-arrow-disabled">&gt;</span>
-                    {% endif %}
-                </div>
-            {% endif %}
-
+            <!-- Раньше текст объяснения был всегда виден целиком (отдельный
+                 <p> под заголовком) — по запросу оставили только надпись
+                 "Как это работает?" и сам значок "i", а текст теперь
+                 всплывающая подсказка по наведению на значок (и по фокусу
+                 клавиатурой — tabindex, см. ниже): страница и так была
+                 высокой (просили сделать так, чтобы помещалась без
+                 прокрутки при 100%), а текст объяснения нужен не всегда. -->
             <div class="appr-info-box">
                 <div class="appr-info-box-title">
-                    <span class="appr-info-icon appr-info-icon-static">i</span>
+                    <span class="appr-info-icon appr-info-icon-static" tabindex="0">i</span>
                     Как это работает?
+                    <div class="appr-info-tooltip" role="tooltip">
+                        Сотрудник добавляет новый навык или изменяет уровень владения. Навык получает статус
+                        «На подтверждении» и становится виден вам. Вы можете подтвердить именно тот уровень,
+                        который указал сотрудник, либо выбрать другой — например, если сотрудник переоценил себя.
+                        После подтверждения навык будет отображаться в матрице компетенций как подтверждённый.
+                    </div>
                 </div>
-                <p>
-                    Сотрудник добавляет новый навык или изменяет уровень владения. Навык получает статус
-                    «На подтверждении» и становится виден вам. Вы можете подтвердить именно тот уровень,
-                    который указал сотрудник, либо выбрать другой — например, если сотрудник переоценил себя.
-                    После подтверждения навык будет отображаться в матрице компетенций как подтверждённый.
-                </p>
             </div>
 
         </div>
@@ -256,5 +318,248 @@
         range.addEventListener("input", update);
         update();
     });
+
+    // ===== ФИЛЬТРЫ / СОРТИРОВКА / ПАГИНАЦИЯ — теперь целиком на клиенте =====
+    // Раньше это были GET-параметры (?employee=/?skill=/?sort=/?page=) с
+    // полной перезагрузкой страницы на каждое действие (см. docstring
+    // approvals_page.py). Бэкенд теперь отдаёт СРАЗУ ВСЕ заявки отдела
+    // одним куском в DOM (отсортированные по убыванию даты) — дальше это
+    // чисто клиентская задача: показать/скрыть уже существующие строки,
+    // ничего не досылая на сервер.
+    (function setupApprovalsFrontendFilters() {
+        var tbody = document.getElementById("apprTableBody");
+        var paginationEl = document.getElementById("apprPagination");
+        var emptyFiltered = document.getElementById("apprEmptyFiltered");
+        var emptyAll = document.getElementById("apprEmptyAll");
+        var employeeInput = document.getElementById("apprEmployeeSearch");
+        var skillInput = document.getElementById("apprSkillSearch");
+        var sortBtn = document.getElementById("apprSortToggle");
+        var sortArrow = document.getElementById("apprSortArrow");
+        var messagesBox = document.getElementById("apprMessagesBox");
+        if (!tbody || !paginationEl || !emptyFiltered || !emptyAll || !employeeInput || !skillInput || !sortBtn) return;
+
+        // Снимок строк В ИСХОДНОМ порядке (сначала новые — как отдал
+        // сервер), СРАЗУ при загрузке — до того, как что-либо переставится.
+        // Дальше и фильтрация, и сортировка, и пагинация работают только с
+        // этим массивом и его копиями, а не живым querySelectorAll каждый
+        // раз (иначе, например, после первого рендера с пагинацией
+        // querySelectorAll(".appr-data-row") нашёл бы только строки ТЕКУЩЕЙ
+        // страницы, а не все).
+        var allRows = Array.prototype.slice.call(tbody.querySelectorAll(".appr-data-row"));
+        var pageSize = Number(paginationEl.dataset.pageSize) || 5;
+        var sortDir = sortBtn.dataset.sort || "desc";
+        var currentPage = 1;
+
+        if (!allRows.length) return; // "Заявок нет вообще" — уже отрисовано сервером, фильтровать нечего.
+
+        function getFiltered() {
+            var q1 = employeeInput.value.trim().toLowerCase();
+            var q2 = skillInput.value.trim().toLowerCase();
+            var rows = allRows.filter(function (r) {
+                var okEmployee = !q1 || r.dataset.employee.indexOf(q1) !== -1;
+                var okSkill = !q2 || r.dataset.skill.indexOf(q2) !== -1;
+                return okEmployee && okSkill;
+            });
+            // Сортировка — не пересчёт по дате, а просто разворот уже
+            // готового (десц по умолчанию) списка: секунда экономии одного
+            // запроса к серверу того не стоила бы, если бы пришлось тащить
+            // в JS ещё и сырые timestamp'ы для сравнения.
+            if (sortDir === "asc") rows = rows.slice().reverse();
+            return rows;
+        }
+
+        function renderPagination(totalPages) {
+            if (totalPages <= 1) {
+                paginationEl.style.display = "none";
+                paginationEl.innerHTML = "";
+                return;
+            }
+            paginationEl.style.display = "";
+            var html = "";
+            html += currentPage > 1
+                ? '<button type="button" class="appr-page-arrow" data-page="' + (currentPage - 1) + '">&lt;</button>'
+                : '<span class="appr-page-arrow appr-page-arrow-disabled">&lt;</span>';
+            for (var i = 1; i <= totalPages; i++) {
+                html += '<button type="button" class="appr-page-num' + (i === currentPage ? " appr-page-num-active" : "") +
+                    '" data-page="' + i + '">' + i + "</button>";
+            }
+            html += currentPage < totalPages
+                ? '<button type="button" class="appr-page-arrow" data-page="' + (currentPage + 1) + '">&gt;</button>'
+                : '<span class="appr-page-arrow appr-page-arrow-disabled">&gt;</span>';
+            paginationEl.innerHTML = html;
+            paginationEl.querySelectorAll("[data-page]").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    currentPage = Number(btn.dataset.page);
+                    render();
+                });
+            });
+        }
+
+        function render() {
+            // Список опустел совсем (последнюю оставшуюся заявку только что
+            // подтвердили/отклонили через fetch — см. removeRowById ниже) —
+            // показываем "заявок нет вообще", а не "ничего не найдено по
+            // фильтрам": их не фильтр спрятал, их правда больше не осталось.
+            if (!allRows.length) {
+                emptyAll.style.display = "";
+                emptyFiltered.style.display = "none";
+                paginationEl.style.display = "none";
+                paginationEl.innerHTML = "";
+                return;
+            }
+            emptyAll.style.display = "none";
+
+            var filtered = getFiltered();
+            var totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+            var start = (currentPage - 1) * pageSize;
+            var pageRows = filtered.slice(start, start + pageSize);
+
+            // Убираем ВСЕ строки данных из DOM и вставляем обратно только
+            // те, что попали в текущую страницу — insertBefore(emptyFiltered)
+            // держит их перед (скрытой) строкой "ничего не найдено", так
+            // порядок в DOM остаётся стабильным и предсказуемым.
+            allRows.forEach(function (r) { if (r.parentNode) r.parentNode.removeChild(r); });
+            pageRows.forEach(function (r) { tbody.insertBefore(r, emptyFiltered); });
+
+            emptyFiltered.style.display = filtered.length === 0 ? "" : "none";
+            renderPagination(totalPages);
+        }
+
+        employeeInput.addEventListener("input", function () { currentPage = 1; render(); });
+        skillInput.addEventListener("input", function () { currentPage = 1; render(); });
+        sortBtn.addEventListener("click", function () {
+            sortDir = sortDir === "desc" ? "asc" : "desc";
+            sortBtn.dataset.sort = sortDir;
+            if (sortArrow) sortArrow.textContent = sortDir === "desc" ? "↓" : "↑";
+            currentPage = 1;
+            render();
+        });
+
+        // Убрать строку по её id из allRows и из DOM (если она сейчас
+        // отображается) и перерисовать список. Специально НЕ трогает
+        // currentPage/sortDir/значения полей поиска — именно в этом и была
+        // цель переноса подтверждения/отклонения на fetch() (см. ниже): их
+        // сохранить, а не сбросить полной перезагрузкой страницы, как было
+        // раньше.
+        function removeRowById(id) {
+            for (var i = 0; i < allRows.length; i++) {
+                if (allRows[i].dataset.rowId === String(id)) {
+                    var row = allRows[i];
+                    if (row.parentNode) row.parentNode.removeChild(row);
+                    allRows.splice(i, 1);
+                    break;
+                }
+            }
+            render();
+        }
+
+        // Показать результат подтверждения/отклонения в блоке сверху
+        // страницы (см. #apprMessagesBox в разметке) — тот же визуальный
+        // блок, что раньше заполнял только Django messages framework после
+        // перезагрузки страницы, теперь его же по необходимости заполняет
+        // и JS, без перезагрузки. textContent, а не innerHTML — текст
+        // сообщения может содержать ФИО/название навыка, набранные кем-то
+        // в профиле, экранировать вручную незачем, когда можно просто не
+        // парсить это как HTML.
+        function showMessages(msgList) {
+            if (!messagesBox) return;
+            messagesBox.innerHTML = "";
+            if (!msgList || !msgList.length) {
+                messagesBox.style.display = "none";
+                return;
+            }
+            msgList.forEach(function (m) {
+                var div = document.createElement("div");
+                div.className = "appr-message" + (m.level ? " appr-message-" + m.level : "");
+                div.textContent = m.text;
+                messagesBox.appendChild(div);
+            });
+            messagesBox.style.display = "";
+        }
+
+        // ===== "Подтвердить" / "Отклонить" — тоже без перезагрузки страницы =====
+        // Раньше это были обычные <form method="post">: после отправки —
+        // POST-редирект и полная перезагрузка approvals-page (см.
+        // approvals_page.py). Из-за этого сбрасывались все фильтры, поиск,
+        // сортировка и текущая страница пагинации выше — ради обработки
+        // одной заявки пользователь терял весь контекст, в котором её
+        // искал. Теперь обе формы отправляются через fetch(), а по ответу
+        // сервера JS сам убирает ИМЕННО эту строку из allRows (см.
+        // removeRowById выше) — currentPage/sortDir/строки поиска при этом
+        // не трогаются вообще.
+        //
+        // Слушатель — на CAPTURE-фазе и на window, а не на document (как
+        // общий диалог подтверждения удаления в base.html, см. его же
+        // комментарий про data-confirm-message). Это принципиально: на
+        // capture-фазе браузер идёт от window к document и дальше вглубь
+        // дерева, то есть слушатель на window всегда отработает РАНЬШЕ
+        // слушателя на document — даже раньше того, что был подключён
+        // раньше по времени (порядок регистрации решает только между
+        // слушателями на ОДНОМ И ТОМ ЖЕ узле). Это нужно форме "Отклонить"
+        // — у неё есть data-confirm-message, и первый submit (сам клик по
+        // кнопке) должен сначала беспрепятственно дойти до общего диалога
+        // в base.html и показать модалку — наш обработчик на этом первом
+        // проходе ничего не делает (см. проверку confirmed чуть ниже) и не
+        // мешает диалогу открыться. Только ВТОРОЙ submit — тот, что
+        // base.html сам вызывает через pendingForm.requestSubmit() после
+        // клика "Отклонить" внутри модалки, уже с выставленным
+        // form.dataset.confirmed = "1" — наш обработчик перехватывает и
+        // отправляет через fetch вместо обычной навигации. К моменту, когда
+        // это же событие дойдёт до document и base.html прочитает и сотрёт
+        // этот флаг (готовясь пропустить обычный submit), мы на window уже
+        // успели его увидеть и обработать по-своему.
+        window.addEventListener("submit", function (e) {
+            var form = e.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (!form.classList.contains("appr-approve-form") && !form.classList.contains("appr-reject-form")) return;
+
+            // Форма с диалогом подтверждения (сейчас это только "Отклонить")
+            // — первый submit ещё не подтверждён пользователем в модалке,
+            // отдаём его целиком общему обработчику диалога в base.html.
+            if (form.hasAttribute("data-confirm-message") && form.dataset.confirmed !== "1") return;
+
+            e.preventDefault();
+
+            var rowIdInput = form.querySelector('[name="user_skill_id"]');
+            var rowId = rowIdInput ? rowIdInput.value : null;
+            var row = form.closest(".appr-data-row");
+            var actionButtons = row ? row.querySelectorAll(".appr-approve-btn, .appr-reject-btn") : [];
+            actionButtons.forEach(function (btn) { btn.disabled = true; });
+
+            fetch("", {
+                method: "POST",
+                body: new FormData(form),
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                credentials: "same-origin",
+            })
+                .then(function (resp) { return resp.json(); })
+                .then(function (data) {
+                    showMessages(data.messages);
+                    if (data.ok) {
+                        removeRowById(rowId);
+                    } else {
+                        // Ошибка (например, эту же заявку долей секунды
+                        // раньше уже обработал кто-то другой) — строку не
+                        // трогаем, просто показываем сообщение и
+                        // разблокируем кнопки, чтобы можно было попробовать
+                        // снова или отреагировать иначе.
+                        actionButtons.forEach(function (btn) { btn.disabled = false; });
+                    }
+                })
+                .catch(function () {
+                    // Сеть отвалилась/сервер не ответил JSON — не оставляем
+                    // пользователя в неведении и не блокируем кнопки навсегда.
+                    showMessages([{
+                        level: "error",
+                        text: "Не удалось выполнить действие — проверьте соединение и попробуйте ещё раз.",
+                    }]);
+                    actionButtons.forEach(function (btn) { btn.disabled = false; });
+                });
+        }, true);
+
+        render();
+    })();
 </script>
 {% endblock %}

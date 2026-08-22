@@ -1,0 +1,758 @@
+/* СТРАНИЦА "АНАЛИТИКА" (analytics.html) — HR-only дашборд по всей
+   компании. Токены (цвета/радиусы/тени/шрифт) взяты из уже существующих
+   страниц (department.css/reserve.css/main.css), чтобы новая страница не
+   выглядела "своим" визуальным языком — см. .an-card ниже и .dept-card
+   в department.css: тот же белый фон/радиус16/тень. */
+
+.an-page {
+    margin: 0;
+    color: #535353;
+    background: #F2F5FF;
+    font-family: 'Cabin', sans-serif;
+}
+
+.an-main {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 5px 30px 24px;
+}
+
+/* СООБЩЕНИЯ (django messages) — те же классы-обёртки/цвета, что и на
+   остальных страницах (department.css/approvals.css), просто с an- */
+.an-messages {
+    margin-bottom: 16px;
+}
+
+.an-message {
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.an-message-success {
+    background: #E6F9EE;
+    color: #1B7A43;
+    border: 1px solid #B7EACB;
+}
+
+.an-message-error {
+    background: #FDE8E8;
+    color: #9b1c1c;
+    border: 1px solid #F8B4B4;
+}
+
+.an-title-row {
+    margin-bottom: 14px;
+}
+
+.an-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1E1E1E;
+    margin: 0 0 6px;
+}
+
+.an-subtitle {
+    font-size: 14px;
+    color: #717171;
+    margin: 0;
+}
+
+/* Карточка — тот же язык, что и .dept-card в department.css: белый фон,
+   рамка + мягкая тень, радиус16. Используется для КАЖДОГО блока страницы
+   (фильтр/статы/графики) — единый визуальный ритм со всем остальным
+   приложением. */
+.an-card {
+    background: white;
+    border: 1px solid #E5E5E5;
+    border-radius: 16px;
+    box-shadow: 1px 1px 8px 0px rgba(0, 0, 0, 0.08);
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.an-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1E1E1E;
+    margin: 0 0 4px;
+}
+
+.an-card-subtitle {
+    font-size: 12px;
+    color: #999;
+    margin: 0 0 14px;
+}
+
+.an-card-empty {
+    font-size: 13px;
+    color: #999;
+    margin: 0;
+}
+
+/* ===== ФИЛЬТР "Отдел" — четвёртый блок в ряду стат-пилюль =====
+   Раньше был отдельной полноширинной карточкой над рядом (.an-filter-card
+   на всю ширину) — теперь встроен в тот же .an-stats-row, что и три
+   пилюли-статистики, просто занимает более узкую колонку (см.
+   grid-template-columns у .an-stats-row ниже: `0.8fr` вместо `1fr`).
+   Подсказка "Показатели ниже — по выбранному отделу" в узкой колонке не
+   помещалась бы текстом — перенесена в title="" на select (всплывающая
+   подсказка браузера при наведении), текст не потерян, просто не занимает
+   место постоянно. */
+.an-dept-pill {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 14px;
+}
+
+.an-filter-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #999;
+    white-space: nowrap;
+}
+
+.an-dept-select {
+    width: 100%;
+    padding: 5px 8px;
+    border-radius: 8px;
+    border: 1px solid #E5E5E5;
+    font-size: 12.5px;
+    font-family: inherit;
+    color: #535353;
+    background: white;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+/* ===== СТАТ-ПИЛЮЛИ (+ фильтр "Отдел" как более узкая 4-я колонка) =====
+   По запросу — весь ряд сделан заметно ниже (padding/иконки/шрифты
+   уменьшены): раньше карточки были высокими относительно того, сколько
+   в них реально контента (одна строка иконка+подпись+число). */
+.an-stats-row {
+    display: grid;
+    grid-template-columns: 0.8fr repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+    align-items: stretch;
+}
+
+.an-stat-pill {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 16px;
+}
+
+.an-stat-pill-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.an-stat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.an-stat-icon svg {
+    width: 17px;
+    height: 17px;
+}
+
+.an-stat-icon-purple { background: #F6E1FF; color: #7A2A9E; }
+.an-stat-icon-green { background: #E6F9EE; color: #1B7A43; }
+.an-stat-icon-amber { background: #FFF1D6; color: #9A6400; }
+
+.an-stat-label {
+    font-size: 13px;
+    color: #444;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.an-stat-number {
+    font-size: 19px;
+    font-weight: 700;
+    color: #1E1E1E;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.an-stat-add-btn {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: #C02BFF;
+    color: white;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease;
+    box-shadow: 0 2px 6px rgba(154, 43, 216, 0.35);
+}
+
+.an-stat-add-btn:hover { background: #982EC4; }
+
+/* ===== ПИЛЮЛЯ "Сотрудников" — выпадающий список =====
+   Карточка (.an-members-pill) отдаёт весь свой padding кнопке-триггеру
+   (.an-stat-pill-trigger повторяет padding обычной .an-stat-pill) — так
+   вся площадь пилюли кликабельна, а не только число. Сам выпадающий
+   список — sibling кнопки, не её потомок (см. комментарий в
+   analytics.html, почему это важно для клика по ссылке профиля внутри). */
+.an-members-pill {
+    /* display:flex (не block!) — ОБЯЗАТЕЛЬНО. .an-stat-pill-trigger внутри
+       занимает фиксированный padding по своему контенту, а сама карточка
+       растягивается по высоте строки вместе с остальными тремя пилюлями
+       (align-items:stretch у .an-stats-row). При display:block кнопка
+       просто прижималась к верху карточки, а под ней оставалась пустая
+       полоса вплоть до нижней границы — content не был центрирован по
+       факту достающейся карточке высоте. display:flex делает кнопку
+       flex-элементом с align-self по умолчанию "stretch": она сама
+       растягивается на всю высоту карточки, и её собственный
+       align-items:center (см. .an-stat-pill-trigger) центрирует
+       иконку/подпись/число уже по этой полной высоте — так же, как у
+       обычных (не кликабельных) пилюль. */
+    padding: 0;
+    display: flex;
+}
+
+.an-stat-pill-trigger {
+    all: unset;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 9px 16px;
+    cursor: pointer;
+}
+
+.an-stat-pill-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.an-stat-chevron {
+    width: 15px;
+    height: 15px;
+    color: #B0B0B0;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.an-members-pill.dropdown-open .an-stat-chevron { transform: rotate(180deg); }
+
+.an-members-pill.dropdown-open .an-stat-pill-trigger {
+    background: #FAFAFA;
+    border-radius: 16px 16px 0 0;
+}
+
+.an-members-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #E5E5E5;
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+    padding: 8px;
+    z-index: 30;
+    box-sizing: border-box;
+}
+
+.an-members-dropdown.open { display: block; }
+
+.an-members-empty { padding: 10px 6px; }
+
+.an-members-list {
+    max-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.an-member-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.an-member-row:hover { background: #F6E1FF; }
+
+.an-member-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #C02BFF;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.an-member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.an-member-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.an-member-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #1E1E1E;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.an-member-position {
+    font-size: 11px;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ===== СЕТКА КАРТОЧЕК-ГРАФИКОВ ===== */
+.an-grid-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.an-grid-row-2col {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+/* ===== КАТЕГОРИИ НАВЫКОВ — кластер кругов =====
+   Карточка растянута в flex-колонку, а сама зона с кругами (an-bubble-row)
+   занимает всё оставшееся место (flex:1) — высота карточки всегда вровень
+   с соседней "Картой разрывов". overflow:hidden на an-bubble-wrap — жёсткая
+   гарантия, что круг не вылезет за пределы карточки, даже если раскладка
+   в JS (см. analytics.html) в каком-то крайнем случае просчиталась не
+   идеально. */
+.an-bubble-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.an-bubble-row {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-height: 360px;
+}
+
+.an-bubble-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.an-bubble {
+    position: absolute;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-weight: 700;
+    padding: 6px;
+    /* box-sizing: border-box — ОБЯЗАТЕЛЬНО. JS (analytics.html) считает
+       позицию/размер круга из радиуса r и присваивает width/height ровно
+       r*2, исходя из того, что весь размер элемента — это r*2. Без
+       border-box padding:6px добавляет к content-box ещё +12px к
+       фактическому width/height (по 6px с каждой стороны) поверх того,
+       что заложено в геометрии раскладки — снаружи круг оказывается
+       больше, чем координаты для него посчитаны, и вылезает за пределы
+       обёртки/соседних кругов ровно на этот запас, хотя сам расчёт
+       (включая клэмп в конце render()) формально ничего не нарушал. */
+    box-sizing: border-box;
+    line-height: 1.15;
+}
+
+.an-bubble-name { display: block; }
+.an-bubble-pct { display: block; font-weight: 400; opacity: 0.85; }
+
+.an-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.an-legend li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #444;
+}
+
+.an-legend-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.an-legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.an-legend b {
+    font-weight: 600;
+    color: #1E1E1E;
+    white-space: nowrap;
+}
+
+/* ===== КАРТА РАЗРЫВОВ — полоска "доля экспертов среди знающих навык" =====
+   Чем полоска короче и краснее, тем острее дефицит — тот же принцип, что
+   и .an-skill-bar-track/-fill ниже, просто с цветом по срочности вместо
+   фиксированного фиолетового. Двух ступеней ("высокий"/"средний") — не
+   три: см. докстринг _skills_with_gap в analytics_page.py, у алгоритма
+   нет третьей ступени "низкая", это не то же самое, что "нет разрыва". */
+.an-gapmap-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.an-gapmap-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.an-gapmap-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E1E1E;
+}
+
+.an-severity {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.an-severity-высокий { background: #FDE8E8; color: #9b1c1c; }
+.an-severity-средний { background: #FFF1D6; color: #9A6400; }
+
+.an-gapmap-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #EEF0F6;
+    overflow: hidden;
+}
+
+.an-gapmap-fill {
+    height: 100%;
+    border-radius: 4px;
+}
+
+.an-gapmap-fill-высокий { background: #9b1c1c; }
+.an-gapmap-fill-средний { background: #9A6400; }
+
+.an-gapmap-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: #999;
+    margin-top: 5px;
+}
+
+.an-gapmap-meta b { color: #444; font-weight: 600; }
+.an-gapmap-meta-sep { color: #D1D5DB; }
+
+/* ===== СВОРАЧИВАНИЕ "Карты разрывов" =====
+   360px — та же цифра, что и min-height у .an-bubble-row (соседняя
+   карточка "Категории навыков" в той же строке грид-сетки): раньше тут
+   стояло 190px "с запасом", из-за чего под кнопкой "Показать все"
+   оставалась пустая полоса — карточка всё равно растягивалась вширь по
+   высоте строки (align-items:stretch), а список внутри останавливался
+   гораздо раньше. Теперь высота ОДНА И ТА ЖЕ в свёрнутом и развёрнутом
+   состоянии — раскрытие переключает только overflow (hidden -> auto),
+   ничего не увеличивая и не сдвигая соседние карточки; прокрутка
+   появляется на месте, а не "вырастает" карточка. Свёрнутое состояние
+   обрезает лишнее (overflow:hidden) с плавным затуханием снизу (::after —
+   градиент в цвет карточки, не сплошная заливка, иначе последняя видимая
+   строка обрезалась бы резко). Кнопка сама скрывается через JS
+   (analytics.html), если после этой правки все строки и так уместились
+   без обрезки — тогда прокручивать нечего. */
+.an-gapmap-scroll {
+    position: relative;
+    max-height: 360px;
+    overflow: hidden;
+}
+
+.an-gapmap-scroll.expanded {
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.an-gapmap-scroll:not(.expanded)::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 34px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
+    pointer-events: none;
+}
+
+.an-gapmap-toggle {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    background: #FAFAFA;
+    color: #7A2A9E;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.an-gapmap-toggle:hover { background: #F3E9FB; }
+
+/* ===== ПОЛОСКИ-БАРЫ — топ-10 / топ-10 редких, тот же компонент, что и
+   .dept-skill-bars в department.css, просто с an- ===== */
+.an-skill-bars {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.an-skill-bars li { display: flex; flex-direction: column; gap: 3px; }
+.an-skill-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: #444; }
+.an-skill-bar-label b { color: #1E1E1E; font-weight: 600; }
+.an-skill-bar-track { height: 6px; border-radius: 3px; background: #EEF0F6; overflow: hidden; }
+.an-skill-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #C02BFF, #ab4ad5); }
+.an-skill-bar-fill-rare { background: linear-gradient(90deg, #F5A524, #F59E0B); }
+
+/* ===== ДОНАТ =====
+   Раньше 132px — на фоне карточки такой же высоты, как "Топ-10 навыков"
+   рядом (где список из 10 строк-баров занимает всю карточку), донат
+   оставлял много пустого места сверху/снизу. Увеличен до 190px (inset
+   дырки пропорционально с 20 до 28px, чтобы кольцо не стало непропорционально
+   толстым), обёртка растянута на всю высоту карточки и центрирует
+   содержимое по вертикали — донат теперь визуально заполняет карточку так
+   же, как соседние графики. */
+.an-donut-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.an-donut-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex: 1;
+    min-height: 260px;
+}
+.an-donut { position: relative; width: 190px; height: 190px; border-radius: 50%; flex-shrink: 0; }
+.an-donut-hole {
+    position: absolute; inset: 28px; background: white; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+}
+.an-donut-hole strong { font-size: 32px; color: #1E1E1E; line-height: 1.1; }
+.an-donut-hole span { font-size: 11px; color: #999; }
+
+/* ===== ФУТЕР ===== */
+.an-footer-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #999;
+    padding: 4px 4px;
+}
+
+.an-footer-note svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ===== ДИАЛОГ "УПРАВЛЕНИЕ НАВЫКАМИ" — .profile-dialog/.profile-dialog-
+   actions приезжают из edit_profile.css (см. extra_css в analytics.html),
+   здесь только содержимое внутри. ===== */
+.an-skills-dialog {
+    width: min(560px, calc(100% - 40px));
+}
+
+.an-skills-dialog-note {
+    font-size: 13px;
+    color: #717171;
+    margin: 0 0 20px;
+    line-height: 1.45;
+}
+
+.an-skills-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #F0F0F0;
+}
+
+.an-skills-add-row { display: flex; gap: 8px; }
+
+.an-select-slot { flex: 1; min-width: 0; display: flex; }
+
+.an-select, .an-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #374151;
+    background: white;
+    outline: none;
+}
+
+.an-select:focus, .an-input:focus { border-color: #C02BFF; }
+.an-new-option { color: #C02BFF; font-weight: 600; }
+
+.an-new-input-wrap { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; }
+.an-new-input {
+    width: 100%;
+    border: 1.5px solid #C02BFF;
+    border-radius: 8px;
+    padding: 9px 32px 9px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #1E1E1E;
+    outline: none;
+    background: #FBF5FF;
+}
+.an-new-input::placeholder { color: #B98FE0; }
+.an-new-input-cancel {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 20px; height: 20px; border-radius: 50%; border: none; background: none;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; color: #9CA3AF; padding: 0;
+}
+.an-new-input-cancel:hover { color: #C02BFF; }
+.an-new-input-cancel svg { width: 13px; height: 13px; }
+
+/* :not([hidden]) — ОБЯЗАТЕЛЬНО: авторские правила по origin-приоритету
+   перебивают [hidden] { display: none } из UA-стиля браузера независимо
+   от специфичности (тот же приём и та же причина, что и у
+   .resv-edit-extended в reserve.css) — голое ".an-skills-new-hint
+   { display: flex }" продолжало бы показывать подсказку даже с атрибутом
+   hidden, JS-переключатель (см. analytics.html) молча переставал бы
+   работать. */
+.an-skills-new-hint:not([hidden]) {
+    display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #9A6400;
+    background: #FFF8E8; border: 1px solid #FCE7B5; border-radius: 8px; padding: 7px 10px; margin: -2px 0 2px;
+}
+.an-skills-new-hint svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+.an-add-btn {
+    width: 38px; height: 38px; border-radius: 8px; border: none;
+    background: #C02BFF; color: white; font-size: 19px; font-weight: 700;
+    cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: background-color 0.15s ease;
+}
+.an-add-btn:hover { background: #982EC4; }
+
+.an-skills-list-label { font-size: 12px; font-weight: 600; color: #444; margin: 0 0 10px; }
+.an-skills-search {
+    width: 100%; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 12px;
+    font-size: 13px; font-family: inherit; margin-bottom: 12px; outline: none; box-sizing: border-box;
+}
+.an-skills-search:focus { border-color: #C02BFF; }
+
+.an-skills-groups {
+    display: flex; flex-direction: column; gap: 14px; max-height: 280px; overflow-y: auto; padding-right: 4px;
+}
+.an-skills-group-title {
+    font-size: 12px; font-weight: 700; color: #1E1E1E; text-transform: uppercase;
+    letter-spacing: 0.02em; margin: 0 0 8px;
+}
+.an-skills-group-rows { display: flex; flex-direction: column; gap: 6px; }
+
+.an-skills-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: #FBFAFF; border: 1px solid #F0EAFB; border-radius: 10px; padding: 8px 8px 8px 14px;
+}
+.an-skills-row-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.an-skills-row-name { font-size: 13.5px; color: #374151; font-weight: 500; overflow-wrap: break-word; }
+.an-skills-row-sub { font-size: 11px; color: #9CA3AF; }
+.an-skills-delete-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid #F8B4B4; background: #FDE8E8;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.an-skills-delete-btn img { width: 14px; height: 14px; }
+
+@media (max-width: 1100px) {
+    /* Фильтр "Отдел" — на всю ширину первой строкой, три пилюли под ним в
+       2 колонки: узкая 0.8fr-колонка из десктопной раскладки на планшете
+       выглядела бы непропорционально тесной для select'а с длинными
+       названиями отделов. */
+    .an-stats-row { grid-template-columns: repeat(2, 1fr); }
+    .an-dept-pill { grid-column: 1 / -1; }
+    .an-grid-row, .an-grid-row-2col { grid-template-columns: 1fr; }
+}

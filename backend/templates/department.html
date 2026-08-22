@@ -62,13 +62,17 @@
                          редких навыков считается от максимума СРЕДИ САМИХ
                          редких (см. _top_and_rare_skills в
                          department_page.py) — иначе все полоски были бы
-                         почти невидимыми на фоне топ-1 навыка отдела. -->
+                         почти невидимыми на фоне топ-1 навыка отдела.
+                         dept-skill-bar-fill-rare — по запросу оранжевый
+                         акцент вместо фиолетового (тот же, что и у "Топ-10
+                         редких" на "Аналитике"), чтобы редкие навыки были
+                         отличимы от популярных не только заголовком. -->
                     <ol class="dept-skill-bars">
                         {% for skill in rare_skills %}
                             <li>
                                 <span class="dept-skill-bar-label">{{ forloop.counter }}. {{ skill.name }}</span>
                                 <div class="dept-skill-bar-track">
-                                    <div class="dept-skill-bar-fill" data-pct="{{ skill.pct }}"></div>
+                                    <div class="dept-skill-bar-fill dept-skill-bar-fill-rare" data-pct="{{ skill.pct }}"></div>
                                 </div>
                             </li>
                         {% endfor %}
@@ -172,10 +176,21 @@
                             Сотрудников: <strong>{{ member_count }}</strong>
                         </span>
                         {% if waiting_employee_count %}
+                            <!-- Раньше эта пилюля отличалась от соседней
+                                 некликабельной ("Сотрудников: N") только
+                                 цветом фона — по отзыву ("выглядит не как
+                                 кнопка, а как просто уведомление или просто
+                                 текст") добавили явные признаки кнопки:
+                                 рамку, тень, более жирный текст и стрелку
+                                 справа (см. dept-header-stat-arrow ниже и
+                                 стили в department.css) — теперь кликабельность
+                                 читается визуально, а не только по курсору
+                                 при наведении. -->
                             <a href="{% url 'approvals-page' %}" class="dept-header-stat dept-header-stat-pending">
                                 <img src="{% static 'assets/pending-clock.svg' %}" alt=""
                                      class="dept-header-stat-icon">
                                 {{ waiting_employees_label }}
+                                <span class="dept-header-stat-arrow" aria-hidden="true">&rarr;</span>
                             </a>
                         {% endif %}
                     </div>
@@ -251,10 +266,19 @@
                          .order_by("name") с сервера, см.
                          department_page.py). -->
                     <div class="dept-status-filter-box">
+                        <!-- "Все статусы" убран по запросу — пункт
+                             больше НЕ единственный источник правды для
+                             "показать всё": select всегда стоит на одном
+                             из реальных статусов. По умолчанию при заходе
+                             на страницу выбран "В работе" (raw-значение
+                             "Active" — тот же DEFAULT_STATUS, что и у
+                             новых проектов, см. project_page.py) — самый
+                             частый интересующий руководителя срез, другие
+                             статусы всегда можно выбрать вручную через
+                             тот же select. -->
                         <select id="deptProjectStatus" class="dept-status-filter-select">
-                            <option value="">Все статусы</option>
                             {% for s in status_choices %}
-                                <option value="{{ s.value }}">{{ s.label }}</option>
+                                <option value="{{ s.value }}" {% if s.value == "Active" %}selected{% endif %}>{{ s.label }}</option>
                             {% endfor %}
                         </select>
                     </div>

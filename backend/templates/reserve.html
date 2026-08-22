@@ -454,25 +454,30 @@
 {% endfor %}
 
 <!-- Диалог с одноразовым паролем нового сотрудника — крупный моноширинный
-     текст + кнопка "Скопировать", вместо обычной зелёной плашки сообщений
-     наверху страницы (см. docstring _handle_add_employee в reserve_page.py
-     почему её решили не использовать для пароля). -->
+     текст, вместо обычной зелёной плашки сообщений наверху страницы (см.
+     docstring _handle_add_employee в reserve_page.py почему её решили не
+     использовать для пароля). Кнопки "Скопировать" больше нет — пароль
+     копируется в буфер САМ при открытии диалога (см. extra_js), отдельный
+     клик тут ничего не добавлял, кроме лишнего действия. -->
 <dialog id="newPasswordDialog" class="profile-dialog resv-password-dialog">
     <h3>Сотрудник добавлен</h3>
     <p class="resv-dialog-note">
-        Одноразовый пароль — скопируйте и передайте его сотруднику лично.
-        Повторно он нигде не покажется.
+        Пароль уже скопирован в буфер обмена — передайте его сотруднику
+        лично. Повторно он нигде не покажется.
     </p>
     <div class="resv-password-box">
         <span id="newPasswordValue"></span>
-        <button type="button" id="copyPasswordBtn" class="resv-copy-btn">Скопировать</button>
+        <!-- Без атрибута hidden — место под эту надпись зарезервировано
+             ВСЕГДА (см. .resv-copy-feedback в reserve.css, visibility
+             вместо display), чтобы блок с паролем не менял ширину в
+             момент, когда JS подтвердит копирование. Класс is-visible
+             зажигается зелёным из extra_js ТОЛЬКО после реального
+             успешного navigator.clipboard.writeText(), а не сразу при
+             открытии диалога, — чтобы не соврать, если браузер вдруг
+             откажет в авто-копировании (тогда пароль всё равно виден
+             крупным текстом слева и его можно скопировать вручную). -->
+        <span id="copyPasswordFeedback" class="resv-copy-feedback">Скопировано ✓</span>
     </div>
-    <!-- Без атрибута hidden — место под эту надпись зарезервировано ВСЕГДА
-         (см. .resv-copy-feedback в reserve.css, visibility вместо display),
-         иначе появление текста добавляло новый блок в поток и раздвигало
-         диалог целиком, из-за чего кнопка "Готово" ниже прыгала вниз. JS
-         переключает только класс is-visible (см. extra_js), а не display. -->
-    <span id="copyPasswordFeedback" class="resv-copy-feedback">Скопировано ✓</span>
     <div class="profile-dialog-actions">
         <button type="button" data-close-dialog>Готово</button>
     </div>
@@ -579,28 +584,32 @@
         const passwordDialog = document.getElementById('newPasswordDialog');
         const passwordData = document.getElementById('newEmployeePasswordData');
         const passwordValue = document.getElementById('newPasswordValue');
-        const copyPasswordBtn = document.getElementById('copyPasswordBtn');
         const copyPasswordFeedback = document.getElementById('copyPasswordFeedback');
 
         if (passwordDialog && passwordData && passwordValue) {
-            passwordValue.textContent = passwordData.getAttribute('data-password') || '';
+            const password = passwordData.getAttribute('data-password') || '';
+            passwordValue.textContent = password;
             passwordDialog.showModal();
-        }
 
-        copyPasswordBtn?.addEventListener('click', function () {
-            const text = passwordValue ? passwordValue.textContent : '';
-            if (!text || !navigator.clipboard) return;
-            navigator.clipboard.writeText(text).then(function () {
-                if (!copyPasswordFeedback) return;
-                // Класс, не display/hidden — место под текст уже
-                // зарезервировано в CSS (visibility), переключение класса
-                // не меняет высоту диалога и не двигает кнопку "Готово".
-                copyPasswordFeedback.classList.add('is-visible');
-                setTimeout(function () {
-                    copyPasswordFeedback.classList.remove('is-visible');
-                }, 2000);
-            });
-        });
+            // Пароль копируется в буфер САМ, без отдельной кнопки
+            // "Скопировать" — сотруднику всё равно нужно скопировать его
+            // ровно один раз, чтобы передать лично, лишний клик тут не
+            // добавляет ничего. "Скопировано" зажигается зелёным и
+            // ОСТАЁТСЯ так (не гаснет через таймаут, как было раньше у
+            // кнопки) — копирование не временное действие, пароль
+            // реально лежит в буфере всё время, пока открыт диалог.
+            if (password && navigator.clipboard) {
+                navigator.clipboard.writeText(password).then(function () {
+                    copyPasswordFeedback?.classList.add('is-visible');
+                }).catch(function () {
+                    // Тихо игнорируем: например, вкладка не в фокусе или
+                    // браузер не разрешил авто-копирование без клика.
+                    // Кнопки "Скопировать" больше нет, но сам пароль
+                    // по-прежнему виден крупным текстом в диалоге — можно
+                    // скопировать вручную (выделить + Ctrl+C).
+                });
+            }
+        }
 
         // Закрытие — ТОЛЬКО по кнопке ("Отмена"/"Готово", см. data-close-dialog)
         // или Escape (нативное поведение <dialog>, открытого через showModal() —

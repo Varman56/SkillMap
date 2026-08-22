@@ -673,41 +673,29 @@
     overflow-wrap: anywhere;
 }
 
-.resv-copy-btn {
-    flex-shrink: 0;
-    background: white;
-    border: 1px solid #C02BFF;
-    color: #C02BFF;
-    padding: 8px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: 'Cabin', sans-serif;
-    white-space: nowrap;
-    transition: 0.2s;
-}
+/* Раньше здесь стояла кнопка "Скопировать" (.resv-copy-btn) справа от
+   пароля — убрана: копирование теперь происходит само при открытии
+   диалога (см. extra_js в reserve.html), кнопка нажимать было уже
+   нечего. На её месте — статус "Скопировано ✓" (ниже).
 
-.resv-copy-btn:hover {
-    background: #C02BFF;
-    color: white;
-}
-
-/* visibility, а не display:none/hidden-атрибут — место под строку
-   зарезервировано ВСЕГДА, даже когда её не видно. Раньше элемент был
-   display:none, пока не скопируют пароль, и весь диалог "выдвигался"/
-   рос на высоту этой строки в момент копирования, из-за чего кнопка
-   "Готово" ниже прыгала — теперь высота диалога не меняется вообще,
-   просто появляется/исчезает текст. (Раньше ещё был отдельный баг: явный
-   display:block в этом же правиле перебивал атрибут hidden — из-за
-   каскада author-стили vs UA-стили [hidden]{display:none} побеждали
-   всегда авторские, — из-за чего "Скопировано" было видно сразу при
-   открытии диалога. visibility этого класса багов не имеет вовсе.) */
+   visibility, а не display:none/hidden-атрибут — место под надпись
+   зарезервировано ВСЕГДА, даже когда её не видно: иначе ширина/раскладка
+   .resv-password-box менялась бы в момент, когда JS подтвердит
+   копирование. flex-shrink: 0 — тот же приём, что раньше был на самой
+   кнопке, чтобы длинный пароль не сжимал эту надпись. (Раньше ещё был
+   отдельный баг: явный display:block в этом же правиле перебивал атрибут
+   hidden — из-за каскада author-стили vs UA-стили [hidden]{display:none}
+   побеждали всегда авторские, — из-за чего "Скопировано" было видно
+   сразу при открытии диалога. visibility этого класса багов не имеет
+   вовсе.) */
 .resv-copy-feedback {
     display: block;
     visibility: hidden;
+    flex-shrink: 0;
     font-size: 13px;
+    font-weight: 600;
     color: #1B7A43;
+    white-space: nowrap;
 }
 
 .resv-copy-feedback.is-visible {

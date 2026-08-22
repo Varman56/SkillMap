@@ -1,0 +1,783 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/analytics.css' %}">
+<!-- edit_profile.css — только .profile-dialog/.profile-dialog-actions,
+     переиспользуем для диалога "Управление навыками", тот же приём, что и
+     на reserve.html (см. её docstring extra_css). -->
+<link rel="stylesheet" href="{% static 'css/edit_profile.css' %}">
+{% endblock %}
+{% block title %}SkillMap | Аналитика{% endblock %}
+
+{% block content %}
+<div class="an-page">
+    <main class="an-main">
+
+        {% if messages %}
+            <div class="an-messages">
+                {% for message in messages %}
+                    <div class="an-message {% if message.tags %}an-message-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="an-title-row">
+            <h1 class="an-title">Аналитика</h1>
+            <p class="an-subtitle">Ключевые показатели и аналитика навыков сотрудников компании</p>
+        </div>
+
+        <!-- СТАТ-ПИЛЮЛИ + ФИЛЬТР "Отдел" в одном ряду. Раньше фильтр был
+             отдельной полноширинной карточкой над рядом пилюль — по запросу
+             сведён в тот же ряд четвёртым блоком, просто уже остальных
+             (см. .an-dept-pill в analytics.css, колонка `0.8fr` против
+             `1fr` у пилюль). Обычный GET-редирект при смене select'а (не
+             JS-фильтрация на клиенте, как на "Мой отдел"/department.html) —
+             цифры здесь настоящие серверные агрегаты по БД, а не то, что
+             уже загружено в DOM. -->
+        <div class="an-stats-row">
+            <form method="get" class="an-card an-stat-pill an-dept-pill" id="analyticsFilterForm">
+                <label for="analyticsDeptSelect" class="an-filter-label">Отдел</label>
+                <select id="analyticsDeptSelect" name="department_id" class="an-dept-select"
+                        onchange="this.form.submit()" title="Показатели ниже — по выбранному отделу">
+                    <option value="">Все отделы</option>
+                    {% for d in departments %}
+                        <option value="{{ d.id }}" {% if selected_department.id == d.id %}selected{% endif %}>{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <!-- Пилюля "Сотрудников" — по запросу стала выпадающим списком
+                 ФИО/должностей именно тех людей, что вошли в member_count
+                 (тот же фильтр "Отдел", что и везде на странице, см.
+                 docstring analytics_page.py). Триггер — <button>, а не сам
+                 <div class="an-card">, специально: клик по ссылке ВНУТРИ
+                 списка (профиль сотрудника) не должен всплывать до
+                 обработчика открытия/закрытия на самой карточке — кнопка и
+                 список идут РЯДОМ (sibling), а не вложены друг в друга. -->
+            <div class="an-card an-stat-pill an-members-pill" id="analyticsMembersPill">
+                <button type="button" class="an-stat-pill-trigger" id="analyticsMembersTrigger"
+                        aria-haspopup="true" aria-expanded="false">
+                    <div class="an-stat-pill-left">
+                        <div class="an-stat-icon an-stat-icon-purple">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        </div>
+                        <span class="an-stat-label">Сотрудников</span>
+                    </div>
+                    <span class="an-stat-pill-right">
+                        <span class="an-stat-number">{{ member_count }}</span>
+                        <svg class="an-stat-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </span>
+                </button>
+
+                <div class="an-members-dropdown" id="analyticsMembersDropdown">
+                    {% if members %}
+                        <div class="an-members-list">
+                            {% for m in members %}
+                                <a href="{% url 'profile-page' m.id %}" class="an-member-row">
+                                    <span class="an-member-avatar">
+                                        {% if m.photo %}<img src="{{ m.photo }}" alt="">{% endif %}
+                                    </span>
+                                    <span class="an-member-info">
+                                        <span class="an-member-name">{{ m.full_name }}</span>
+                                        <span class="an-member-position">{{ m.position|default:"—" }}</span>
+                                    </span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="an-card-empty an-members-empty">В этой выборке нет сотрудников.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="an-card an-stat-pill">
+                <div class="an-stat-pill-left">
+                    <div class="an-stat-icon an-stat-icon-purple">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    </div>
+                    <span class="an-stat-label">Навыков в каталоге</span>
+                </div>
+                <span class="an-stat-number">{{ skills_total }}</span>
+                <!-- "+" — открывает диалог "Управление навыками" ниже. -->
+                <button type="button" class="an-stat-add-btn" id="analyticsManageSkillsBtn"
+                        aria-label="Управление навыками">+</button>
+            </div>
+
+            <div class="an-card an-stat-pill">
+                <div class="an-stat-pill-left">
+                    <div class="an-stat-icon an-stat-icon-green">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    </div>
+                    <span class="an-stat-label">Навыков подтверждено</span>
+                </div>
+                <span class="an-stat-number">{{ confirmation_rate }}%</span>
+            </div>
+        </div>
+
+        <!-- РЯД 1: категории каталога (круги) / карта разрывов -->
+        <div class="an-grid-row an-grid-row-2col">
+            <div class="an-card an-bubble-card">
+                <h3 class="an-card-title">Категории навыков</h3>
+                <p class="an-card-subtitle">Доля навыков каталога по категориям</p>
+                {% if category_shares %}
+                    <div class="an-bubble-row">
+                        <div class="an-bubble-wrap" id="analyticsBubbleWrap"></div>
+                    </div>
+                {% else %}
+                    <p class="an-card-empty">В каталоге пока нет навыков ни в одной категории.</p>
+                {% endif %}
+                {{ category_shares|json_script:"categoryShares" }}
+            </div>
+
+            <div class="an-card">
+                <h3 class="an-card-title">Карта разрывов</h3>
+                <p class="an-card-subtitle">Доля экспертов среди тех, кто знает навык — короче и краснее полоска, острее дефицит</p>
+                {% if skill_gaps %}
+                    <!-- Раньше бэкенд сразу резал список до нескольких самых
+                         острых строк — посмотреть остальные было нельзя
+                         вообще. Теперь бэкенд отдаёт полный список (см.
+                         GAP_SKILLS_COUNT в analytics_page.py), а сворачивает
+                         его визуально фронтенд: по умолчанию видно ~3 строки
+                         с плавным затуханием снизу (.an-gapmap-scroll::after),
+                         кнопка "Показать все" разворачивает в прокручиваемый
+                         список без ограничения. Кнопка не рендерится вовсе,
+                         если строк и так мало — разворачивать нечего. -->
+                    <div class="an-gapmap-scroll" id="analyticsGapScroll">
+                        <ul class="an-gapmap-list">
+                            {% for gap in skill_gaps %}
+                                <li>
+                                    <div class="an-gapmap-top">
+                                        <span class="an-gapmap-name">{{ gap.name }}</span>
+                                        <span class="an-severity an-severity-{{ gap.severity }}">{{ gap.severity }}</span>
+                                    </div>
+                                    <div class="an-gapmap-track">
+                                        <div class="an-gapmap-fill an-gapmap-fill-{{ gap.severity }}" data-pct="{{ gap.fill_pct }}"></div>
+                                    </div>
+                                    <div class="an-gapmap-meta"><b>{{ gap.novices }}</b> новичков <span class="an-gapmap-meta-sep">·</span> <b>{{ gap.experts }}</b> экспертов</div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% if skill_gaps|length > 3 %}
+                        <button type="button" class="an-gapmap-toggle" id="analyticsGapToggle" data-count="{{ skill_gaps|length }}">
+                            Показать все ({{ skill_gaps|length }})
+                        </button>
+                    {% endif %}
+                {% else %}
+                    <p class="an-card-empty">Явных разрывов не обнаружено.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- РЯД 2: распределение уровней / топ-10 / топ-10 редких -->
+        <div class="an-grid-row">
+            <div class="an-card an-donut-card">
+                <h3 class="an-card-title">Распределение уровней навыков</h3>
+                <p class="an-card-subtitle">Только подтверждённые навыки</p>
+                {% if level_distribution.total %}
+                    <div class="an-donut-wrap">
+                        <div class="an-donut" data-high-end="{{ level_distribution.high_end }}"
+                             data-medium-end="{{ level_distribution.medium_end }}">
+                            <div class="an-donut-hole">
+                                <strong>{{ level_distribution.total }}</strong>
+                                <span>подтв. навыков</span>
+                            </div>
+                        </div>
+                        <ul class="an-legend" style="width:100%;">
+                            <li><span class="an-legend-label"><span class="an-legend-dot" style="background:#22C55E;"></span>Высокий (ур. 4)</span><b>{{ level_distribution.high.pct }}% ({{ level_distribution.high.count }})</b></li>
+                            <li><span class="an-legend-label"><span class="an-legend-dot" style="background:#F59E0B;"></span>Средний (ур. 2-3)</span><b>{{ level_distribution.medium.pct }}% ({{ level_distribution.medium.count }})</b></li>
+                            <li><span class="an-legend-label"><span class="an-legend-dot" style="background:#EF4444;"></span>Низкий (ур. 1)</span><b>{{ level_distribution.low.pct }}% ({{ level_distribution.low.count }})</b></li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <p class="an-card-empty">Пока нет подтверждённых навыков.</p>
+                {% endif %}
+            </div>
+
+            <div class="an-card">
+                <h3 class="an-card-title">Топ-10 навыков</h3>
+                <p class="an-card-subtitle">Число сотрудников, владеющих навыком</p>
+                {% if top_skills %}
+                    <ol class="an-skill-bars">
+                        {% for skill in top_skills %}
+                            <li>
+                                <span class="an-skill-bar-label">{{ forloop.counter }}. {{ skill.name }} <b>{{ skill.count }}</b></span>
+                                <div class="an-skill-bar-track"><div class="an-skill-bar-fill" data-pct="{{ skill.pct }}"></div></div>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                {% else %}
+                    <p class="an-card-empty">Пока нет подтверждённых навыков.</p>
+                {% endif %}
+            </div>
+
+            <div class="an-card">
+                <h3 class="an-card-title">Топ-10 редких навыков</h3>
+                <p class="an-card-subtitle">Меньше всего подтвердивших сотрудников</p>
+                {% if rare_skills %}
+                    <ol class="an-skill-bars">
+                        {% for skill in rare_skills %}
+                            <li>
+                                <span class="an-skill-bar-label">{{ forloop.counter }}. {{ skill.name }} <b>{{ skill.count }}</b></span>
+                                <div class="an-skill-bar-track"><div class="an-skill-bar-fill an-skill-bar-fill-rare" data-pct="{{ skill.pct }}"></div></div>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                {% else %}
+                    <p class="an-card-empty">Недостаточно данных.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="an-footer-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            Показатели считаются в реальном времени по текущим данным.
+        </div>
+    </main>
+</div>
+
+<!-- ДИАЛОГ "УПРАВЛЕНИЕ НАВЫКАМИ" — открывается кнопкой "+" на пилюле
+     "Навыков в каталоге" (analyticsManageSkillsBtn выше). Форма добавления
+     и КАЖДАЯ строка со своей формой удаления — независимые <form>, не
+     вложенные друг в друга (тот же приём, что и .resv-dept-row в
+     reserve.html — вложенные <form> в HTML браузер молча ломает). Формы
+     ведут на analytics-page с тем же ?department_id=, что выбран сейчас
+     (см. docstring _handle_add_skill/analytics_page в analytics_page.py:
+     иначе после сохранения фильтр "Отдел" молча сбросился бы). -->
+<dialog id="manageSkillsDialog" class="profile-dialog an-skills-dialog">
+    <h3>Управление навыками</h3>
+    <p class="an-skills-dialog-note">
+        Добавляйте или удаляйте навыки каталога — именно из этого списка
+        сотрудники выбирают навыки в своём профиле, а руководители видят их
+        в заявках на подтверждение.
+    </p>
+
+    <form method="post"
+          action="{% url 'analytics-page' %}{% if selected_department %}?department_id={{ selected_department.id }}{% endif %}"
+          class="an-skills-add-form" id="analyticsAddSkillForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_skill">
+        <div class="an-skills-add-row">
+            <div class="an-select-slot" data-role="category-slot">
+                <select name="category_id" id="analyticsCategorySelect" class="an-select">
+                    {% for c in categories_data %}
+                        <option value="{{ c.id }}">{{ c.name }}</option>
+                    {% endfor %}
+                    <option value="__new__" class="an-new-option">+ Новая категория…</option>
+                </select>
+            </div>
+            <div class="an-select-slot" data-role="subcategory-slot">
+                <select name="subcategory_id" id="analyticsSubcategorySelect" class="an-select"></select>
+            </div>
+        </div>
+        <p class="an-skills-new-hint" id="analyticsNewCategoryHint" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            Такой категории ещё нет — подкатегория тоже будет создана как новая. Обе появятся только после сохранения навыка ниже.
+        </p>
+        <div class="an-skills-add-row">
+            <input type="text" name="name" placeholder="Название навыка, например Kotlin" required
+                   maxlength="255" class="an-input">
+            <button type="submit" class="an-add-btn" aria-label="Добавить навык">+</button>
+        </div>
+    </form>
+
+    <p class="an-skills-list-label">Каталог — {{ skills_total }} {{ skills_total_label }}</p>
+    <input type="text" id="analyticsSkillSearch" class="an-skills-search" placeholder="Поиск по названию навыка" autocomplete="off">
+
+    <div class="an-skills-groups" id="analyticsSkillsGroups">
+        {% for group in skills_catalog %}
+            <div class="an-skills-group">
+                <p class="an-skills-group-title">{{ group.category }}</p>
+                <div class="an-skills-group-rows">
+                    {% for skill in group.skills %}
+                        <div class="an-skills-row" data-search="{{ skill.name|lower }}">
+                            <div class="an-skills-row-text">
+                                <span class="an-skills-row-name">{{ skill.name }}</span>
+                                <span class="an-skills-row-sub">{{ skill.subcategory }}</span>
+                            </div>
+                            <form method="post"
+                                  action="{% url 'analytics-page' %}{% if selected_department %}?department_id={{ selected_department.id }}{% endif %}"
+                                  data-confirm-message="Удалить навык «{{ skill.name }}» из каталога? Сотрудники, у которых он уже указан, его не потеряют — навык просто перестанет предлагаться новым.">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_skill">
+                                <input type="hidden" name="skill_id" value="{{ skill.id }}">
+                                <button type="submit" class="an-skills-delete-btn" aria-label="Удалить навык «{{ skill.name }}»">
+                                    <img src="{% static 'assets/trash.svg' %}" alt="">
+                                </button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% empty %}
+            <p class="an-card-empty">В каталоге пока нет навыков.</p>
+        {% endfor %}
+        <p class="an-card-empty" id="analyticsSkillsEmptyState" style="display:none;">Ничего не найдено.</p>
+    </div>
+
+    <div class="profile-dialog-actions">
+        <button type="button" data-close-dialog>Готово</button>
+    </div>
+</dialog>
+{{ categories_data|json_script:"categoriesData" }}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        // Ширины полосок — из data-pct, без единого Django-тега внутри
+        // style="" (тот же приём, что и .dept-skill-bar-fill в
+        // department.html — см. её docstring там же).
+        document.querySelectorAll(".an-skill-bar-fill[data-pct], .an-gapmap-fill[data-pct]").forEach(function (bar) {
+            bar.style.width = bar.dataset.pct + "%";
+        });
+
+        var donut = document.querySelector(".an-donut[data-high-end]");
+        if (donut) {
+            var highEnd = donut.dataset.highEnd;
+            var mediumEnd = donut.dataset.mediumEnd;
+            donut.style.background =
+                "conic-gradient(#22C55E 0% " + highEnd + "%, " +
+                "#F59E0B " + highEnd + "% " + mediumEnd + "%, " +
+                "#EF4444 " + mediumEnd + "% 100%)";
+        }
+
+        // ===== КЛАСТЕР КРУГОВ "Категории навыков" =====
+        // Раскладка кругов считается тут, а не в Python — Python отдаёт
+        // только имя/долю каждой категории (см. _category_shares в
+        // analytics_page.py), а собственно то, как N кругов произвольного
+        // размера упаковать друг с другом без наложения, зависит от
+        // реальной ширины/высоты блока в браузере пользователя. Простой
+        // спиральный алгоритм упаковки (по кругу от центра наружу, пока не
+        // найдётся свободное место) — тот же общий приём, что в bubble
+        // chart библиотеках (упрощённый, без внешних зависимостей: в
+        // проекте нет ни одной сторонней JS-библиотеки визуализации, а
+        // тащить её ради одного графика не стоило).
+        //
+        // ВАЖНО про XSS: имя категории — пользовательский ввод (HR может
+        // ввести любую строку при создании новой категории в диалоге
+        // "Управление навыками" ниже), поэтому текст кладётся через
+        // textContent, а не innerHTML — иначе имя категории с "<script>"
+        // внутри выполнилось бы прямо на этой странице у любого HR.
+        (function setupCategoryBubbles() {
+            var wrap = document.getElementById("analyticsBubbleWrap");
+            var dataEl = document.getElementById("categoryShares");
+            if (!wrap || !dataEl) return;
+            var data = [];
+            try { data = JSON.parse(dataEl.textContent || "[]"); } catch (e) { data = []; }
+            if (!data.length) return;
+
+            // Раскладка пересчитывается заново при каждом вызове (при
+            // загрузке и при ресайзе окна, см. addEventListener ниже) —
+            // getBoundingClientRect() один раз при загрузке страницы не
+            // гарантирует, что круги останутся внутри карточки, если
+            // пользователь потом изменит размер окна/шрифт. wrap.innerHTML
+            // очищается перед каждой перерисовкой, чтобы круги не
+            // накапливались друг поверх друга.
+            function render() {
+            wrap.innerHTML = "";
+            var rect = wrap.getBoundingClientRect();
+            var W = rect.width || 460;
+            var H = rect.height || 360;
+            var cx0 = W / 2, cy0 = H / 2;
+
+            var maxPct = 0;
+            data.forEach(function (d) { if (d.pct > maxPct) maxPct = d.pct; });
+
+            var MIN_R = Math.max(30, Math.min(W, H) * 0.11);
+            var MAX_R = Math.min(W, H) * 0.42;
+
+            var items = data.slice().sort(function (a, b) { return b.pct - a.pct; }).map(function (d, i) {
+                var scale = maxPct ? Math.sqrt(d.pct / maxPct) : 0;
+                return {
+                    name: d.name, count: d.count, pct: d.pct,
+                    r: MIN_R + (MAX_R - MIN_R) * scale,
+                    black: i % 2 === 0,
+                };
+            });
+
+            var placed = [];
+            items.forEach(function (item, idx) {
+                if (idx === 0) {
+                    item.x = cx0; item.y = cy0;
+                    placed.push(item);
+                    return;
+                }
+                var angle = 0, radius = 0;
+                var angleStep = 0.28, radiusStep = 2.4;
+                var found = false;
+                // OVERLAP_FACTOR — кругам разрешено немного наезжать друг
+                // на друга (раньше было "+4", то есть гарантированный
+                // ЗАЗОР, отсюда и разреженная раскладка). Порог столкновения
+                // уменьшен на долю МЕНЬШЕГО из двух радиусов — крупные
+                // круги почти не перекрываются друг с другом, а мелкие
+                // могут немного уйти под соседа. Изначально стояло 0.3 —
+                // по отзыву перекрытие было слишком заметным (подписи
+                // мелких кругов местами прятались под соседними), уменьшено
+                // до 0.15. Круги добавляются в DOM в том же порядке, в
+                // котором отсортированы (от большего к меньшему, см. items
+                // выше), поэтому меньший (позже добавленный) визуально
+                // лежит НАД большим при перекрытии — подпись меньшего круга
+                // не перекрывается им же.
+                var OVERLAP_FACTOR = 0.15;
+                for (var iter = 0; iter < 6000 && !found; iter++) {
+                    var x = cx0 + radius * Math.cos(angle);
+                    var y = cy0 + radius * Math.sin(angle);
+                    var ok = true;
+                    for (var j = 0; j < placed.length; j++) {
+                        var other = placed[j];
+                        var dx = x - other.x, dy = y - other.y;
+                        var minDist = item.r + other.r - OVERLAP_FACTOR * Math.min(item.r, other.r);
+                        if (Math.sqrt(dx * dx + dy * dy) < minDist) { ok = false; break; }
+                    }
+                    if (ok) { item.x = x; item.y = y; found = true; } else {
+                        angle += angleStep;
+                        radius += radiusStep * (angleStep / (2 * Math.PI));
+                    }
+                }
+                if (!found) { item.x = cx0; item.y = cy0; }
+                placed.push(item);
+            });
+
+            var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            placed.forEach(function (it) {
+                minX = Math.min(minX, it.x - it.r); maxX = Math.max(maxX, it.x + it.r);
+                minY = Math.min(minY, it.y - it.r); maxY = Math.max(maxY, it.y + it.r);
+            });
+            var bboxW = Math.max(1, maxX - minX), bboxH = Math.max(1, maxY - minY);
+            var scaleFit = Math.min(W / bboxW, H / bboxH, 1) * 0.96;
+            var bboxCx = (minX + maxX) / 2, bboxCy = (minY + maxY) / 2;
+
+            placed.forEach(function (it) {
+                var x = cx0 + (it.x - bboxCx) * scaleFit;
+                var y = cy0 + (it.y - bboxCy) * scaleFit;
+                var r = it.r * scaleFit;
+
+                // Жёсткий клэмп поверх геометрического расчёта — вне
+                // зависимости от того, насколько точно bbox/scaleFit выше
+                // посчитали границы (округления, крайние случаи с одним
+                // огромным кругом и т.п.), круг физически не может оказаться
+                // за пределами [0,W]x[0,H]: это гарантия "не обрезается",
+                // а не просто overflow:hidden на обёртке, который бы обрезал
+                // circle визуально вместо того, чтобы не допустить выход.
+                if (r * 2 > Math.min(W, H)) r = Math.min(W, H) / 2;
+                x = Math.min(Math.max(x, r), W - r);
+                y = Math.min(Math.max(y, r), H - r);
+
+                var el = document.createElement("div");
+                el.className = "an-bubble";
+                el.style.width = (r * 2) + "px";
+                el.style.height = (r * 2) + "px";
+                el.style.left = (x - r) + "px";
+                el.style.top = (y - r) + "px";
+                el.style.background = it.black ? "#111111" : "#F5C518";
+                el.style.color = it.black ? "#FFFFFF" : "#111111";
+                el.style.fontSize = Math.max(10, Math.min(18, r * 0.22)) + "px";
+
+                var inner = document.createElement("span");
+                var nameSpan = document.createElement("span");
+                nameSpan.className = "an-bubble-name";
+                nameSpan.textContent = it.name;
+                var pctSpan = document.createElement("span");
+                pctSpan.className = "an-bubble-pct";
+                pctSpan.textContent = it.pct + "% (" + it.count + ")";
+                inner.appendChild(nameSpan);
+                inner.appendChild(pctSpan);
+                el.appendChild(inner);
+                wrap.appendChild(el);
+            });
+            }
+
+            render();
+
+            // Пересчёт при ЛЮБОМ изменении фактического размера обёртки —
+            // не только при ресайзе окна. Причина завести именно
+            // ResizeObserver, а не только window "resize": при первой же
+            // отрисовке скрипт мог посчитать раскладку по W/H, которые ещё
+            // не финальны — например, соседняя карточка "Карта разрывов" в
+            // той же строке грид-сетки может стать выше/ниже после того,
+            // как догрузится веб-шрифт 'Cabin' и переносы текста в её
+            // подзаголовке пересчитаются (FOUT/реflow уже после первого
+            // прохода скрипта), и тогда высота an-bubble-wrap (flex:1,
+            // растягивается на высоту строки) меняется без единого события
+            // "resize" окна. Без ResizeObserver раскладка осталась бы
+            // посчитанной под старую, уже неактуальную высоту — и часть
+            // кругов физически бы не поместилась в новых границах (ровно
+            // тот баг, который сюда и привёл: подтверждено воспроизведением
+            // — при узкой ширине окна карта разрывов становится выше из-за
+            // переноса текста, an-bubble-wrap вслед за строкой grid
+            // растягивается, а круги, посчитанные до этого растягивания,
+            // остаются на старых координатах и вылезают за нижнюю границу).
+            // debounce через rAF — ResizeObserver может стрелять пачками.
+            if (typeof ResizeObserver !== "undefined") {
+                var pending = false;
+                var ro = new ResizeObserver(function () {
+                    if (pending) return;
+                    pending = true;
+                    requestAnimationFrame(function () { pending = false; render(); });
+                });
+                ro.observe(wrap);
+            } else {
+                // Совсем старый браузер без ResizeObserver — хотя бы
+                // window resize, лучше, чем ничего.
+                var resizeTimer = null;
+                window.addEventListener("resize", function () {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(render, 150);
+                });
+            }
+        })();
+
+        // ===== "КАРТА РАЗРЫВОВ" — раскрытие полного списка =====
+        // Список сворачивается CSS-ограничением высоты (см. .an-gapmap-
+        // scroll в analytics.css, 360px что в свёрнутом, что в развёрнутом
+        // виде) — клик по кнопке переключает только overflow: hidden->auto,
+        // высота карточки не меняется вообще, просто появляется прокрутка.
+        // Кнопка в разметке рендерится, если строк >3 (см. {% if
+        // skill_gaps|length > 3 %} в analytics.html) — это ГРУБАЯ
+        // серверная оценка (в вёрстке нет способа заранее знать, сколько
+        // строк реально влезет в 360px при разных ширинах экрана и разной
+        // длине названий навыков, из-за переноса текста). Точную проверку
+        // делаем уже в браузере: если после отрисовки контент физически не
+        // вылезает за рамки (scrollHeight <= clientHeight — все строки и
+        // так видны), кнопку прячем, разворачивать нечего. Пересчитываем
+        // при любом изменении реального размера блока (ResizeObserver) —
+        // та же причина, что и у кругов категорий выше: ширина окна
+        // меняется, переносы текста в названиях навыков меняются вместе с
+        // ней, и то, сколько строк влезает без обрезки, тоже меняется.
+        (function setupGapMapToggle() {
+            var scroll = document.getElementById("analyticsGapScroll");
+            var btn = document.getElementById("analyticsGapToggle");
+            if (!scroll || !btn) return;
+            var totalCount = btn.dataset.count;
+
+            function updateButtonVisibility() {
+                if (scroll.classList.contains("expanded")) return;
+                var hasOverflow = scroll.scrollHeight > scroll.clientHeight + 1;
+                btn.style.display = hasOverflow ? "" : "none";
+            }
+
+            btn.addEventListener("click", function () {
+                var expanded = scroll.classList.toggle("expanded");
+                btn.textContent = expanded ? "Свернуть" : "Показать все (" + totalCount + ")";
+            });
+
+            updateButtonVisibility();
+            if (typeof ResizeObserver !== "undefined") {
+                var gapPending = false;
+                new ResizeObserver(function () {
+                    if (gapPending) return;
+                    gapPending = true;
+                    requestAnimationFrame(function () { gapPending = false; updateButtonVisibility(); });
+                }).observe(scroll);
+            } else {
+                window.addEventListener("resize", updateButtonVisibility);
+            }
+        })();
+
+        // ===== ПИЛЮЛЯ "Сотрудников" — выпадающий список =====
+        // Обычный toggle-по-клику + закрытие по клику снаружи, тот же
+        // паттерн, что и в static/js/dropdown.js для меню профиля в шапке
+        // (см. base.html) — не переиспользуем сам dropdown.js напрямую,
+        // потому что он жёстко завязан на конкретные id того меню, тут
+        // своя пара id и своя логика поворота стрелки (см. .dropdown-open
+        // в analytics.css).
+        (function setupMembersDropdown() {
+            var pill = document.getElementById("analyticsMembersPill");
+            var trigger = document.getElementById("analyticsMembersTrigger");
+            var dropdown = document.getElementById("analyticsMembersDropdown");
+            if (!pill || !trigger || !dropdown) return;
+
+            function close() {
+                dropdown.classList.remove("open");
+                pill.classList.remove("dropdown-open");
+                trigger.setAttribute("aria-expanded", "false");
+            }
+
+            trigger.addEventListener("click", function (e) {
+                e.stopPropagation();
+                var willOpen = !dropdown.classList.contains("open");
+                if (willOpen) {
+                    dropdown.classList.add("open");
+                    pill.classList.add("dropdown-open");
+                    trigger.setAttribute("aria-expanded", "true");
+                } else {
+                    close();
+                }
+            });
+
+            document.addEventListener("click", function (e) {
+                if (!pill.contains(e.target)) close();
+            });
+            document.addEventListener("keydown", function (e) {
+                if (e.key === "Escape") close();
+            });
+        })();
+
+        // ===== ДИАЛОГ "УПРАВЛЕНИЕ НАВЫКАМИ" =====
+        var manageBtn = document.getElementById("analyticsManageSkillsBtn");
+        var manageDialog = document.getElementById("manageSkillsDialog");
+        if (manageBtn && manageDialog) {
+            manageBtn.addEventListener("click", function () { manageDialog.showModal(); });
+            // Закрытие — только по кнопке "Готово" (data-close-dialog) или
+            // Escape, НЕ по клику мимо — тот же приём и та же причина, что
+            // и у всех диалогов reserve.html (см. её комментарий у
+            // соответствующего addEventListener): клик по паддингу самого
+            // <dialog> тоже даёт e.target === dialog, случайный клик не
+            // должен закрывать диалог без явного намерения.
+            manageDialog.querySelectorAll("[data-close-dialog]").forEach(function (btn) {
+                btn.addEventListener("click", function () { manageDialog.close(); });
+            });
+        }
+
+        // Каскад "Категория -> Подкатегория" + переключение "+ Новая
+        // категория/подкатегория…" в текстовое поле в том же месте формы
+        // (см. .an-new-input-wrap в analytics.css) — категория без готовых
+        // подкатегорий (в т.ч. только что выбранная "+ Новая категория…")
+        // автоматически переводит и подкатегорию в режим "новая" тоже, см.
+        // docstring _handle_add_skill (analytics_page.py) почему выбора
+        // существующей подкатегории для новой категории в принципе нет.
+        (function setupSkillCascade() {
+            var categoriesDataEl = document.getElementById("categoriesData");
+            if (!categoriesDataEl) return;
+            var categories = [];
+            try { categories = JSON.parse(categoriesDataEl.textContent || "[]"); } catch (e) { categories = []; }
+            var byId = {};
+            categories.forEach(function (c) { byId[c.id] = c; });
+
+            var categorySelect = document.getElementById("analyticsCategorySelect");
+            var subSlot = document.querySelector('[data-role="subcategory-slot"]');
+            var catSlot = document.querySelector('[data-role="category-slot"]');
+            var newHint = document.getElementById("analyticsNewCategoryHint");
+            if (!categorySelect || !subSlot || !catSlot) return;
+
+            function newInputWrap(fieldName, placeholder) {
+                var wrap = document.createElement("div");
+                wrap.className = "an-new-input-wrap";
+                var input = document.createElement("input");
+                input.type = "text";
+                input.name = fieldName;
+                input.className = "an-new-input";
+                input.placeholder = placeholder;
+                input.required = true;
+                input.maxLength = 255;
+                var cancel = document.createElement("button");
+                cancel.type = "button";
+                cancel.className = "an-new-input-cancel";
+                cancel.setAttribute("aria-label", "Отменить, выбрать существующую");
+                cancel.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+                wrap.appendChild(input);
+                wrap.appendChild(cancel);
+                return wrap;
+            }
+
+            function renderSubcategorySelect(category) {
+                subSlot.innerHTML = "";
+                var select = document.createElement("select");
+                select.name = "subcategory_id";
+                select.id = "analyticsSubcategorySelect";
+                select.className = "an-select";
+                (category ? category.subcategories : []).forEach(function (sc) {
+                    var opt = document.createElement("option");
+                    opt.value = sc.id;
+                    opt.textContent = sc.name;
+                    select.appendChild(opt);
+                });
+                var newOpt = document.createElement("option");
+                newOpt.value = "__new__";
+                newOpt.className = "an-new-option";
+                newOpt.textContent = "+ Новая подкатегория…";
+                select.appendChild(newOpt);
+                subSlot.appendChild(select);
+                select.addEventListener("change", onSubcategoryChange);
+                return select;
+            }
+
+            function renderSubcategoryNewInput() {
+                subSlot.innerHTML = "";
+                subSlot.appendChild(newInputWrap("new_subcategory_name", "Название новой подкатегории"));
+                subSlot.querySelector(".an-new-input-cancel").addEventListener("click", function () {
+                    var category = byId[categorySelect.value];
+                    renderSubcategorySelect(category);
+                });
+            }
+
+            function onSubcategoryChange(e) {
+                if (e.target.value === "__new__") renderSubcategoryNewInput();
+            }
+
+            function onCategoryChange() {
+                if (categorySelect.value === "__new__") {
+                    catSlot.innerHTML = "";
+                    var wrap = newInputWrap("new_category_name", "Название новой категории");
+                    catSlot.appendChild(wrap);
+                    wrap.querySelector(".an-new-input-cancel").addEventListener("click", function () {
+                        restoreCategorySelect();
+                    });
+                    if (newHint) newHint.hidden = false;
+                    // Новой категории неоткуда взять готовые подкатегории —
+                    // подкатегория переходит в режим "новая" автоматически.
+                    renderSubcategoryNewInput();
+                    return;
+                }
+                if (newHint) newHint.hidden = true;
+                renderSubcategorySelect(byId[categorySelect.value]);
+            }
+
+            function restoreCategorySelect() {
+                catSlot.innerHTML = "";
+                var select = document.createElement("select");
+                select.name = "category_id";
+                select.id = "analyticsCategorySelect";
+                select.className = "an-select";
+                categories.forEach(function (c) {
+                    var opt = document.createElement("option");
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    select.appendChild(opt);
+                });
+                var newOpt = document.createElement("option");
+                newOpt.value = "__new__";
+                newOpt.className = "an-new-option";
+                newOpt.textContent = "+ Новая категория…";
+                select.appendChild(newOpt);
+                catSlot.appendChild(select);
+                select.addEventListener("change", onCategoryChange);
+                categorySelect = select;
+                if (newHint) newHint.hidden = true;
+                renderSubcategorySelect(categories.length ? byId[categories[0].id] : null);
+            }
+
+            categorySelect.addEventListener("change", onCategoryChange);
+            renderSubcategorySelect(categories.length ? byId[categories[0].id] : null);
+        })();
+
+        // Поиск по каталогу внутри диалога — то же сворачивание строк по
+        // data-search, что и на "Мой отдел"/reserve.html (см. их JS).
+        (function setupSkillsSearch() {
+            var input = document.getElementById("analyticsSkillSearch");
+            var groupsWrap = document.getElementById("analyticsSkillsGroups");
+            var emptyState = document.getElementById("analyticsSkillsEmptyState");
+            if (!input || !groupsWrap) return;
+            input.addEventListener("input", function () {
+                var q = input.value.trim().toLowerCase();
+                var anyVisible = false;
+                groupsWrap.querySelectorAll(".an-skills-group").forEach(function (group) {
+                    var groupHasVisible = false;
+                    group.querySelectorAll(".an-skills-row").forEach(function (row) {
+                        var match = !q || (row.dataset.search || "").indexOf(q) !== -1;
+                        row.style.display = match ? "" : "none";
+                        if (match) groupHasVisible = true;
+                    });
+                    group.style.display = groupHasVisible ? "" : "none";
+                    if (groupHasVisible) anyVisible = true;
+                });
+                if (emptyState) emptyState.style.display = anyVisible ? "none" : "";
+            });
+        })();
+    })();
+</script>
+{% endblock %}

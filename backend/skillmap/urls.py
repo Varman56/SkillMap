@@ -10,6 +10,7 @@ from skillmap.views.projects_page import projects_page
 from skillmap.views.reserve_page import reserve_page
 from skillmap.views.approvals_page import approvals_page
 from skillmap.views.department_page import department_page
+from skillmap.views.analytics_page import analytics_page
 
 urlpatterns = [
     path("profile/", profile_page, name="my-profile"),
@@ -25,6 +26,7 @@ urlpatterns = [
     path("matrix/", matrix_page, name="matrix-page"),
     path("matrix/export/", matrix_export, name="matrix-export"),
     path("my-department/", department_page, name="my-department-page"),
+    path("analytics/", analytics_page, name="analytics-page"),
 
     # Отдаём загруженные файлы (фото/резюме) из MEDIA_ROOT по префиксу
     # /media/ — раньше это был один общий django.views.static.serve БЕЗ

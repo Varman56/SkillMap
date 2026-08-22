@@ -63,6 +63,13 @@
                  "найти проект", остальным ролям в хедере не нужна. -->
             <a href="{% url 'projects-page' %}"
                class="{% if request.resolver_match.url_name == 'projects-page' %}public-nav-active{% endif %}">Проекты</a>
+            <!-- "Аналитика" — новая HR-only страница (analytics_page.py):
+                 сводка по всей компании с фильтром по отделу и управлением
+                 каталогом навыков. Пункт меню только у HR (та же ветка,
+                 что и "Матрица"/"Кадровый резерв"/"Проекты" выше) —
+                 у Manager и Employee своих аналогов этой страницы нет. -->
+            <a href="{% url 'analytics-page' %}"
+               class="{% if request.resolver_match.url_name == 'analytics-page' %}public-nav-active{% endif %}">Аналитика</a>
             {% endif %}
             {% endif %}
         </nav>

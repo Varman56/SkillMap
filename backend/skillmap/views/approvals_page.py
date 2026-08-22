@@ -29,19 +29,41 @@ Manager: роль HR на этой странице ничего не даёт �
 выпадающий список: сюда попадает только Manager, ему нечего выбирать, он
 видит только заявки своего отдела — без исключений.
 
-Всё управляется через GET-фильтры + один POST-экшн:
-  ?employee=...   — поиск по ФИО (подстрока, без учёта регистра)
-  ?skill=...      — поиск по названию навыка (подстрока, без учёта регистра)
-  ?sort=asc|desc  — сортировка по дате отправки заявки (по умолчанию desc,
-                    т.е. сначала новые — соответствует стрелке ↓ в шапке
-                    колонки «Дата отправки» в UI)
-  ?page=...       — номер страницы списка
+Фильтры (поиск по сотруднику/навыку), сортировка по дате отправки и
+пагинация — ВСЕ на фронтенде (JS, см. approvals.html), а не через
+GET-параметры с перезагрузкой страницы, как было раньше. Бэкенд отдаёт
+СРАЗУ ВСЕ заявки своего отдела (department_id проверен здесь же — см.
+ниже) одним запросом, отсортированные по created_at по убыванию (сначала
+новые); JS дальше фильтрует/сортирует/бьёт на страницы уже загруженный в
+DOM список без единого обращения к серверу. Почему так: искать
+своими глазами по 20-100 заявкам отдела (см. PAGE_SIZE ниже) неудобно, а
+гонять запрос на сервер и ждать перезагрузку страницы на каждую
+напечатанную букву — тем более, когда весь набор данных и так маленький
+(один отдел, не вся компания) и целиком помещается в память браузера без
+всякой пагинации на уровне БД.
+
+Единственное, что остаётся на сервере — сам список заявок (department_id,
+is_active, is_intern — эти фильтры НЕЛЬЗЯ доверить фронтенду хотя бы
+потому, что клиент не должен получать в DOM заявки чужих отделов вообще,
+даже скрытые CSS'ом) и один POST-экшн:
   POST action=approve_skill, user_skill_id=<id>, level=<1..4>
+  POST action=reject_skill, user_skill_id=<id>
+
+Сам POST-экшн тоже больше не перезагружает страницу: "Подтвердить"/
+"Отклонить" в approvals.html отправляются через fetch() с заголовком
+X-Requested-With=XMLHttpRequest, и в ответ на такой запрос эта view
+отдаёт JSON ({"ok", "messages", "user_skill_id"}) вместо redirect —
+раньше редирект на GET approvals-page сбрасывал фильтры/поиск/
+сортировку/страницу пагинации на клиенте, которые как раз ради этого и
+были перенесены на фронтенд (см. выше). Обычный POST без этого заголовка
+(например, если JS не выполнился) по-прежнему получает redirect — это
+чистый progressive enhancement, а не два независимых способа подтвердить
+заявку.
 """
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.db import transaction
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 
 from api.models import UserSkill
@@ -53,7 +75,17 @@ from .profile_page import (
     _parse_level,
 )
 
-PAGE_SIZE = 8
+# Было 8, затем 6 — по запросу уменьшено ещё раз до 5, чтобы страница
+# помещалась без прокрутки при 100% (см. approvals.html/.appr-table —
+# заодно строки таблицы там же сделаны на ~7-9% тоньше, но одних только
+# тонких строк само по себе не хватало). Подобрано экспериментально
+# (реальный рендер + замер высоты страницы в Playwright, см. отчёт по
+# этой задаче) — компромисс между "не скроллить" и не слишком частой
+# пагинацией. Раньше это был LIMIT на уровне БД (Paginator), теперь просто
+# передаётся в шаблон (data-page-size) и используется JS-пагинацией на
+# уже загруженном в DOM списке — см. docstring модуля выше, почему
+# фильтры/сортировка/пагинация теперь целиком на фронтенде.
+PAGE_SIZE = 5
 
 
 def _can_view(user) -> bool:
@@ -211,16 +243,53 @@ def approvals_page(request):
             _handle_reject(request, request.user)
         else:
             messages.error(request, "Неизвестное действие")
-        return redirect("approvals-page")
 
-    employee_search = (request.GET.get("employee") or "").strip()
-    skill_search = (request.GET.get("skill") or "").strip()
-    sort_dir = "asc" if request.GET.get("sort") == "asc" else "desc"
+        # Запрос от fetch() (см. extra_js в approvals.html) — фильтры/поиск/
+        # сортировка/страница пагинации теперь целиком на клиенте (см.
+        # docstring модуля), и полная перезагрузка страницы после каждого
+        # подтверждения/отклонения заявки их сбрасывала: пользователь искал
+        # конкретного сотрудника, подтверждал заявку — и попадал обратно на
+        # пустой поиск и первую страницу. Поэтому теперь это не редирект, а
+        # обычный JSON-ответ: JS сам убирает нужную строку из уже
+        # отрисованного списка, ничего не перезагружая (см. removeRowById
+        # там же), а состояние экрана остаётся как было.
+        #
+        # X-Requested-With — обычный признак fetch/XHR-запроса (сам fetch()
+        # его не проставляет по умолчанию, но наш JS делает это явно). Без
+        # этой проверки прогресс-энхансмент сломался бы для не-JS сценария:
+        # обычный <form> без JS (например, JS упал с ошибкой ДО того, как
+        # навесил обработчик) отправляет POST без этого заголовка и должен
+        # получить в ответ обычный редирект, а не JSON, который браузер
+        # просто покажет как текст на весь экран.
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            pending_messages = [
+                {"level": m.tags, "text": str(m)} for m in messages.get_messages(request)
+            ]
+            # messages.error() всегда проставляет тег "error" (см.
+            # django.contrib.messages.constants) — по нему же красит блок и
+            # showMessages() на клиенте (appr-message-error), поэтому же
+            # признаком считаем успех/неуспех действия и здесь: если среди
+            # сообщений есть хоть одно с тегом "error" — действие не
+            # применилось (see _handle_approve/_handle_reject выше, они
+            # только messages.error() и делают в каждой ветке отказа, apply
+            # не происходит), и строку в списке на клиенте трогать не нужно.
+            ok = not any(m["level"] == "error" for m in pending_messages)
+            return JsonResponse({
+                "ok": ok,
+                "messages": pending_messages,
+                "user_skill_id": request.POST.get("user_skill_id"),
+            })
+
+        return redirect("approvals-page")
 
     pending_qs = (
         UserSkill.objects.filter(is_approved=False, user__is_active=True, user__is_intern=False)
         .select_related("user", "skill")
-        .order_by("created_at" if sort_dir == "asc" else "-created_at")
+        # Порядок фиксирован (сначала новые) — сортировку "по возрастанию"
+        # JS переключает уже на клиенте, просто разворачивая готовый
+        # список задом наперёд (см. approvals.html), второй запрос к БД
+        # ради этого не нужен.
+        .order_by("-created_at")
     )
     # user__is_intern=False — согласовано с matrix_page.py/ask_page.py/
     # department_page.py (аудит, п. 3.1): раньше заявку практиканта можно
@@ -260,39 +329,20 @@ def approvals_page(request):
         else pending_qs.none()
     )
 
-    if employee_search:
-        pending_qs = pending_qs.filter(user__full_name__icontains=employee_search)
-    if skill_search:
-        pending_qs = pending_qs.filter(skill__name__icontains=skill_search)
-
-    pending_qs = pending_qs.distinct()
-
     # Раньше здесь же считался waiting_employee_count для стат-блока на этой
     # странице — по запросу перенесён в "Мой отдел" (см.
     # department_page.py/_waiting_employee_count), здесь больше не нужен.
 
-    paginator = Paginator(pending_qs, PAGE_SIZE)
-    page_obj = paginator.get_page(request.GET.get("page"))
-
-    # Ссылки пагинации/сортировки в шаблоне должны сохранять остальные
-    # активные фильтры (employee/skill/sort) — собираем query string без
-    # "page" один раз здесь, а не руками в шаблоне (там раньше терялся
-    # skill_search при переходе на вторую страницу).
-    base_params = request.GET.copy()
-    base_params.pop("page", None)
-    qs_without_page = base_params.urlencode()
-
-    sort_toggle_params = base_params.copy()
-    sort_toggle_params["sort"] = "asc" if sort_dir == "desc" else "desc"
-    qs_for_sort_toggle = sort_toggle_params.urlencode()
-
+    # Больше НЕТ ни .filter(employee/skill__icontains=...), ни Paginator —
+    # фильтры/пагинация теперь на фронтенде (см. docstring модуля).
+    # page_items — ВСЕ заявки отдела целиком, JS дальше сам решает, что из
+    # этого показывать.
+    #
     # _approved_level(us.user, us.skill) раньше вызывался отдельно на
-    # КАЖДУЮ строку страницы (до PAGE_SIZE=8 штук) — отдельный SQL-запрос
-    # на строку (аудит, п. 4.7). Страница уже одна (через Paginator), так
-    # что все нужные пары (user_id, skill_id) известны заранее — вместо
-    # N запросов в цикле один запрос сразу по всем строкам страницы,
-    # дальше просто словарь.
-    page_items = list(page_obj)
+    # КАЖДУЮ строку страницы — отдельный SQL-запрос на строку (аудит, п.
+    # 4.7). Вместо N запросов в цикле один запрос сразу по всем заявкам
+    # отдела, дальше просто словарь.
+    page_items = list(pending_qs)
     approved_levels_by_pair = {
         (us.user_id, us.skill_id): us.level
         for us in UserSkill.objects.filter(
@@ -331,18 +381,29 @@ def approvals_page(request):
                 "requested_level_class": PROFILE_LEVEL_LABELS_EN.get(us.level, us.level),
                 "submitted_at": us.created_at,
                 "min_selectable_level": _min_selectable_level(us),
+                # Уже подтверждённый уровень этого же навыка (если есть) —
+                # показывается рядом с названием навыка в таблице кружком с
+                # цифрой (см. approvals.html/.appr-current-level-badge), т.к.
+                # руководителю решать заявку без этого приходилось открывать
+                # профиль сотрудника отдельно. approved_levels_by_pair уже
+                # посчитан выше (для min_selectable_level) — второго запроса
+                # к БД не требуется. approved_level — None, когда
+                # подтверждённой строки этого навыка ещё нет вовсе (сотрудник
+                # запросил его впервые); approved_level_label — готовая
+                # русская подпись для title-подсказки над кружком (сам кружок
+                # показывает только цифру/прочерк — компактно, колонка
+                # "Навык" зафиксирована по ширине, см. approvals.css).
+                "approved_level": approved_levels_by_pair.get((us.user_id, us.skill_id)),
+                "approved_level_label": PROFILE_LEVEL_LABELS.get(
+                    approved_levels_by_pair.get((us.user_id, us.skill_id))
+                ),
             }
             for us in page_items
         ],
         "level_options": [(level, PROFILE_LEVEL_LABELS[level]) for level in sorted(VALID_LEVELS)],
         "min_level": min(VALID_LEVELS),
         "max_level": max(VALID_LEVELS),
-        "page_obj": page_obj,
-        "employee_search": employee_search,
-        "skill_search": skill_search,
         "department_filter": department_filter,
-        "sort_dir": sort_dir,
-        "qs_without_page": qs_without_page,
-        "qs_for_sort_toggle": qs_for_sort_toggle,
+        "page_size": PAGE_SIZE,
     }
     return render(request, "approvals.html", context)
